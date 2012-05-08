@@ -1,0 +1,13 @@
+*~
+*.o
+*.i686
+*.x86_64
+*.orig
+*.rej
+*.bak
+\#*
+.#*
+*.cmd
+*.exe
+*.png
+!doc/images/*.png

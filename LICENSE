@@ -1,0 +1,9 @@
+The blkreplay suite comes with the following GNU licenses:
+
+sourcecode             => GPLv2+  (see file gpl-2.0.txt)
+
+documentation          => GNU FDL (see file fdl.txt)
+
+data files / blktraces => GNU all-permissive
+                          with request to rename any modifications
+

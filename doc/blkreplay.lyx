@@ -1,0 +1,5522 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass scrreprt
+\begin_preamble
+\usepackage{listings}
+\usepackage{color}
+\end_preamble
+\options abstracton
+\use_default_options true
+\begin_modules
+enumitem
+\end_modules
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref true
+\pdf_title "blkreplay"
+\pdf_author "Thomas Schöbel-Theuer"
+\pdf_bookmarks true
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks true
+\pdf_pdfborder true
+\pdf_colorlinks true
+\pdf_backref false
+\pdf_pdfusetitle true
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+
+\family typewriter
+blkreplay
+\family default
+ and Sonar Diagrams
+\end_layout
+
+\begin_layout Subtitle
+A manual for system administrators,
+\begin_inset Newline newline
+\end_inset
+
+kernel developers,
+\begin_inset Newline newline
+\end_inset
+
+hardware technicians,
+\begin_inset Newline newline
+\end_inset
+
+ and experts in IO systems
+\end_layout
+
+\begin_layout Author
+Thomas Schöbel-Theuer (
+\family typewriter
+tst@1und1.de
+\family default
+)
+\end_layout
+
+\begin_layout Date
+Version 0.6
+\end_layout
+
+\begin_layout Standard
+\noindent
+Copyright (C) 2012 Thomas Schöbel-Theuer.
+\end_layout
+
+\begin_layout Standard
+Permission is granted to copy, distribute and/or modify this document under
+ the terms of the GNU Free Documentation License, Version 1.3 or any later
+ version published by the Free Software Foundation; with no Invariant Sections,
+ no Front-Cover Texts, and no Back-Cover Texts.
+ A copy of the license is included in the section entitled "GNU Free Documentati
+on License".
+\end_layout
+
+\begin_layout Abstract
+
+\family typewriter
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+\family typewriter
+
+\backslash
+sloppy
+\end_layout
+
+\end_inset
+
+ blkreplay
+\family default
+ is a GPL'ed userspace tool for testing the block layer of Linux (or other
+ Unix-like OSes) while measuring latency and throughput of IO operations
+ for later visualization (so-called 
+\begin_inset Quotes eld
+\end_inset
+
+sonar diagrams
+\begin_inset Quotes erd
+\end_inset
+
+ and others).
+\end_layout
+
+\begin_layout Abstract
+
+\family typewriter
+blkreplay
+\family default
+ can be used to 
+\series bold
+test physical hardware
+\series default
+, e.g.
+ compare different brands of hard disks, or RAID controllers / their settings
+ / RAID rebuild performance degradation, or to evaluate the effect of SSD
+ caching, or to compare different block level transports like iSCSI vs Fibrechan
+nel (over different kinds of storage networks).
+\end_layout
+
+\begin_layout Abstract
+It can compare 
+\series bold
+virtual hardware
+\series default
+ (like 
+\family typewriter
+vmware
+\family default
+ or 
+\family typewriter
+XenServer
+\family default
+ block devices, or any type of block-level 
+\series bold
+storage virtualization
+\series default
+) to each other or to physical hardware, provided the test setup is handled
+ very carefully
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Otherwise you may get 
+\emph on
+useless fake results
+\emph default
+ measuring the 
+\emph on
+cache
+\emph default
+ performance or even 
+\emph on
+sparse accesses to holes
+\emph default
+ instead of the real hardware performance.
+ Such fake results may differ from real results by 
+\emph on
+factors
+\emph default
+, er even by 
+\emph on
+orders of magnitude
+\emph default
+.
+ 
+\family typewriter
+blkreplay
+\family default
+ comes with thorough descriptions teaching you how to avoid the most common
+ pitfalls.
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Abstract
+
+\family typewriter
+blkreplay
+\family default
+ can compare commercial storage boxes from vendors like EMC, Net\SpecialChar \-
+App, IBM,
+ Hitachi, etc to each other or to cheap off-the-shelf hardware (in order
+ to determine the price/performance ratio), provided the test setup is also
+ handled very carefully
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Notice that most commercial storage systems 
+\series bold
+\emph on
+are
+\series default
+\emph default
+ in fact nothing but virtualized storage, so the above warnings about possible
+ 
+\emph on
+fake results
+\emph default
+ apply.
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Abstract
+Furthermore, it can be used for tests of the 
+\series bold
+Linux kernel
+\series default
+, e.g.
+ for testing device drivers, comparing different IO schedulers at different
+ load patterns, determining the overhead of Linux 
+\family typewriter
+dm
+\family default
+ targets, determining the impact of network problems to DRBD, and much more.
+\end_layout
+
+\begin_layout Abstract
+In addition to artificial loads like random read-write sweeps and various
+ kinds of 
+\emph on
+overload tests
+\emph default
+, it can also replay 
+\series bold
+natural loads
+\series default
+ which have been recorded by 
+\family typewriter
+blktrace
+\family default
+ at heavily-loaded production servers at big data centers.
+ 
+\family typewriter
+blkreplay
+\family default
+ comes with a
+\series bold
+ large collection of natural loads
+\series default
+ from a wide spectrum of applications (such as web servers, databases, dedicated
+ servers, etc) which have been released to the public by 1&1 under GPL.
+ Some of these natural loads have recorded the real-life disk access behaviour
+ from servers serving thousands of customers in parallel.
+\end_layout
+
+\begin_layout Abstract
+At 1&1, 
+\family typewriter
+blkreplay
+\family default
+ has even been used as a tool for root cause analysis of incidents: for
+ example, high load peaks presumably stemming from traffic jam (or other
+ sources of overload) were recorded at production sites in real time by
+ 
+\family typewriter
+blktrace
+\family default
+, and later replayed in the laboratory (without causing customer impact)
+ seeking for the cause of trouble, or improving the safety margins by choice
+ of better hardware.
+\end_layout
+
+\begin_layout Abstract
+For experts in IO subsystems, visualization techniques like 
+\begin_inset Quotes eld
+\end_inset
+
+sonar diagrams
+\begin_inset Quotes erd
+\end_inset
+
+ can reveal (parts of) the internal structure of complex IO systems, such
+ as cache hierarchies or other hierarchical storage systems.
+\end_layout
+
+\begin_layout Abstract
+As a community project under GPL, 
+\family typewriter
+blkreplay
+\family default
+ is open to contributions from hardware vendors, other data centers, the
+ kernel hacker community, etc.
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Chapter
+Why Synthetic Benchmarks suck
+\end_layout
+
+\begin_layout Standard
+There are a lot of benchmark tools around, like 
+\family typewriter
+iozone
+\family default
+, 
+\family typewriter
+iometer
+\family default
+, 
+\family typewriter
+iperf
+\family default
+, 
+\family typewriter
+bonnie
+\family default
+(
+\family typewriter
+++
+\family default
+) and many others.
+\end_layout
+
+\begin_layout Standard
+What do they have in 
+\emph on
+common
+\emph default
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Of course, the mentioned performance measuring tools are targeted at inspection
+ of different components of an OS, such as network, filesystem layer, and
+ block IO layer.
+ Here the question is a about 
+\emph on
+commonality
+\emph default
+, not differences.
+\end_layout
+
+\end_inset
+
+?
+\end_layout
+
+\begin_layout Quotation
+Simply, most of them generate an 
+\series bold
+artificial load
+\series default
+ onto your system.
+\end_layout
+
+\begin_layout Standard
+Artificial loads, as opposed to 
+\series bold
+natural loads
+\series default
+, have a main disadvantage: they cannot answer questions like 
+\begin_inset Quotes eld
+\end_inset
+
+will my application Z run on system A reliably?
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+question
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+artificial
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+natural
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Is system A better than B for application Z?
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $partly$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sqrt{}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Does application Z run on system A?
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sqrt{}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+It seems that some people 
+\emph on
+believe
+\emph default
+ that synthetic benchmarks can be used even at the position of the dash
+ in the above table.
+ These people are wrong.
+\end_layout
+
+\begin_layout Standard
+Experiences at big data centers at 1&1 show that sometimes the differences
+ between results from artificial benchmarks and real-world application behaviour
+ are very large.
+ We found cases where artificial benchmarks (adjusting parameters like IOPS)
+ suggested that a particular application should run on a particular hardware
+ system, but the real application didn't: after deployment, a systematic
+ series of incidents 
+\emph on
+disproved
+\emph default
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Sometimes we got results in the other direction: artificial benchmarks suggested
+ that a particular application would 
+\emph on
+not
+\emph default
+ run, but in reality it 
+\emph on
+did
+\emph default
+ run.
+\end_layout
+
+\end_inset
+
+ the validity of the former benchmark results for the 
+\emph on
+originally intended statement
+\emph default
+.
+ The failed prediction from the artificial benchmarks led to a 
+\emph on
+failed invest
+\emph default
+.
+\end_layout
+
+\begin_layout Standard
+What can we do about that?
+\end_layout
+
+\begin_layout Standard
+Obviously, parameters like IOPS (even when enriched with attributes like
+ 
+\begin_inset Quotes eld
+\end_inset
+
+average IOPS
+\begin_inset Quotes erd
+\end_inset
+
+ or 
+\begin_inset Quotes eld
+\end_inset
+
+peak IOPS
+\begin_inset Quotes erd
+\end_inset
+
+) are 
+\emph on
+not
+\emph default
+ representative for description of the real-world behaviour of applications.
+ Attempts to describe real-world behaviour in mathematical terms of analytic
+ functions have been already made in the 1970's; they failed.
+ All such models can 
+\emph on
+try
+\emph default
+ to describe an 
+\emph on
+approximation
+\emph default
+ of real-world behaviour, if enough knowledge about the application 
+\emph on
+would
+\emph default
+ be available.
+\end_layout
+
+\begin_layout Standard
+So why trying to deal with tools that never can fully describe real-world
+ application behaviour, when there 
+\emph on
+exist
+\emph default
+ tools which definitely 
+\emph on
+can
+\emph default
+ do?
+\end_layout
+
+\begin_layout Standard
+One of them is 
+\family typewriter
+blkreplay
+\family default
+.
+\end_layout
+
+\begin_layout Chapter
+How 
+\family typewriter
+blkreplay
+\family default
+ works
+\end_layout
+
+\begin_layout Section
+Principle
+\end_layout
+
+\begin_layout Standard
+In some sense, 
+\family typewriter
+blkreplay
+\family default
+ is just the opposite of the well-known Linux kernel tool 
+\family typewriter
+blktrace
+\family default
+: recordings made by 
+\family typewriter
+blktrace
+\family default
+ are simply replayed on another block device.
+\end_layout
+
+\begin_layout Standard
+A 
+\family typewriter
+blktrace
+\family default
+ record of an IO request contains the following information:
+\end_layout
+
+\begin_layout Enumerate
+timestamp of the IO request (nanosecond resolution)
+\end_layout
+
+\begin_layout Enumerate
+position of the IO request (sector#)
+\end_layout
+
+\begin_layout Enumerate
+length of the IO request (#sectors)
+\end_layout
+
+\begin_layout Enumerate
+direction: R[ead] or W[write]
+\end_layout
+
+\begin_layout Standard
+Notice that 
+\family typewriter
+blktrace
+\family default
+ records do 
+\emph on
+not
+\emph default
+ contain any data.
+ Therefore, 
+\family typewriter
+blkreplay
+\family default
+ must later generate some 
+\emph on
+fake data
+\emph default
+ in order to repeat the timely and positionly behaviour of the original
+ recording.
+ By default, NULL blocks enriched with some internal header information
+ are generated.
+ The internal headers may be used for 
+\emph on
+verification
+\emph default
+ of the correctness of IO semantics, either by immediate re-read after each
+ write, or in a separate verify pass after the end of an ordinary 
+\family typewriter
+blkreplay
+\family default
+ run.
+\end_layout
+
+\begin_layout Standard
+Notice that these NULL blocks will (together with the internal header informatio
+n) 
+\series bold
+destroy
+\series default
+ any previous content (such as filesystem data) on your block device!
+\end_layout
+
+\begin_layout Standard
+Therefore, 
+\emph on
+never
+\emph default
+ use 
+\family typewriter
+blkreplay
+\family default
+ on production systems.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresToxiques.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+
+\emph on
+ Always
+\emph default
+ use 
+\family typewriter
+blkreplay
+\family default
+ in the laboratory, always on devices which don't contain any valuable data!
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresToxiques.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Running 
+\family typewriter
+blkreplay
+\family default
+ 
+\emph on
+in parallel
+\emph default
+ to mounted filesystems on the same device
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Although a single Linux kernel instance tries to probihit such a disaster,
+ there are cases where you can 
+\begin_inset Quotes eld
+\end_inset
+
+achieve
+\begin_inset Quotes erd
+\end_inset
+
+ that effect.
+ Examples are iSCSI connections to the same iSCSI target in parallel.
+\end_layout
+
+\end_inset
+
+ will certainly destroy your data and almost certainly crash your kernel.
+ Always run at most a single 
+\family typewriter
+blkreplay
+\family default
+ instance on a single device!
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ In general, 
+\family typewriter
+blkreplay
+\family default
+ is a tool only for 
+\emph on
+experienced
+\emph default
+ technicians who know what they do.
+ They should be at least at a senior level.
+\end_layout
+
+\begin_layout Section
+Architecture of 
+\family typewriter
+blkreplay
+\end_layout
+
+\begin_layout Standard
+The main challenge for 
+\family typewriter
+blkreplay
+\family default
+ is to generate 
+\series bold
+sufficient IO parallelism
+\series default
+.
+\end_layout
+
+\begin_layout Standard
+Ordinary production systems like web servers
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Under high load in datacenters, the behaviour of the 
+\family typewriter
+apache
+\family default
+ web server may be characterized as similar to a 
+\begin_inset Quotes eld
+\end_inset
+
+fork bomb
+\begin_inset Quotes erd
+\end_inset
+
+.
+ In contrast to classical toy fork bombs, these are generating heavy IO
+ load in parallel.
+\end_layout
+
+\end_inset
+
+ are serving many thousands of HTTP requests per second, which may lead
+ to an IO parallelism at the block level of several hundred outstanding
+ IO requests at the same time.
+\end_layout
+
+\begin_layout Standard
+In order to simulate such a behaviour in the lab, there are principally
+ two alternatives:
+\end_layout
+
+\begin_layout Enumerate
+use the 
+\family typewriter
+aio
+\family default
+ interface of the kernel to fire off a large number of IO requests in parallel.
+\end_layout
+
+\begin_layout Enumerate
+use a sufficiently large number of kernel threads or processes in parallel,
+ where each of them fires up only at most one IO request at the same time
+ (blocking IO).
+\end_layout
+
+\begin_layout Standard
+The current version of 
+\family typewriter
+blkreplay
+\family default
+ supports only method 2; method 1 is planned for a future release.
+\end_layout
+
+\begin_layout Standard
+For easy portability even to historic Unix flavours, 
+\family typewriter
+blkreplay
+\family default
+ uses ordinary Unix processes generated by simple 
+\family typewriter
+fork()
+\family default
+s and communicating via anonymous pipes, in favour to a shared-memory 
+\family typewriter
+pthreads
+\family default
+ model.
+ However, future versions may also support 
+\family typewriter
+pthreads
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename architecture.fig
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Overlapping of IO Requests
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ It is 
+\series bold
+essential
+\series default
+ that you understand the concepts described in this chapter.
+ Otherwise you may produce 
+\series bold
+useless fake results
+\series default
+, deviating from valid measurements by 
+\emph on
+factors
+\emph default
+, or even 
+\emph on
+orders of magnitude
+\emph default
+.
+\end_layout
+
+\begin_layout Standard
+In general, there are two kinds of overlapping between IO requests in real
+ production systems (at the time when a 
+\family typewriter
+blktrace
+\family default
+ record is made):
+\end_layout
+
+\begin_layout Enumerate
+timely
+\end_layout
+
+\begin_layout Enumerate
+positionly
+\end_layout
+
+\begin_layout Standard
+Both kinds form a two-dimensional space:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+overlapping
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+timely yes
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+timely no
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+positionly yes
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sqrt{}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+positionly no
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sqrt{}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sqrt{}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Pure timely overlapping (without positionly overlapping) is a frequent case
+ in almost any IO system (usually called 
+\begin_inset Quotes eld
+\end_inset
+
+IO parallelism
+\begin_inset Quotes erd
+\end_inset
+
+ in folklore).
+ In opposite, purely positionly overlapping (without timely overlapping)
+ is also a frequent case, for example when the same sector is re-read after
+ a while, or re-written when the contents of a files changes frequently.
+ Completely unrelated requests (neither timely nor positionly overlapping)
+ are even the most frequent case in most practical load scenarios at production
+ sites.
+ So, what about both kinds of overlapping at the same time?
+\end_layout
+
+\begin_layout Standard
+The case of 
+\emph on
+both
+\emph default
+ timely and positionly overlapping (simultanously) is called 
+\emph on
+damaged IO
+\emph default
+.
+\end_layout
+
+\begin_layout Standard
+In ordinary OS kernels, damaged IO usually 
+\emph on
+never
+\emph default
+ occurs.
+ Here are the reasons:
+\end_layout
+
+\begin_layout Standard
+IO requests are usually generated by in-kernel memory caches like buffer
+ caches or page caches.
+ Even in case of databases working with Direct IO, their internal database
+ buffer cache works similarly to in-kernel caches.
+ It simply makes 
+\emph on
+no sense
+\emph default
+ to write to the same sector twice at the same time, because the result
+ will be undefined.
+ A similar argument holds for concurrent reads in parallel to writes to/from
+ the same sector
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+In theory, concurrent reads from the same sector would be possible without
+ causing harm to data integrity on the block device.
+ However, this would introduce 
+\emph on
+copies
+\emph default
+ of the same data into the buffer or page cache, violating its internal
+ 
+\emph on
+uniqueness
+\emph default
+ properties stating that any sector is cached at most once.
+ Therefore, this case also does not appear in practice.
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Some block IO systems like DRBD show some misbehaviour in case of concurrent
+ writes to the same sector, or in some cases they even fail.
+ Some DRBD versions
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+At present, this seems to be an undocumented behaviour observed by the author.
+ Even if DRBD's behaviour may change in the future: damaged IO is a bad
+ idea by itself.
+ It would be unfair to blame DRBD for 
+\begin_inset Quotes eld
+\end_inset
+
+psychologically unexpected
+\begin_inset Quotes erd
+\end_inset
+
+ behaviour under illegal load patterns, which should never occur.
+ In general, making code rubust against damaged IO could decrease performance
+ during ordinary operation.
+ Thus damaged IO should be avoided at its 
+\emph on
+source
+\emph default
+.
+\end_layout
+
+\end_inset
+
+ will at least delay further IO requests for several milliseconds, lowering
+ IO bandwidth or even leading to temporary hangs.
+\end_layout
+
+\begin_layout Standard
+So, damaged IO must be avoided under all circumstances.
+ Failing to do so may result in a disaster; in general, some IO devices
+ like elder tape drives may even be corrupted as a whole.
+\end_layout
+
+\begin_layout Standard
+While avoidance of damaged IO is automatically guaranteed in real production
+ systems by the buffer / cache page of the Linux kernel (or other components
+ like database memory buffers), our tool 
+\family typewriter
+blkreplay
+\family default
+ must be designed very carefully not to step into that pitfall.
+\end_layout
+
+\begin_layout Standard
+Why is there a risk that 
+\family typewriter
+blkreplay
+\family default
+ could (accidentally) start some damaged IO?
+\end_layout
+
+\begin_layout Standard
+Well, replay of the original timing of requests is not always possible.
+ Even if 
+\family typewriter
+blkreplay
+\family default
+ 
+\emph on
+tries
+\emph default
+ to start IO requests in the same timely pattern as at the original site,
+ a very slow device (or a heavily overloaded device) may delay an IO operation
+ for a very long time.
+ In overload scenarios, or in case of iSCSI network hangs, it is possible
+ that some IO requests may take 5 minutes to complete (or even more, or
+ even 
+\emph on
+never
+\emph default
+ complete in case of fatal errors).
+ In such cases, it is not unlikely that a new write to the same sector is
+ started before the old one has completed.
+\end_layout
+
+\begin_layout Standard
+In order to avoid damaged IO, 
+\family typewriter
+blkreplay
+\family default
+ internally uses two temporary files: 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/tmp/verify_table
+\end_layout
+
+\end_inset
+
+
+\family default
+ and 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/tmp/completion_table
+\end_layout
+
+\end_inset
+
+
+\family default
+.
+ Both are sparse files, containing a simple (sparse) array of sequence numbers,
+ indexed by the position (sector#).
+ Whenever a write is started, a new sequence number is recorded in 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/tmp/verify_table
+\end_layout
+
+\end_inset
+
+
+\family default
+.
+ Whenever that write is completed, the same number is recorded in 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/tmp/completion_table
+\end_layout
+
+\end_inset
+
+
+\family default
+.
+ At any time, both tables keep track of the current progress of write operations.
+ Whenever the sequence numbers at the same position (sector#) are different
+ between both files, we know that a write operation has not yet completed.
+ Thus we can delay another IO to/from the same sector, if someone tries
+ to start one at the 
+\begin_inset Quotes eld
+\end_inset
+
+wrong
+\begin_inset Quotes erd
+\end_inset
+
+ moment.
+\end_layout
+
+\begin_layout Standard
+Notice that the current version of 
+\family typewriter
+blkreplay
+\family default
+ works as follows: the main process spreads its IO requests to the worker
+ processes in a round-robin fashion over their anonymous pipes.
+ Whenever conflicting IO requests (in the sense of damaged IO) are detected,
+ this spreading process will stop until the conflict has gone away.
+\end_layout
+
+\begin_layout Standard
+As a side effect, all following IO requests are also delayed, even if they
+ don't conflict with anything else.
+\end_layout
+
+\begin_layout Standard
+Future versions of 
+\family typewriter
+blkreplay
+\family default
+ are planned to optionally act smarter in such situations.
+\end_layout
+
+\begin_layout Standard
+However, practical experience from many hardware tests shows that the current
+ behaviour seems to be an 
+\emph on
+advantage
+\emph default
+.
+ Whenever such stalls occur more than seldomly, they act as an 
+\series bold
+indicator
+\series default
+ for massive IO problems of the test candidate.
+ Thus we feel that this behaviour is more a feature than a bug.
+\end_layout
+
+\begin_layout Standard
+If you know what you are doing, you may switch on an option of 
+\family typewriter
+blkreplay
+\family default
+, which just 
+\emph on
+drops
+\emph default
+ conflicting requests instead of delaying them.
+ As a consequence, stalls caused by potentially damaged IO are avoided,
+ but at the cost of lost IO operations (deviating from the original recording).
+\end_layout
+
+\begin_layout Section
+Mode of Operation
+\end_layout
+
+\begin_layout Standard
+It is crucial to understand not only the concepts of 
+\family typewriter
+\size footnotesize
+blkreplay
+\family default
+\size default
+ by itself, but also the 
+\emph on
+operating environment
+\emph default
+ where it is running.
+ Otherwise, you can easily produce totally invalid fake results.
+\end_layout
+
+\begin_layout Standard
+Please take a look at the following picture:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename io-layers.fig
+	width 60text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+In the live system, 
+\family typewriter
+\size footnotesize
+blktrace
+\family default
+\size default
+ will 
+\begin_inset Quotes eld
+\end_inset
+
+listen
+\begin_inset Quotes erd
+\end_inset
+
+ to the events occurring at point A, and will record them.
+ We have a complex system, running virtual machines inside a hypervisor.
+ Notice that all IO requests of the application will not only go through
+ the filesystem, but also through the buffer / page cache.
+ The in-memory cache will usually serve most IO requests from the application,
+ without causing physical IO on the block layer (so-called 
+\begin_inset Quotes eld
+\end_inset
+
+cache hits
+\begin_inset Quotes erd
+\end_inset
+
+).
+ On a well-tuned production server, it is no problem to achieve cache hit
+ rates of 99% or more, leading to a kind of 
+\begin_inset Quotes eld
+\end_inset
+
+gear ratio
+\begin_inset Quotes erd
+\end_inset
+
+ of 1:100, or even 1:1000 (in long-term runs).
+ Of course, there are heavy workloads running on thin servers, where sometimes
+ less than 1:10 can be achieved.
+ Even in that case, there will be 
+\emph on
+always
+\emph default
+ some cache hits, for example caused by metadata requests from the filesystem.
+ In practice, the cache hit rate will never go down to 0%.
+ Notice that this effect is 
+\emph on
+already included
+\emph default
+ in the 
+\family typewriter
+\size footnotesize
+blktrace
+\family default
+\size default
+!
+\end_layout
+
+\begin_layout Standard
+Now look at the situation in the laboratory.
+ The application and the filesystem is no longer present, but its 
+\emph on
+effects
+\emph default
+ are simulated by 
+\family typewriter
+\size footnotesize
+blkreplay
+\family default
+\size default
+.
+ Due to the architecture of the Linux kernel, all IO requests will continue
+ to run through the buffer cache
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Several commercial Unices used a concept called 
+\begin_inset Quotes eld
+\end_inset
+
+raw device
+\begin_inset Quotes erd
+\end_inset
+
+ which circumvented their buffer cache.
+ In contrast, the internal structures of Linux device driver are internally
+ interwoven with the page cache in a rather sticky way.
+ Instead of 
+\begin_inset Quotes eld
+\end_inset
+
+raw devices
+\begin_inset Quotes erd
+\end_inset
+
+, Linux uses the concept of 
+\begin_inset Quotes eld
+\end_inset
+
+direct IO
+\begin_inset Quotes erd
+\end_inset
+
+, which 
+\emph on
+tries
+\emph default
+ to minimize any caching effects.
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+It should be clear by the very nature of our experiment, that at measuring
+ point B 
+\emph on
+exactly
+\emph default
+ the same events should happen as had been formerly observed at point A.
+\end_layout
+
+\begin_layout Standard
+Thus, the page / buffer cache of the laboratory system 
+\emph on
+must
+\emph default
+ be switched off.
+ Otherwise, a 
+\begin_inset Quotes eld
+\end_inset
+
+gear ratio
+\begin_inset Quotes erd
+\end_inset
+
+ of 1:100 (or let it be only 1:1.1) would lead to heavy distortions of the
+ measurement results.
+\end_layout
+
+\begin_layout Standard
+In order to switch off the page / buffer cache, 
+\family typewriter
+\size footnotesize
+blkreplay
+\family default
+\size default
+ uses 
+\family typewriter
+\size footnotesize
+O_DIRECT
+\family default
+\size default
+ mode as offered by the Linux kernel.
+\end_layout
+
+\begin_layout Chapter
+How to use 
+\family typewriter
+blkreplay
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresToxiques.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Running 
+\family typewriter
+blkreplay
+\family default
+ naïvely without reading this chapter may easily lead to 
+\series bold
+completely worthless fake results
+\series default
+ which would be only useful for production of bullshit!
+\end_layout
+
+\begin_layout Standard
+In science, it would be unethical to produce such bullshit willingly or
+ even deliberately.
+\end_layout
+
+\begin_layout Standard
+In industry, usage of such bullshit (even inadvertendly) may easily lead
+ to failed invests up to millions of Euros / Dollars (depending on the applicati
+on and the size of your datacenter).
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Most of the following advice will also apply to other benchmark tools like
+ 
+\family typewriter
+iometer
+\family default
+.
+\end_layout
+
+\begin_layout Section
+How to Avoid Common Pitfalls
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:How-to-Avoid"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresToxiques.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Don't skip this section! Read it 
+\emph on
+completely
+\emph default
+, even if you are impatient or under time pressure!
+\end_layout
+
+\begin_layout Standard
+Modern IO subsystems often use some kind of 
+\series bold
+storage virtualization
+\series default
+ interally.
+ More often than you can dream of, concepts from storage virtualization
+ are used (interally) in places where you don't expect them.
+\end_layout
+
+\begin_layout Standard
+Example: seemingly 
+\begin_inset Quotes eld
+\end_inset
+
+simple
+\begin_inset Quotes erd
+\end_inset
+
+ SSDs or even some USB sticks(!) show some of the behaviours described next.
+\end_layout
+
+\begin_layout Subsection
+Pitfalls from Storage Virtualization
+\end_layout
+
+\begin_layout Standard
+The basic idea of storage virtualization is some kind of 
+\begin_inset Quotes eld
+\end_inset
+
+translation
+\begin_inset Quotes erd
+\end_inset
+
+ (or 
+\begin_inset Quotes eld
+\end_inset
+
+mapping
+\begin_inset Quotes erd
+\end_inset
+
+) between 
+\emph on
+virtual storage addresses
+\emph default
+ and 
+\emph on
+
+\begin_inset Quotes eld
+\end_inset
+
+physical
+\begin_inset Quotes erd
+\end_inset
+
+ storage addresses
+\emph default
+.
+\end_layout
+
+\begin_layout Standard
+In many
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+A promient exception is classical LVM as implemented by the Linux kernel:
+ unless you use LVM snapshots or other advanced features, it uses almost
+ static mappings, and it carries almost no observable overhead in many practical
+ scenarios.
+\end_layout
+
+\end_inset
+
+ cases, the address translation / mapping is created on the fly, dynamically
+ at runtime.
+ In the following simplified
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+For simplicity, this example assumes that the address translation uses the
+ same granularity as the benchmark, e.g.
+ single sectors.
+ We also don't discuss the internals of the mapping which can also have
+ a drastic impact on measurement results.
+\end_layout
+
+\end_inset
+
+ example, the timely order of accesses is marked by increasing numbers,
+ while the type of IO request is indicated by colors (red = write, blue
+ = read):
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename storage-virtualization.fig
+	lyxscale 70
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+We start with an empty logical address space (often called 
+\begin_inset Quotes eld
+\end_inset
+
+logical volume
+\begin_inset Quotes erd
+\end_inset
+
+, shortly LV), having a logical size of several terabytes.
+ Here, 
+\begin_inset Quotes eld
+\end_inset
+
+empty
+\begin_inset Quotes erd
+\end_inset
+
+ means that initially 
+\emph on
+no
+\emph default
+ assignment between logical and physical sector numbers exists.
+ Now we start a short benchmark (whether 
+\family typewriter
+blkreplay
+\family default
+ or others like 
+\family typewriter
+iometer
+\family default
+).
+ When request #1 (a write) arrives, no physical location exists yet.
+ Therefore, a new location must be assigned.
+ In this example, the locations are always taken from the beginning of the
+ physical address space.
+\end_layout
+
+\begin_layout Standard
+Thus, all the physical sectors occurring in this example will be allocated
+ in a very small and compact area at the start of the physical address space.
+ Imagine the drawing not being true to scale: imagine a total size of several
+ terabytes (
+\begin_inset Formula $>10^{9}$
+\end_inset
+
+ sectors), and a 
+\family typewriter
+blkreplay
+\family default
+ benchmark touching only a few thousands of sectors.
+ What will be the effect?
+\end_layout
+
+\begin_layout Enumerate
+Only a 
+\emph on
+tiny
+\emph default
+ fraction of the physical space will be actually used, usually less than
+ one per mille or even less than a millionth.
+\begin_inset Newline newline
+\end_inset
+
+In contrast, real world applications as well as real customers tend to use
+ up significant space with real data, usually more than 50% (and up to 100%).
+\end_layout
+
+\begin_layout Enumerate
+Even if accesses to the LV are (pseudo-)random, accesses to the 
+\begin_inset Quotes eld
+\end_inset
+
+physical hot area
+\begin_inset Quotes erd
+\end_inset
+
+ will 
+\emph on
+not
+\emph default
+ remain random: as you can see, they are translated to (purely / almost)
+ 
+\emph on
+sequential
+\emph default
+ access patterns.
+ If the physical addresses are residing on a mechanical hard disk, (almost)
+ no seek operations will occur.
+ Additionally, the physical operations are in 
+\emph on
+ascending
+\emph default
+ order, which is a classical use case for BBU-cached writes and/or readahead
+ strategies.
+ Notice that ascending sequential IO on hard disks is usually faster than
+ random IO by a factor of 100 or even more (depending on hardware and further
+ factors like RAID, between one and three orders of magnitude).
+\begin_inset Newline newline
+\end_inset
+
+In contrast, real-world writes will be spreaded much more randomly over
+ the physical partition, and there will be a significant amount of 
+\emph on
+in-place updates
+\emph default
+ in many practical use cases.
+\end_layout
+
+\begin_layout Enumerate
+Even worse, read requests need not be mapped at all (indicated by shading
+ in the drawing).
+ When reading from an address where never anything had been written before,
+ NULL blocks may be returned on-the-fly, without causing any physical access
+ at all
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+A similar effect is known from holes in traditional Unix 
+\emph on
+sparse files
+\emph default
+.
+\end_layout
+
+\end_inset
+
+.
+ Notice that such 
+\begin_inset Quotes eld
+\end_inset
+
+fake reads
+\begin_inset Quotes erd
+\end_inset
+
+ can be faster than true read accesses by 
+\emph on
+several
+\emph default
+ orders of magnitude.
+\end_layout
+
+\begin_layout Enumerate
+Even in case read requests are also mapped upon first reference
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Several commercial storage boxes are known to do so.
+ However, notice that this behaviour is not documented, and thus not guaranteed
+ by the vendors.
+ They sell you a blackbox.
+ All you can do is to analyze such behaviour if you are curious about their
+ internals.
+ In their next firmware release, the behaviour may be already different
+ without notice.
+\end_layout
+
+\end_inset
+
+, perhaps leading to a physical IO (or perhaps not), the same arguments
+ as for writes apply.
+\end_layout
+
+\begin_layout Enumerate
+If you 
+\emph on
+repeat
+\emph default
+ the same 
+\family typewriter
+blkreplay
+\family default
+ benchmark once again, immediately after the first run, you will get another
+ surprise: this time the mapping between logical and physical addresses
+ already exists, thus you will likely get different results, usually drastically
+ better, but seldomly slightly worse, depending on the vendor of the storage
+ virtualization (and on many other factors such as the size of the logical
+ volume).
+ In scientific terminology: your experiment is not truly 
+\emph on
+repeatable
+\emph default
+.
+\end_layout
+
+\begin_layout Standard
+What can you do about that?
+\end_layout
+
+\begin_layout Standard
+There is no general solution for all cases.
+ It depends on the 
+\emph on
+statement
+\emph default
+ you want to prove or disprove by usage of 
+\family typewriter
+blkreplay
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+The following is just an 
+\emph on
+approximation
+\emph default
+ if you want to reveal the real-life
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+In real life, customer data or enterprise data is stored on LVs.
+ Thus benchmarks of empty LVs are 
+\emph on
+completely wrong
+\emph default
+ if you try to reveal real life behaviour.
+\end_layout
+
+\end_inset
+
+ behaviour of virtualized storage systems:
+\end_layout
+
+\begin_layout Enumerate
+Whenever you start a new run of a benchmark, you 
+\series bold
+\emph on
+must
+\emph default
+ delete
+\series default
+ your old LVs, and create new ones.
+ Otherwise, your old run will influence the new one in some way you cannot
+ predict easily.
+ Remember that the mapping table in the above example is a kind of 
+\begin_inset Quotes eld
+\end_inset
+
+memory
+\begin_inset Quotes erd
+\end_inset
+
+ which records not only the sector numbers occurring in your benchmark,
+ but even their timely order.
+ Make sure that this kind of 
+\begin_inset Quotes eld
+\end_inset
+
+memory
+\begin_inset Quotes erd
+\end_inset
+
+ is erased completely
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Even delete your LVs if you believe that's unnecessary, because you have
+ obeyed point 2 and have filled it with data to initialize the mapping:
+ some storage systems make 
+\emph on
+re-assignments
+\emph default
+ of the mapping during your benchmarks.
+ Because many commercial storage systems are blackboxes, you cannot immediately
+ see that.
+ Always keep in mind that usually ordinary benchmarks will only touch a
+ 
+\emph on
+tiny fraction
+\emph default
+ of all physical sectors, compared to real life!
+\end_layout
+
+\end_inset
+
+ between any runs!
+\end_layout
+
+\begin_layout Enumerate
+After each fresh creation of a logical volume, 
+\series bold
+fill it with data
+\series default
+.
+ This is the only reliable
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Some storage vendors have internal functions which 
+\emph on
+preallocate
+\emph default
+ the space for a LV.
+ Don't use them! Don't trust any claims that this would be equivalent to
+ filling with random data - we found cases where we could 
+\emph on
+disprove
+\emph default
+ such claims, where results differed even by 
+\emph on
+factors
+\emph default
+.
+ Just fill your LVs with random data to be sure, even if this delays your
+ measurements for some hours or even days.
+ Keep in mind that later production systems will take weeks or even months
+ to be filled with data before potential problems could show up, so don't
+ hesitate to resemble such kind of effort in the laboratory.
+\end_layout
+
+\end_inset
+
+ way.
+ Best practice is to use tools like 
+\family typewriter
+wipe
+\family default
+, filling the whole
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+If you are consciously concerned that filling the 
+\emph on
+whole
+\emph default
+ LV might not catch your usecase where (say) only 50% of logical space is
+ actually used, you 
+\emph on
+could
+\emph default
+ try to fill only 50% of the LV.
+ However, be 
+\emph on
+sure
+\emph default
+ to fill any blocks which occur in the benchmarks.
+ Otherwise, the effects described above will almost certainly lead to a
+ 
+\emph on
+higher
+\emph default
+ distortion of your results than just filling with 100%.
+ Notice that some of the above effects deal with orders of magnitude, not
+ just a few percent.
+\end_layout
+
+\end_inset
+
+ LV with random data.
+ Filling with NULL blocks is not recommended, because some blackbox storage
+ systems might detect this easily and circumvent it by not creating a mapping
+ at all (or even erasing an old mapping similar to 
+\family typewriter
+punch
+\family default
+ operations).
+\end_layout
+
+\begin_layout Enumerate
+
+\emph on
+Immediately
+\emph default
+ after filling with random data, start your benchmark 
+\series bold
+exactly once
+\series default
+.
+ 
+\emph on
+Never
+\emph default
+, really 
+\emph on
+never
+\emph default
+ kill a run of 
+\family typewriter
+blkreplay
+\family default
+ (or any other benchmark tool) and restart it.
+ In case of any error or misbehaviour, you 
+\emph on
+must
+\emph default
+ start over with step 1!
+\end_layout
+
+\begin_layout Enumerate
+There is a single exception if you really know what you are doing: immediately
+ after the first run, you may restart the 
+\emph on
+same
+\emph default
+ benchmark once again, in order to reveal some hidden properties of the
+ mapping.
+ You 
+\emph on
+must
+\emph default
+ name your output files differently from the first run, and you 
+\emph on
+must not
+\emph default
+ confuse the meaning of the second run with the meaning of the first run.
+\end_layout
+
+\begin_layout Subsection
+Pitfalls from Caches
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Pitfalls-from-Caches"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It is easy to be caught by these pitfalls (even if you try to avoid them
+ very hard), since caches occur very frequently in almost any type of storage
+ system, and even in places where you don't expect them.
+ In addition, some real-life loads have hidden properties you cannot see
+ at first glance.
+\end_layout
+
+\begin_layout Subsubsection
+Pitfalls from Cache Operation States
+\end_layout
+
+\begin_layout Standard
+Many people believe that the most important case is 
+\emph on
+cold caches
+\emph default
+ versus 
+\emph on
+hot caches
+\emph default
+.
+ Although this is not completely wrong, it is not always fully true.
+ There is another more important property of cache states: 
+\series bold
+steady state
+\series default
+.
+\end_layout
+
+\begin_layout Standard
+Steady state is not the same as hot state.
+ When you start your system freshly, many caches will be of course empty
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+There are some exceptions: SSD caches may start in a hot state (caused by
+ your previous benchmark run), and BBU caches at RAID controllers may also
+ survive even power failure.
+\end_layout
+
+\end_inset
+
+.
+ An empty cache is always 
+\begin_inset Quotes eld
+\end_inset
+
+cold
+\begin_inset Quotes erd
+\end_inset
+
+.
+ During operation, it will be filled with data.
+ A cache is called 
+\begin_inset Quotes eld
+\end_inset
+
+hot
+\begin_inset Quotes erd
+\end_inset
+
+, if the 
+\series bold
+cache hit rate
+\series default
+ is 
+\begin_inset Quotes eld
+\end_inset
+
+significantly high enough
+\begin_inset Quotes erd
+\end_inset
+
+.
+ What's that? All of these terms are rather vague and depend on the application.
+ However, some caches may 
+\emph on
+never
+\emph default
+ reach 
+\begin_inset Quotes eld
+\end_inset
+
+hot
+\begin_inset Quotes erd
+\end_inset
+
+ state, for example when the cache design / architecture is 
+\begin_inset Quotes eld
+\end_inset
+
+inefficient
+\begin_inset Quotes erd
+\end_inset
+
+ (cf section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "A-cache-is"
+
+\end_inset
+
+).
+ What then? The term 
+\begin_inset Quotes eld
+\end_inset
+
+hot
+\begin_inset Quotes erd
+\end_inset
+
+ is not the right one for describing that problem: when your cache never
+ gets hots, your testing candidate will just fail your performance test,
+ but your test as such will be valid: the result is just telling you that
+ the cache is not tuned well enough for your application workload.
+\end_layout
+
+\begin_layout Standard
+What is 
+\begin_inset Quotes eld
+\end_inset
+
+steady state
+\begin_inset Quotes erd
+\end_inset
+
+?
+\end_layout
+
+\begin_layout Standard
+Intuitively, it just means that 
+\begin_inset Quotes eld
+\end_inset
+
+nothing changes (fundamentally) any more
+\begin_inset Quotes erd
+\end_inset
+
+.
+ In practice, there is a simple rule of thumb: your benchmark should just
+ run 
+\series bold
+long enough
+\series default
+ to get into steady state.
+ In section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "A-cache-is"
+
+\end_inset
+
+, some theoretical methods are described how to compute the time 
+\begin_inset Formula $\delta$
+\end_inset
+
+ until steady state is reached.
+ In practice, just make a few experiments in order to determine steady state
+ intuitively.
+ Many people will get a good feeling for 
+\begin_inset Quotes eld
+\end_inset
+
+steady state
+\begin_inset Quotes erd
+\end_inset
+
+ after some experience.
+\end_layout
+
+\begin_layout Standard
+Once you know when you have reached the 
+\begin_inset Quotes eld
+\end_inset
+
+golden
+\begin_inset Quotes erd
+\end_inset
+
+ steady state, you can do one of two things:
+\end_layout
+
+\begin_layout Enumerate
+ignore all benchmark results from the time span before steady state has
+ been reached.
+\end_layout
+
+\begin_layout Enumerate
+let the whole benchmark run 
+\emph on
+at least
+\emph default
+ 10x as long as the time to reach steady state.
+ The longer, the better.
+\end_layout
+
+\begin_layout Subsubsection
+Pitfalls from Cache Size
+\end_layout
+
+\begin_layout Standard
+The following illustration explains a general problem of cache hierarchies.
+ Our example demonstrates an ill-designed behaviour: the lower cache is
+ 
+\emph on
+smaller
+\emph default
+ than the upper one.
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename cache-toosmall.fig
+	lyxscale 50
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Now assume that the LV has a size of several terabytes, and the workload
+ is operating on a large part of that.
+ On one hand, this is several orders of magnitude larger than the upper
+ cache, but on the other hand typical application workloads will not access
+ all sectors with the same uniform probability.
+ In general, caches are only useful in two cases (non-exclusively):
+\end_layout
+
+\begin_layout Enumerate
+the cache is strictly larger than the workload.
+\end_layout
+
+\begin_layout Enumerate
+the workload contains unevenly distributed access frequencies.
+\end_layout
+
+\begin_layout Standard
+Case 1 occurs only in special cases.
+ Case 2 appears more often.
+\end_layout
+
+\begin_layout Standard
+Back to the above example: assume that only case 2 applies to the upper
+ cache.
+ Consequently, case 2 will also apply to the lower cache, because the lower
+ cache is 
+\emph on
+strictly smaller
+\emph default
+ than the upper cache in this ill-designed example.
+ Now assume we have an 
+\emph on
+inclusive
+\emph default
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+In case of 
+\emph on
+exclusive
+\emph default
+ cache hierarchies, the whole picture can be replaced by a simplified one
+ having only one cache level.
+ The size of the new simplified cache is just the 
+\emph on
+sum
+\emph default
+ of the sizes of both original caches.
+\end_layout
+
+\end_inset
+
+ cache hierarchy, and are using a standard cache eviction strategy like
+ LRU.
+ As a consequence from LRU (or any other strategy avoiding anomalies
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Probably the best known anomaly is the famous FIFO anomaly, as explained
+ in most text books about operating systems.
+\end_layout
+
+\end_inset
+
+), any sector present in the lower cache will be also be present in the
+ upper cache
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+This is just the 
+\emph on
+definition
+\emph default
+ of non-anomaly behaviour.
+\end_layout
+
+\end_inset
+
+.
+ As a further consequence, we see that the lower cache is superfluous: by
+ removing it, the system could even become faster
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Notice that there are exceptions.
+ For example, internal memory caches present at hard disk drives are way
+ too small to be able to contribute to classical hierarchical caching, but
+ they can act as cylinder buffers for 
+\emph on
+local aggregation strategies
+\emph default
+ like readahead.
+\end_layout
+
+\end_inset
+
+ due to less overhead.
+\end_layout
+
+\begin_layout Standard
+What can we do about that?
+\end_layout
+
+\begin_layout Standard
+Simply, just design your system in such a way that lower caches are always
+ strictly larger than higher ones, by a factor of 
+\begin_inset Formula $k$
+\end_inset
+
+.
+ In order to be useful, 
+\begin_inset Formula $k\geq2$
+\end_inset
+
+ should be used, but for really good performance 
+\begin_inset Formula $k\geq10$
+\end_inset
+
+ should be selected.
+\end_layout
+
+\begin_layout Standard
+Probably you already know this, and you think you don't violate it.
+ However, it is possible you might violate it unwillingly.
+ The standard case is a server from a data center, equipped with several
+ gigabytes of RAM.
+ Almost all of the main memory can be used by the buffer/page caches of
+ the Linux kernel.
+ Therefore, you already may have a rather large upper cache you didn't think
+ about.
+ As a consequence, caches at the block storage level (e.g.
+ SSD caches etc) should be larger by an order of magnitude (in this case
+ 
+\begin_inset Formula $\sim1$
+\end_inset
+
+TB or more).
+ At the time of writing this paper, many commercial storage systems don't
+ match this seemingly simple requirement.
+\end_layout
+
+\begin_layout Standard
+There is another variant of this pitfall: records made by 
+\family typewriter
+blktrace
+\family default
+ are measuring the IO traffic 
+\emph on
+below
+\emph default
+ the buffer/page cache in most cases.
+ Therefore, most (if not all) natural loads obtained by 
+\family typewriter
+blktrace
+\family default
+ contain effects
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+One of the more well-known effects of caches is called 
+\emph on
+cache inversion
+\emph default
+.
+ At the time of writing this paper, Wikipedia didn't carry much about it.
+ Consult a really good textbook or some research papers to learn more about
+ it.
+ 
+\end_layout
+
+\end_inset
+
+ of the caches of the original system.
+ In some cases (e.g.
+ published loads from the 
+\family typewriter
+blktrace
+\family default
+ project), you don't know the original RAM size.
+ Even if you know, you often cannot tell how large the page cache 
+\emph on
+really
+\emph default
+ was at the time of recording: how much RAM was spent for other purposes
+ like processes, how much for other filesystems / partitions?
+\end_layout
+
+\begin_layout Standard
+Even if you knew all that: do you know the 
+\emph on
+workingset size
+\emph default
+ of your application workload? Read on\SpecialChar \ldots{}
+
+\end_layout
+
+\begin_layout Subsection
+Pitfalls from Workingset Sizes
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Pitfalls-from-Workingset"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The workingset theory has been developped by Denning in the late 1960s,
+ and has been originally used for the description of the behaviour of hardware-M
+MU-based paging / swapping systems and their strategies like LRU.
+ It is also useful in other areas, such as block storage.
+ Here is an adaptation of Denning's theory to our needs:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+WS(t,\delta)=\big\{\text{{set\, of\, all\, sectors\, touched\, in\, the\, time\, interval\,[t-\delta,t]}}\big\}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Usually, 
+\begin_inset Formula $\delta$
+\end_inset
+
+ is treated as a constant, called 
+\emph on
+window size
+\emph default
+.
+ Then the workingset 
+\begin_inset Formula $WS(t,\delta)$
+\end_inset
+
+ at some point in time 
+\begin_inset Formula $t$
+\end_inset
+
+ is simply the set of sectors occurring in a 
+\family typewriter
+blktrace
+\family default
+ during a time window of 
+\begin_inset Formula $\delta$
+\end_inset
+
+ seconds 
+\emph on
+before
+\emph default
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Notice: Dennings original theory used the time interval 
+\begin_inset Formula $[t,t+\delta].$
+\end_inset
+
+We find our definition more handy for practical purposes, because we need
+ no 
+\begin_inset Quotes eld
+\end_inset
+
+lookahead
+\begin_inset Quotes erd
+\end_inset
+
+ into the 
+\begin_inset Quotes eld
+\end_inset
+
+future
+\begin_inset Quotes erd
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+ the interesting point in time t.
+ Notice that we have a 
+\emph on
+set
+\emph default
+ here: it makes no difference how often a particular sector occurs during
+ the time window 
+\begin_inset Formula $\delta,$
+\end_inset
+
+ it just matters 
+\emph on
+whether
+\emph default
+ that sector appears or not.
+ Also, it makes no difference whether a particular sector is read or written
+ (or both).
+ Thus the workingset model is a 
+\emph on
+reduction
+\emph default
+ of the reality to a handy theoretical model, but a model which is known
+ to 
+\emph on
+preserve
+\emph default
+ some relevant and very interesting properties of the reality.
+\end_layout
+
+\begin_layout Description
+Example: for any two window sizes 
+\begin_inset Formula $\delta_{1}<\delta_{2},$
+\end_inset
+
+ the condition 
+\begin_inset Formula $WS(t,\delta_{1})\leq WS(t,\delta_{2})$
+\end_inset
+
+ holds at any point in time 
+\begin_inset Formula $t$
+\end_inset
+
+.
+ In other words: increasing the window size 
+\begin_inset Formula $\delta$
+\end_inset
+
+ will never make the workingset smaller; the workingset can only 
+\emph on
+grow
+\emph default
+ if the window becomes larger.
+\end_layout
+
+\begin_layout Standard
+The efficiency of block storage caches can be predicted by the workingset
+ theory in a rather easy and intuitive way.
+ We assume that accesses to the cache are 
+\emph on
+much faster
+\emph default
+ than accesses to the background storage, such that we can 
+\emph on
+neglect
+\emph default
+ the access times to the cache when compared to accesses to the background
+ storage.
+ Then we can model the following interesting property:
+\end_layout
+
+\begin_layout Quotation
+A cache is called to work 
+\series bold
+efficiently
+\series default
+
+\begin_inset CommandInset label
+LatexCommand label
+name "A-cache-is"
+
+\end_inset
+
+, iff at any point in time 
+\begin_inset Formula $t$
+\end_inset
+
+ the following condition holds: 
+\begin_inset Formula $|WS(t,\delta)|\leq|\text{{cachesize}}|$
+\end_inset
+
+ and 
+\begin_inset Formula $\delta\geq(\text{{time\, to\, fill\, the\, cache\, once}})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The potential painpoint is easy to see: just take 
+\begin_inset Formula $\delta$
+\end_inset
+
+ as the time to fill the cache from the background storage, which is 
+\begin_inset Formula $(\text{{accesstime\, to\, storage}})\star(\text{{cachesize}})$
+\end_inset
+
+.
+ If there would exist a point in time 
+\begin_inset Formula $t$
+\end_inset
+
+ where the workingset 
+\begin_inset Formula $WS(t,\delta)$
+\end_inset
+
+ would be 
+\emph on
+larger
+\emph default
+ than could be transferred to/from the storage during that 
+\emph on
+same
+\emph default
+ time window 
+\begin_inset Formula $\delta$
+\end_inset
+
+, the data transfers could become a 
+\emph on
+bottleneck
+\emph default
+ of the system.
+ Vice versa: if the workingset during window 
+\begin_inset Formula $\delta$
+\end_inset
+
+ would always 
+\emph on
+fit
+\emph default
+ into the cache, the cache will usually
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+This holds only if a 
+\begin_inset Quotes eld
+\end_inset
+
+good
+\begin_inset Quotes erd
+\end_inset
+
+ strategy like LRU is used, which assures that 
+\begin_inset Quotes eld
+\end_inset
+
+hot
+\begin_inset Quotes erd
+\end_inset
+
+ pages from the workingset will be kept in the cache.
+ In addition, keep in mind that neglecting the access times to the cache
+ could be an 
+\emph on
+oversimplification
+\emph default
+ in many cases.
+\end_layout
+
+\end_inset
+
+ speed up things.
+\end_layout
+
+\begin_layout Standard
+Consequences:
+\end_layout
+
+\begin_layout Itemize
+The 
+\series bold
+workingset behaviour of the application
+\series default
+ is 
+\emph on
+crucial
+\emph default
+ for any storage system.
+ 
+\end_layout
+
+\begin_layout Itemize
+The above argumentation contains an 
+\emph on
+oversimplification
+\emph default
+: of course, accesses to the cache are not 
+\begin_inset Quotes eld
+\end_inset
+
+indefinitly fast
+\begin_inset Quotes erd
+\end_inset
+
+ as our above neglect assumed.
+ Therefore, don't take the above inequalities as verbatim inequalities.
+ Multiply some 
+\emph on
+factor
+\emph default
+ onto them.
+ In practice, if you really want blastingly fast caches, make sure your
+ cache is at least 
+\series bold
+one order of magnitude larger
+\series default
+ than the workingset size of your application.
+\end_layout
+
+\begin_layout Standard
+In order to do that, you would need the know the workingset size of your
+ 
+\emph on
+application
+\emph default
+.
+ Please keep in mind that this is not the same as the workingset size measured
+ by 
+\family typewriter
+blktrace
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename hierarchy.fig
+	lyxscale 60
+	width 30col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+As you can see, the measuring point of 
+\family typewriter
+blktrace
+\family default
+ sits 
+\emph on
+below
+\emph default
+ the buffer / page cache, therefore it does not 
+\emph on
+directly
+\emph default
+ measure the application behaviour (in addition to influences from the filesyste
+m, like metadata updates etc).
+ In practice, 
+\family typewriter
+blktrace
+\family default
+ measurements may differ from the 
+\begin_inset Quotes eld
+\end_inset
+
+real
+\begin_inset Quotes erd
+\end_inset
+
+ application workload of stateless webserver designs by 
+\emph on
+several
+\emph default
+ orders of magnitude.
+ However, 
+\emph on
+all
+\emph default
+ modern OSes employ caches.
+ Even if we were able to measure the true application workingset in some
+ way, it would not be relevant for block storage systems, because it would
+ be 
+\emph on
+impractical
+\emph default
+ to operate those systems without caches.
+ We need the above picture for understanding the fundamental properties
+ of 
+\family typewriter
+blktrace
+\family default
+ measurements, and for determining the window size 
+\begin_inset Formula $\delta$
+\end_inset
+
+.
+ If that is not possible, try to estimate it.
+ As a very rough estimation, take 
+\begin_inset Formula $\delta$
+\end_inset
+
+ as several minutes.
+\end_layout
+
+\begin_layout Standard
+The 
+\family typewriter
+blkreplay
+\family default
+ suite comes with a small tool to visualize the workingset behaviour as
+ measured by 
+\family typewriter
+blktrace
+\family default
+, which is currently the best approximation of the workingset behaviour
+ of the application we can easily get access to.
+ 
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Spend some time on it! Your replay needs to last 
+\emph on
+vastly longer
+\emph default
+ than the 
+\begin_inset Formula $\delta_{\text{{old}}}$
+\end_inset
+
+ needed to descibe the steady state of the original buffer/page cache, as
+ well as the 
+\begin_inset Formula $\delta_{\text{{new}}}$
+\end_inset
+
+ to describe the steady state of your replay system.
+ Otherwise, you can get fake results which differ from real practical performanc
+e by factors, or even orders of magnitude.
+ As a rough rule of thumb, any replay of natural loads should take at least
+ one hour.
+ Better, make a few measurements lasting 8 hours, or even 24 hours, and
+ check whether the results differ more than expected (besides natural variations
+).
+\end_layout
+
+\begin_layout Subsection
+Pitfalls from Replay Device Sizes and Others
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Pitfalls-from-Replay"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+There is a simple intuitive rule: your replay device for 
+\family typewriter
+blkreplay
+\family default
+ should have the 
+\emph on
+same
+\emph default
+ size as the original device where 
+\family typewriter
+blktrace
+\family default
+ has taken its measurement from
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+If you don't know this, just make a test run with 
+\family typewriter
+blkreplay
+\family default
+ and check the output file.
+ At the end, you will find a human-readable statistics showing the highest
+ original block number occurring in the replay, as well as the 
+\series bold
+wraparound factor
+\series default
+ related to your current replay device size.
+ Therefrom you can easily compute the right device sizes.
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Some people don't take this seriously, and some don't even believe that
+ this can have a 
+\emph on
+tremendous
+\emph default
+ effect.
+\end_layout
+
+\begin_layout Standard
+Practical experience at 1&1 tells that the above rule is 
+\emph on
+valid
+\emph default
+, and that results 
+\emph on
+will
+\emph default
+ almost certainly vary.
+ The bias can be 
+\emph on
+considerable
+\emph default
+.
+\end_layout
+
+\begin_layout Standard
+Example: the original 
+\family typewriter
+blktrace
+\family default
+ recording was taken from a production server equipped with 20 TB RAID.
+ Since in the lab we had only a smaller system with 4 TB, 
+\family typewriter
+blktrace
+\family default
+ measurements were run despite the smaller size.
+ Whenever 
+\family typewriter
+blkreplay
+\family default
+ tries to start an IO request outside the LV size, it just 
+\emph on
+remaps
+\emph default
+ the sector number modulo the (new) LV size.
+ Therefore, results 
+\emph on
+appear
+\emph default
+ to be valid, since you cannot see any 
+\begin_inset Quotes eld
+\end_inset
+
+big
+\begin_inset Quotes erd
+\end_inset
+
+ holes or anomalies.
+ You will find out the difference only if you compare to the 
+\emph on
+correct
+\emph default
+ setup.
+ When repeating the 
+\emph on
+same
+\emph default
+ measurements with correct LV sizes of ~20 TB, there is a 
+\emph on
+significant
+\emph default
+ difference.
+\end_layout
+
+\begin_layout Standard
+Some people think that such differences can be attributed solely to the
+ natural differences in 
+\emph on
+spindle count
+\emph default
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+When using the same hard disk model, a 20 TB RAID must contain 5 times as
+ much spindles as an equivalent 4 TB system.
+ It is clear that additional spindles can benefit random IO.
+ But those effects are 
+\series bold
+non-linear
+\series default
+!
+\end_layout
+
+\end_inset
+
+, and therefore it would not hurt if different models of hard disks were
+ used.
+ Although there 
+\emph on
+are
+\emph default
+ some effects by spindle count, that opinion is wrong.
+ In order to disprove such a 
+\begin_inset Quotes eld
+\end_inset
+
+theory
+\begin_inset Quotes erd
+\end_inset
+
+, just build two different RAIDs with same spindle count, but fundamentally
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Of course, there are a lot of disk drives (in the same 
+\begin_inset Quotes eld
+\end_inset
+
+class
+\begin_inset Quotes erd
+\end_inset
+
+) showing only minor differences.
+ A 
+\begin_inset Quotes eld
+\end_inset
+
+fundamental
+\begin_inset Quotes erd
+\end_inset
+
+ difference is for example between a cheap SATA disk versus a smaller but
+ faster 15k SAS disk.
+ 
+\end_layout
+
+\end_inset
+
+ different disk drive models (resulting in different total capacity), and
+ compare (under otherwise equal conditions).
+\end_layout
+
+\begin_layout Standard
+In short, any of the following factors can influence the performance, independen
+tly from each other (and in no particular order):
+\end_layout
+
+\begin_layout Itemize
+Total capacity, just by itself.
+ If you don't believe it, just create LVs with 1/10 size of the physical
+ storage and compare (on the 
+\emph on
+same
+\emph default
+ hardware) with results from the 
+\emph on
+full
+\emph default
+ physical storage size.
+ Of course, the original recording must stem from sufficiently large devices,
+ otherwise your 
+\begin_inset Quotes eld
+\end_inset
+
+disproof
+\begin_inset Quotes erd
+\end_inset
+
+ will be false.
+\end_layout
+
+\begin_layout Itemize
+Model/class of disk drives.
+\end_layout
+
+\begin_layout Itemize
+Number of spindles.
+\end_layout
+
+\begin_layout Itemize
+RAID level.
+\end_layout
+
+\begin_layout Itemize
+Vendor / firmware version of the controller.
+\end_layout
+
+\begin_layout Itemize
+Interconnect technology, such as SATA vs SAS.
+\end_layout
+
+\begin_layout Itemize
+any caches in the hierarchy, such as different BBU cache sizes or different
+ parameters.
+\end_layout
+
+\begin_layout Standard
+...
+ and probably many others.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ General rule: 
+\emph on
+never
+\emph default
+ expect any of these effects to be linear.
+ Almost always, they are 
+\series bold
+non-linear
+\series default
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Non-linear effects cannot be combined with each other in a predictable way,
+ at least in general.
+\end_layout
+
+\end_inset
+
+.
+ Anyone claiming something else must 
+\series bold
+prove
+\series default
+ it!
+\end_layout
+
+\begin_layout Standard
+Consequence: anyone violating the above rule produces 
+\series bold
+invalid
+\series default
+ results, unless proven the opposite!
+\end_layout
+
+\begin_layout Subsection
+Pitfalls from (missing) Parallelism in IO Systems
+\end_layout
+
+\begin_layout Standard
+This pitfall is usually trapping less people, because some intuitive sense
+ for the effects of IO parallelism is more widespread.
+ Even if you are already aware of this pitfall, read on.
+ There are some subtleties.
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename consolidation.fig
+	lyxscale 50
+	width 30text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+A frequent use case is 
+\emph on
+storage consolidation
+\emph default
+.
+ Up to 
+\begin_inset Formula $k$
+\end_inset
+
+ CPU nodes are connected to some 
+\begin_inset Quotes eld
+\end_inset
+
+central
+\begin_inset Quotes erd
+\end_inset
+
+ storage via some kind of storage network.
+\end_layout
+
+\begin_layout Standard
+You may want to evaluate such an architecture in advance with help of 
+\family typewriter
+blkreplay
+\family default
+, in order to avoid failed invests.
+ The 
+\family typewriter
+blkreplay
+\family default
+ suite will help you, because its supervisor scripts like 
+\family typewriter
+tree-replay.sh
+\family default
+ are ready to run masses of 
+\family typewriter
+blkreplay
+\family default
+ instances in parallel to each other, and on different nodes.
+\end_layout
+
+\begin_layout Standard
+For obvious reasons, you should determine the optimum consolidation factor
+ 
+\begin_inset Formula $k$
+\end_inset
+
+ for each given hardware candidate.
+ If you vary the factor 
+\begin_inset Formula $k$
+\end_inset
+
+, you will get at least two effects:
+\end_layout
+
+\begin_layout Enumerate
+With higher 
+\begin_inset Formula $k$
+\end_inset
+
+, you need to build up more CPU nodes and more network connections.
+ Otherwise you will neglect effects from IO parallelism (which don't scale
+ linearly
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+There is no general way to predict the behaviour of an unknown system! Many
+ non-linear effects show some kind of 
+\begin_inset Quotes eld
+\end_inset
+
+binary
+\begin_inset Quotes erd
+\end_inset
+
+ behaviour, suddenly collapsing at some point where you didn't expect it.
+\end_layout
+
+\end_inset
+
+), at multiple places of the picture: at potential bottlenecks at the CPU
+ nodes, at potential bottlenecks inside your storage network, and at lots
+ of potential bottlenecks in your central storage system.
+\begin_inset Newline newline
+\end_inset
+
+For example, it is completely wrong to just double the load on 
+\begin_inset Formula $k/2$
+\end_inset
+
+ nodes.
+ Experiences with some test candidates at 1&1 show that results can differ
+ enormously from results from single loads, each on 
+\begin_inset Formula $k$
+\end_inset
+
+ nodes.
+\end_layout
+
+\begin_layout Enumerate
+The total capacity of the central storage will also vary with 
+\begin_inset Formula $k$
+\end_inset
+
+.
+ As known from section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Replay"
+
+\end_inset
+
+, this will not only influence results by itself, but in addition by further
+ effects like spindle count, non-scaling of caches with factor 
+\begin_inset Formula $k$
+\end_inset
+
+, and many others.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresToxiques.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Taking any of these non-linear (and sometimes even 
+\emph on
+binary collapsing
+\emph default
+) effects not seriously can easily lead to 
+\series bold
+invalid results
+\series default
+, and in turn to failed invests!
+\end_layout
+
+\begin_layout Standard
+Hint: a frequent case are distributed systems by 
+\emph on
+themselves
+\emph default
+.
+ They tend to produce 
+\series bold
+queues
+\series default
+ at times and in places where you don't expect them, and they tend to produce
+ avalanche-like negative effects (self-amplifying), similar to suddenly
+ appearing 
+\series bold
+traffic jams
+\series default
+ where you cannot determine one single reason in isolation.
+\end_layout
+
+\begin_layout Section
+Recommended Setup and Usage
+\end_layout
+
+\begin_layout Subsection
+Planning Phase
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresToxiques.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Never try to plan a project without deep knowledge of the pitfalls described
+ in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:How-to-Avoid"
+
+\end_inset
+
+.
+ In addition, some experience with 
+\family typewriter
+blkreplay
+\family default
+ is helpful.
+ In order to gain such experience, consider a 
+\emph on
+test project
+\emph default
+ just for playing around, and for getting familiar with the pitfalls.
+\end_layout
+
+\begin_layout Subsubsection
+Describe the Scope of Project
+\end_layout
+
+\begin_layout Standard
+Before starting, you should get conscious with yourself.
+ 
+\emph on
+What exactly
+\emph default
+ is the question you want to answer with help of 
+\family typewriter
+blkreplay
+\family default
+?
+\end_layout
+
+\begin_layout Standard
+Write down the question both as shortly, as well as precisely as possible.
+ Here are some examples:
+\end_layout
+
+\begin_layout Itemize
+Compare hardware vendor 
+\family typewriter
+A
+\family default
+ with 
+\family typewriter
+B
+\family default
+ and 
+\family typewriter
+C
+\family default
+ for my production workload X.
+\end_layout
+
+\begin_layout Itemize
+Compare hardware vendor 
+\family typewriter
+A
+\family default
+ with 
+\family typewriter
+B
+\family default
+ and 
+\family typewriter
+C
+\family default
+ in general.
+\end_layout
+
+\begin_layout Itemize
+Debug kernel module 
+\family typewriter
+xxx
+\family default
+.
+\end_layout
+
+\begin_layout Itemize
+Compare iSCSI with Fibrechannel for my production workload X.
+\end_layout
+
+\begin_layout Itemize
+\SpecialChar \ldots{}
+
+\end_layout
+
+\begin_layout Standard
+Next, write down a precise description of your intended 
+\series bold
+test environment
+\series default
+.
+ Best practice is to name hardware vendors, models, all components (including
+ intermediate gear like network switches), and so on.
+\end_layout
+
+\begin_layout Standard
+Last step: describe all the parameters which know of, which 
+\emph on
+could
+\emph default
+ have an influence onto your test results.
+ Example:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+
+\size small
+\begin_inset Tabular
+<lyxtabular version="3" rows="7" columns="2">
+<features tabularvalignment="middle">
+<column alignment="left" valignment="top" width="0pt">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+Parameter
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+Varying?
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+16 GB RAM in storage node
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+no
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+10GBit vs 1 GBit network speed
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+yes
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+Cheap 2TB SATA vs expensive 600GB raptor disk (model 
+\begin_inset Quotes eld
+\end_inset
+
+tyrannosaurus rex
+\begin_inset Quotes erd
+\end_inset
+
+)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+yes
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+RAID-Level 
+\begin_inset Formula $\in\{1,5,6\}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+yes
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+RAID Stripesize 
+\begin_inset Formula $\in\{16,32,64,128\}$
+\end_inset
+
+kB
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+yes
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+\SpecialChar \ldots{}
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size small
+\SpecialChar \ldots{}
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Describe the Setup of your Experiment
+\end_layout
+
+\begin_layout Standard
+In many cases, the parameters described in your table will make up a multi-dimen
+sional problem space (cartesian product) which is too large to be explored
+ exhaustively.
+ As explained in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Replay"
+
+\end_inset
+
+, many of them will influence your results 
+\emph on
+non-linearly
+\emph default
+.
+\end_layout
+
+\begin_layout Standard
+Thus, you will have to consider the following general strategies:
+\end_layout
+
+\begin_layout Itemize
+You may fix some of the parameters to particular values.
+ Although this saves time, you may miss an opportunity to find an optimal
+ solution.
+\end_layout
+
+\begin_layout Itemize
+You may select some/enough random samples from your multi-dimensional problem
+ space and try them randomly (Monte Carlo methods).
+\end_layout
+
+\begin_layout Itemize
+Stepwise refinement: explore the multidimensional space by varying exactly
+ 
+\emph on
+one
+\emph default
+ paramenter at once.
+ This is slow, but you can be sure of the effects caused by this.
+\end_layout
+
+\begin_layout Subsubsection
+Select 
+\family typewriter
+blkreplay
+\family default
+ Load
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Select-blkreplay-Load"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Depending on your project, you should consider both artificial and natural
+ loads, but not too many of them.
+ Usually, more than three loads are impractical for an ambitious project
+ (unless you want to compare masses of loads on the same reference hardware).
+\end_layout
+
+\begin_layout Standard
+If your project tries to answer a question for some specific workload X,
+ you should just record that workload if you can do so (see chapter 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "chap:How-to-use"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+If you cannot obtain your real workload in advance, you have to select one
+ from the 
+\family typewriter
+blkreplay
+\family default
+ project (or other sources) which comes as close as possible to your (intended)
+ natural workload.
+\end_layout
+
+\begin_layout Standard
+For the sake of static comparison of workloads, 
+\family typewriter
+cd
+\family default
+ to a directory containing your 
+\family typewriter
+*.load.gz
+\family default
+ files and issue the following command:
+\end_layout
+
+\begin_layout Quotation
+
+\family typewriter
+/path/to/graph.sh --static myname.load.gz
+\end_layout
+
+\begin_layout Standard
+This will produce some 
+\family typewriter
+.png
+\family default
+ graphics, describing the throughput and workingset behaviour of your load
+ (cf section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Workingset"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ You need enough space in 
+\family typewriter
+/tmp/
+\family default
+ for temporary intermediate files.
+ If your 
+\family typewriter
+*.load.gz
+\family default
+ file is very large (several hours or even days), you may need several gigabytes.
+ Please don't interrupt 
+\family typewriter
+graph.sh
+\family default
+ as it spawns lots of subprocesses and creates lots of temporary files.
+ Currently, there are no checks for free space in 
+\family typewriter
+/tmp/
+\family default
+, so running out of space may produce wrong results 
+\emph on
+silently
+\emph default
+.
+ As a countermeasure, run 
+\family typewriter
+watch df /tmp/
+\family default
+ in a separate window during your run of 
+\family typewriter
+graph.sh
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+Hint: some 
+\family typewriter
+blktrace
+\family default
+ recordings (but not all) contain some timing information about the original
+ IO latencies as measured at the original site.
+ Use 
+\family typewriter
+/path/to/graph.sh --dynamic myname.load.gz
+\family default
+ to create some additional graphics about them.
+\end_layout
+
+\begin_layout Subsubsection
+Selection of Replay Duration
+\end_layout
+
+\begin_layout Standard
+This is a hairy problem, as already described in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Workingset"
+
+\end_inset
+
+.
+ Often, you cannot run 24h replays for many hundred times.
+\end_layout
+
+\begin_layout Standard
+If you want to be sure that a particular load will run even under 
+\emph on
+worst-case
+\emph default
+ conditions, you should definitly select some appropriate time window around
+ 
+\emph on
+load peaks
+\emph default
+, measured both in throughput as well as in workingset size.
+\end_layout
+
+\begin_layout Standard
+In addition, you can try the following strategies:
+\end_layout
+
+\begin_layout Itemize
+For explorative phases in your project, such as determining the optimum
+ in your parameter space, you can try to minimize running times as much
+ as possible.
+ But not too much.
+ Otherwise you will be caught by the pitfalls described in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:How-to-Avoid"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+For final verification of your results, you should repeat benchmarks with
+ a longer window (at least 8h or 24h).
+\end_layout
+
+\begin_layout Subsubsection
+Total Project Time
+\end_layout
+
+\begin_layout Standard
+Working with huge parameter spaces is not all you have to consider.
+ Setup of different RAID levels, re-initialization after changes of stripe
+ sizes, filling LVs with random data, etc, may take a very long time, in
+ addition to the benchmark themselves.
+ Don't forget that! Your only chance are nights and weekends, if you manage
+ to run something unattendedly.
+ But predictions are sometimes wrong.
+ In addition, something may fail and then needs to be restarted.
+ Calculate some spare time for that!
+\end_layout
+
+\begin_layout Standard
+If there is a high time pressure in the project timeline, you probably will
+ have to 
+\emph on
+rework
+\emph default
+ some parts of your project plan.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Planning is crucial! When you find any discrepancies, try to re-think your
+ plan as a whole, not just some parts of it.
+\end_layout
+
+\begin_layout Subsection
+Setup Phase
+\end_layout
+
+\begin_layout Subsubsection
+Lab setup
+\end_layout
+
+\begin_layout Standard
+Ensure that all your hard- and software components are ready in the lab
+ and operational.
+\end_layout
+
+\begin_layout Standard
+In addition, you need some workstation (or server) where the 
+\family typewriter
+blkreplay
+\family default
+ suite is installed
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Just checkout the git repository of 
+\family typewriter
+blkreplay
+\family default
+.
+ In addition, you need 
+\family typewriter
+gcc
+\family default
+, 
+\family typewriter
+make
+\family default
+, 
+\family typewriter
+gnuplot
+\family default
+, and some standard tools like 
+\family typewriter
+grep
+\family default
+ / 
+\family typewriter
+awk
+\family default
+ etc.
+\end_layout
+
+\end_inset
+
+.
+ Go to subdirectory 
+\family typewriter
+src/
+\family default
+ and type 
+\family typewriter
+make
+\family default
+ there.
+\end_layout
+
+\begin_layout Standard
+Ensure that all your test machines are reachable as 
+\family typewriter
+root
+\family default
+ via 
+\family typewriter
+ssh
+\family default
+ from your central workplace, without need for any password prompt.
+ In order to achieve that, you should consider 
+\family typewriter
+ssh-agent
+\family default
+, in addition so some tweaking of 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/etc/ssh/ssh_config
+\end_layout
+
+\end_inset
+
+ (and probably 
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+/etc/ssh/sshd_config
+\end_layout
+
+\end_inset
+
+ on each of the target hosts).
+\end_layout
+
+\begin_layout Standard
+On your workstation, you should have enough disk space to store your results.
+ Create a subdirectory there for your project.
+ Copy 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/path/to/blkreplay/example-run/default-main.conf
+\end_layout
+
+\end_inset
+
+ (and possibly other 
+\family typewriter
+*.conf
+\family default
+ files) to that new subdirectory, and finally 
+\family typewriter
+cd
+\family default
+ to it.
+ For the rest of your life, you will be working there ;)
+\end_layout
+
+\begin_layout Standard
+You can now either call 
+\family typewriter
+/path/to/blkreplay/scripts/
+\emph on
+something
+\emph default
+.sh
+\family default
+ as hard paths as indicated in the following examples, or you may put 
+\family typewriter
+/path/to/blkreplay/scripts/
+\family default
+ into your 
+\family typewriter
+$PATH
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+Customization of 
+\family typewriter
+default-main.conf
+\family default
+ is described in the following.
+\end_layout
+
+\begin_layout Subsubsection
+Configuration Files
+\end_layout
+
+\begin_layout Standard
+You should edit 
+\family typewriter
+default-main.conf
+\family default
+ to reflect the default setup for your project.
+ If you want to run multiple variants of your default setup, you can do
+ so by creating additional files like 
+\family typewriter
+\emph on
+something
+\emph default
+.conf
+\family default
+ as well as a subdirectory 
+\family typewriter
+\emph on
+something
+\emph default
+/
+\family default
+ (having the same name without suffix 
+\family typewriter
+.conf
+\family default
+).
+ When you later start your benchmark, the values from 
+\family typewriter
+\emph on
+something
+\emph default
+.conf
+\family default
+ will override those from 
+\family typewriter
+default-main.conf
+\family default
+.
+ It is highly recommended to override only 
+\emph on
+one
+\emph default
+ parameter inside 
+\family typewriter
+\emph on
+something
+\emph default
+.conf
+\family default
+, otherwise it may become difficult to reveal the real impact of changed
+ parameters onto your test candidate.
+\end_layout
+
+\begin_layout Standard
+In general, you may override 
+\emph on
+any
+\emph default
+ parameter from 
+\family typewriter
+default-main.conf
+\family default
+, even hostnames, or input files 
+\family typewriter
+*.load.gz
+\family default
+, or whatever.
+\end_layout
+
+\begin_layout Subsubsection
+Meaning of the Config File Parameters
+\end_layout
+
+\begin_layout Standard
+The meaning of the parameters is documented in the following places:
+\end_layout
+
+\begin_layout Enumerate
+Comments inside 
+\family typewriter
+default-main.conf
+\family default
+ should provide enough information for experienced administrators, at least
+ for a quick start, and should guide you through the most basic steps.
+\end_layout
+
+\begin_layout Enumerate
+The same information is available in appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "chap:Config-File-Parameters"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Last but not least: read the sources, if you are in doubt about anything.
+\end_layout
+
+\begin_layout Subsection
+Benchmark Phase
+\end_layout
+
+\begin_layout Standard
+The basic idea is simple: after customization of 
+\family typewriter
+default-main.conf
+\family default
+ (and probably other 
+\family typewriter
+default-*.conf
+\family default
+ files when using additional modules), you create a new subdirectory for
+ each benchmark run.
+\end_layout
+
+\begin_layout Standard
+Whenever you call 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/path/to/blkreplay/scripts/tree-replay.sh
+\end_layout
+
+\end_inset
+
+
+\family default
+ (without parameters), a whole bundle of benchmarks will be started, one
+ for each 
+\emph on
+leaf
+\emph default
+
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+A leaf has no further subtree inside it.
+\end_layout
+
+\end_inset
+
+ subdirectory (starting from 
+\family typewriter
+cwd
+\family default
+), provided that for each (intermedidate) subdirectory name 
+\family typewriter
+\emph on
+xxx
+\family default
+\emph default
+ there exists some 
+\family typewriter
+\emph on
+xxx
+\emph default
+.conf
+\family default
+ in the current working directory or in one of its parents.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+Example: you have created a subdirectory 
+\family typewriter
+./short/
+\family default
+ as well as two nested subdirectories 
+\family typewriter
+./short/model1/
+\family default
+ and 
+\family typewriter
+./short/model2/
+\family default
+.
+ You further have prepared the config files 
+\family typewriter
+short.conf
+\family default
+, 
+\family typewriter
+model1.conf
+\family default
+ and 
+\family typewriter
+model2.conf
+\family default
+, existing in the current working directory or in some parent directory
+ down the 
+\family typewriter
+../
+\family default
+ chain.
+ Then exactly 
+\emph on
+two
+\emph default
+ benchmark runs will be started, namely in 
+\family typewriter
+./short/model1/
+\family default
+ and in 
+\family typewriter
+./short/model2/
+\family default
+.
+ The benchmark running in 
+\family typewriter
+./short/model1/
+\family default
+ will include the following 
+\family typewriter
+*.conf
+\family default
+ files, in the following order: 
+\family typewriter
+default-main.conf
+\family default
+, 
+\family typewriter
+short.conf
+\family default
+, and finally 
+\family typewriter
+model1.conf
+\family default
+.
+ Each of the specialized config files may override any previous setting,
+ but it is highly recommended to change only one parameter at a time and
+ to use short but expressive names.
+ Notice: the intermediate directory 
+\family typewriter
+./short/
+\family default
+ is no leaf (since it contains some subdirectories), therefore no benchmark
+ will be started inside it.
+ Later, you just need to create 
+\family typewriter
+./long/
+\family default
+ as well as 
+\family typewriter
+./long/model1/
+\family default
+ and 
+\family typewriter
+./long/model2/
+\family default
+ and some 
+\family typewriter
+long.conf
+\family default
+ in order to repeat the same benchmarks with a longer 
+\family typewriter
+replay_duration
+\family default
+ setting.
+\end_layout
+
+\begin_layout Standard
+Hint: using 
+\begin_inset Quotes eld
+\end_inset
+
+intuitive
+\begin_inset Quotes erd
+\end_inset
+
+ names like 
+\family typewriter
+short
+\family default
+ and 
+\family typewriter
+long
+\family default
+ bears some danger.
+ A few years later, you will not remember what they exactly have meant.
+ Looking into 
+\family typewriter
+\size footnotesize
+*.conf
+\family default
+\size default
+ will not help other people, for example if you publish your benchmark results
+ somewhere.
+ Therefore it may be wise to use 
+\begin_inset Quotes eld
+\end_inset
+
+speaking
+\begin_inset Quotes erd
+\end_inset
+
+ names like 
+\family typewriter
+duration_600
+\family default
+, at least if you have more than two variants.
+ On the other hand, 
+\begin_inset Quotes eld
+\end_inset
+
+intuitive
+\begin_inset Quotes erd
+\end_inset
+
+ names are better for presentation to some less-deeply involved audience.
+ Take some time for creating well-designed names for 
+\family typewriter
+*.conf
+\family default
+ and your directory hierarchy! Changing that names later is cumbersome.
+ Better to design your names in advance in a systematic (but simple) way.
+\end_layout
+
+\begin_layout Standard
+On large investigation projects, deeply nested structures may be necessary,
+ involving different loads, different hardware, different hardware setup,
+ etc.
+ Not all of them are currently automated.
+ You can use the generic module mechanism to extend the default scripts
+ with further functionality, to push automation further.
+\end_layout
+
+\begin_layout Standard
+However, not all setup tasks 
+\emph on
+can
+\emph default
+ be automated at all.
+ Some of them like forcing physical RAID degradation must be started by
+ physically removing a disk, which cannot be automated (other than buying
+ extremely expensive robots).
+ Therefore, you may include some human-readable dialogs inside your 
+\family typewriter
+*.conf
+\family default
+ files (in shell script syntax) or in some new modules you have written.
+ In any case, it is advisable to write some script code to 
+\emph on
+check some preconditions
+\emph default
+ (such as RAID status) in order to prevent wrong measurements.
+\end_layout
+
+\begin_layout Standard
+In general, 
+\family typewriter
+tree-replay.sh
+\family default
+ will never repeat any benchmark which has already completed (i.e.
+ there exists an output file 
+\family typewriter
+*.replay.gz
+\family default
+ in that leaf directory).
+ This allows an incremental style of working.
+\end_layout
+
+\begin_layout Standard
+In addition, you may skip any leaf directory by creating a file 
+\family typewriter
+skip
+\family default
+ inside it.
+ For example, 
+\family typewriter
+touch ./short/model1/skip
+\family default
+ will disable that leaf.
+ Later, you can remove that file in order to fire off that benchmarks.
+\end_layout
+
+\begin_layout Standard
+Hint: 
+\family typewriter
+skip
+\family default
+ files are also working in intermediate directories like 
+\family typewriter
+./short/
+\family default
+, disabling the whole subtree in one step.
+\end_layout
+
+\begin_layout Standard
+Hint: design your 
+\family typewriter
+*.conf
+\family default
+ files such that arbitrary combinations are 
+\emph on
+possible
+\emph default
+ (cartesian product).
+ In contrast, your directory hierarchy need not (and, in many cases, 
+\emph on
+will not
+\emph default
+) exploit the 
+\emph on
+full
+\emph default
+ cartesian product.
+\end_layout
+
+\begin_layout Standard
+Hint: you may create a new leaf directory (somewhere in the subtree) even
+ in parallel to an already running benchmark.
+ Whenever the currently running benchmark has completed, 
+\family typewriter
+tree-replay.sh
+\family default
+ will re-scan the subdirectory structure, find any freshly created leaf
+ directories, and determine which benchmark to start next.
+ All leaf directory names which have not yet completed are sorted alphabetically
+, and the first name according to ASCII sort order is taken first.
+\end_layout
+
+\begin_layout Standard
+Hint: when 10 or more variants could appear somewhere (even after a while),
+ use leading zeros in any names like 
+\family typewriter
+v001
+\family default
+, 
+\family typewriter
+v002
+\family default
+ etc to ensure that ASCII sort order is the same as numerical order.
+\end_layout
+
+\begin_layout Standard
+Hint: when you design your 
+\family typewriter
+*.conf
+\family default
+ files systematically as a cartesian product, in theory it makes no difference
+ whether you permute some directory components (e.g 
+\family typewriter
+./model1/short/
+\family default
+ instead of 
+\family typewriter
+./short/model1/
+\family default
+).
+ However, in practice it influences the ASCII sort order and therefore the
+ order in which your benchmarks are run.
+\end_layout
+
+\begin_layout Standard
+Hint: when some benchmark fails, just delete the corresponding output files.
+ On the next cycle, 
+\family typewriter
+tree-replay.sh
+\family default
+ will detect the missing files and just restart that benchmark (possibly
+ among others).
+\end_layout
+
+\begin_layout Standard
+Hint: 
+\family typewriter
+\emph on
+xxx
+\emph default
+.conf
+\family default
+ files can even reside in some parent directory of the current working directory.
+ This way, you need not copy your 
+\family typewriter
+.conf
+\family default
+ files inside a complex directory hierarchy (even spanning multiple projects).
+ However, only the 
+\family typewriter
+\emph on
+xxx
+\emph default
+.conf
+\family default
+ files corresponding to directories reachable from the current working directory
+ will be included.
+ Example: if you go to a leaf of your subtree and start 
+\family typewriter
+tree-replay.sh
+\family default
+ there, no 
+\family typewriter
+*.conf
+\family default
+ file other than 
+\family typewriter
+default-*.conf
+\family default
+ will be included.
+ This may produce different results than expected.
+ Make sure you start your replays always in the same base directory!
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ It is easy to misconfigure almost anything.
+ Check each step you make.
+ In particular, run tools like 
+\family typewriter
+\size footnotesize
+top
+\family default
+\size default
+, 
+\family typewriter
+\size footnotesize
+xosview
+\family default
+\size default
+, 
+\family typewriter
+\size footnotesize
+iostat
+\family default
+\size default
+, 
+\family typewriter
+\size footnotesize
+watch df /tmp/
+\family default
+\size default
+ etc on 
+\emph on
+all(!)
+\emph default
+ your involved machines in order to get a chance for noticing when anything
+ goes wrong! 
+\emph on
+Never
+\emph default
+, really 
+\emph on
+never
+\emph default
+ run 
+\family typewriter
+\size footnotesize
+tree-replay.sh
+\family default
+\size default
+ 
+\series bold
+blindly
+\series default
+!
+\end_layout
+
+\begin_layout Subsection
+Visualization of Results
+\end_layout
+
+\begin_layout Standard
+After a run of 
+\family typewriter
+tree-replay.sh
+\family default
+, 
+\family typewriter
+cd
+\family default
+ to one of the subdirectories where your result files 
+\family typewriter
+*.replay.gz
+\family default
+ have been produced.
+ There should be as many 
+\family typewriter
+*.replay.gz
+\family default
+ files as there was replay parallelism (on multiple devices in parallel).
+ Check that.
+ In addition, check that no errors are inside them, for example by typing:
+\end_layout
+
+\begin_layout Quotation
+
+\family typewriter
+zgrep ERROR *.replay.gz
+\end_layout
+
+\begin_layout Standard
+If all is right, issue the following command:
+\end_layout
+
+\begin_layout Quotation
+
+\family typewriter
+/path/to/graph.sh *.replay.gz
+\end_layout
+
+\begin_layout Standard
+This will produce 
+\family typewriter
+*.png
+\family default
+ files, which you can inspect with any graphical viewer like 
+\family typewriter
+eog
+\family default
+ / 
+\family typewriter
+konqueror
+\family default
+ etc, print via 
+\family typewriter
+lpr
+\family default
+, or even work on with graphical editors like 
+\family typewriter
+gimp
+\family default
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ You need enough space in 
+\family typewriter
+/tmp/
+\family default
+ for temporary intermediate files.
+ If your 
+\family typewriter
+blkreplay
+\family default
+ run was very long (several hours or even days), or if your replay had a
+ high degree of parallelism, you may need several gigabytes, in extreme
+ cases even several hundreds of gigabytes (as well as rather long running
+ times -- please don't interrupt 
+\family typewriter
+graph.sh
+\family default
+ as it spawns lots of subprocesses and creates lots of temporary files).
+ Currently, there are no checks for free space in 
+\family typewriter
+/tmp/
+\family default
+, so running out of space may produce wrong results 
+\emph on
+silently
+\emph default
+.
+ As a countermeasure, run 
+\family typewriter
+watch df /tmp/
+\family default
+ in a separate window during your run of 
+\family typewriter
+graph.sh
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+All files 
+\family typewriter
+*.replay.gz
+\family default
+ will be taken together, to form a single result from contemporary replays
+ on several devices in parallel.
+ This means: where possible, results from multiple replay devices will be
+ merged together into a single graphics.
+\end_layout
+
+\begin_layout Description
+Hint: If you want to view only a single particular device (or zoom into
+ it), just call 
+\family typewriter
+/path/to/graph.sh
+\family default
+ with a single argument.
+\end_layout
+
+\begin_layout Standard
+As output, multiple kinds of graphics are produced.
+ Each one starts with the same prefix, but has another suffix.
+ For example, 
+\family typewriter
+yourname.g01.latency.realtime.png
+\family default
+ is a graphics file showing the measured latencies in realtime.
+ The numbering part 
+\family typewriter
+.g01.
+
+\family default
+ etc is for sorting in the shell, such that the 
+\begin_inset Quotes eld
+\end_inset
+
+most interesting
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+For many people; of course, there may be different needs.
+ Feel free to rename your result files as you like.
+\end_layout
+
+\end_inset
+
+
+\begin_inset Quotes erd
+\end_inset
+
+ graphics will come first.
+ Here is a list of the meaning of different suffixes, together with a short
+ description:
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.latency.*.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+On the y axis, latencies are displayed.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.delay.*.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+On the y axis, the delays between the intended starting time and the real
+ starting time are displayed.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.thrp.*.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+On the y axis, the troughput (IOPS) is displayed.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.realtime.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The x axis is ordered according to the real starting timestamps which have
+ actually occurred during replay, possibly containing any delays.
+ Notice: when multiple concurrent 
+\family typewriter
+*.replay.gz
+\family default
+ have been supplied as an argument, they are 
+\emph on
+merged
+\emph default
+ (since their timestamps are usually from the same range), similar to the
+ effect of overlay slides.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.setpoint.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The x axis is ordered according to the 
+\emph on
+intended
+\emph default
+ starting point, i.e.
+ when the request 
+\emph on
+should have
+\emph default
+ started (excluding any delays).
+ As before, multiple 
+\family typewriter
+*.replay.gz
+\family default
+ are usually merged.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.points.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The x axis is ordered by 
+\emph on
+requests
+\emph default
+, not timestamps.
+ As a result, requests on the x axis are 
+\emph on
+equidistant
+\emph default
+, even in case of heavy throughput differences.
+ May be used as a kind of 
+\begin_inset Quotes eld
+\end_inset
+
+looking glass
+\begin_inset Quotes erd
+\end_inset
+
+, to reveal more details from performance hot spots.
+ Notice: multiple concurrent replays are 
+\emph on
+not
+\emph default
+ merged on the x axis (as is the case with 
+\family typewriter
+*.realtime.png
+\family default
+ and 
+\family typewriter
+*.setpoint.png
+\family default
+).
+ Instead, the runs are just concatenated (pasted together sequentially).
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.bins.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The new y axis is now a 
+\emph on
+histogram
+\emph default
+ showing absolute frequency, while the x axis now carries the role of the
+ former y axis.
+ Example: 
+\family typewriter
+*.latency.bins.png
+\family default
+ shows the latencies on the x axis (while formerly 
+\family typewriter
+*.latency.realtime.png
+\family default
+ had it on the y axis), while the new y axis now shows the absolute frequency
+ of that latency (how often that latency occurs, independently from the
+ former replay timestamps).
+\end_layout
+
+\begin_layout Standard
+Hint: since the internal data format of 
+\family typewriter
+*.replay.gz
+\family default
+ is the same as 
+\family typewriter
+*.load.gz
+\family default
+, you can use 
+\family typewriter
+/path/to/graph.sh --static *.replay.gz
+\family default
+ to additionall create the same static analysis graphics as described in
+ section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Select-blkreplay-Load"
+
+\end_inset
+
+.
+ In difference to analysis of 
+\family typewriter
+*.load.gz
+\family default
+, this time you may have selected a different time window, and you may have
+ merged multiple replays together.
+\end_layout
+
+\begin_layout Section
+Human Interpretation of Results
+\end_layout
+
+\begin_layout Standard
+TBD
+\end_layout
+
+\begin_layout Section
+Advanced Features
+\end_layout
+
+\begin_layout Standard
+TBD
+\end_layout
+
+\begin_layout Section
+Lowlevel Details and Expert Usage
+\end_layout
+
+\begin_layout Standard
+TBD
+\end_layout
+
+\begin_layout Chapter
+How to use 
+\family typewriter
+blktrace
+\family default
+ for Recording of Natural Loads
+\begin_inset CommandInset label
+LatexCommand label
+name "chap:How-to-use"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+TBD
+\end_layout
+
+\begin_layout Chapter
+Experiences with some Setups and some Loads
+\end_layout
+
+\begin_layout Standard
+TBD
+\end_layout
+
+\begin_layout Chapter
+Internals of 
+\family typewriter
+blkreplay
+\end_layout
+
+\begin_layout Standard
+TBD
+\end_layout
+
+\begin_layout Chapter
+\start_of_appendix
+Config File Parameters
+\begin_inset CommandInset label
+LatexCommand label
+name "chap:Config-File-Parameters"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Basic Parameters
+\end_layout
+
+\begin_layout Standard
+File 
+\family typewriter
+default-main.conf
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-main.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Chapter
+GNU FDL
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting{fdl.txt}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
