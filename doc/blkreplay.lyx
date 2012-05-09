@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.6
+Version 0.7
 \end_layout
 
 \begin_layout Standard
@@ -145,7 +145,7 @@ sloppy
 
 \end_inset
 
- blkreplay
+blkreplay
 \family default
  is a GPL'ed userspace tool for testing the block layer of Linux (or other
  Unix-like OSes) while measuring latency and throughput of IO operations
@@ -1438,10 +1438,8 @@ Mode of Operation
 \begin_layout Standard
 It is crucial to understand not only the concepts of 
 \family typewriter
-\size footnotesize
 blkreplay
 \family default
-\size default
  by itself, but also the 
 \emph on
 operating environment
@@ -1470,10 +1468,8 @@ Please take a look at the following picture:
 \noindent
 In the live system, 
 \family typewriter
-\size footnotesize
 blktrace
 \family default
-\size default
  will 
 \begin_inset Quotes eld
 \end_inset
@@ -1483,8 +1479,12 @@ listen
 \end_inset
 
  to the events occurring at point A, and will record them.
- We have a complex system, running virtual machines inside a hypervisor.
- Notice that all IO requests of the application will not only go through
+ In this example, we have a complex system, running virtual machines inside
+ a hypervisor.
+\end_layout
+
+\begin_layout Standard
+Notice that all IO requests of the application will not only go through
  the filesystem, but also through the buffer / page cache.
  The in-memory cache will usually serve most IO requests from the application,
  without causing physical IO on the block layer (so-called 
@@ -1496,8 +1496,8 @@ cache hits
 \end_inset
 
 ).
- On a well-tuned production server, it is no problem to achieve cache hit
- rates of 99% or more, leading to a kind of 
+ On some well-tuned production servers, it is no problem to achieve cache
+ hit rates of 99% or more, leading to a kind of 
 \begin_inset Quotes eld
 \end_inset
 
@@ -1506,24 +1506,22 @@ gear ratio
 \end_inset
 
  of 1:100, or even 1:1000 (in long-term runs).
- Of course, there are heavy workloads running on thin servers, where sometimes
- less than 1:10 can be achieved.
+ Of course, there also exist heavy workloads running on thin servers, where
+ sometimes less than 1:10 can be achieved.
  Even in that case, there will be 
 \emph on
 always
 \emph default
  some cache hits, for example caused by metadata requests from the filesystem.
  In practice, the cache hit rate will never go down to 0%.
- Notice that this effect is 
+ Notice that these inevitable cache effect are 
 \emph on
 already included
 \emph default
- in the 
+ in any 
 \family typewriter
-\size footnotesize
 blktrace
 \family default
-\size default
 !
 \end_layout
 
@@ -1535,10 +1533,8 @@ effects
 \emph default
  are simulated by 
 \family typewriter
-\size footnotesize
 blkreplay
 \family default
-\size default
 .
  Due to the architecture of the Linux kernel, all IO requests will continue
  to run through the buffer cache
@@ -1591,7 +1587,11 @@ It should be clear by the very nature of our experiment, that at measuring
 \emph on
 exactly
 \emph default
- the same events should happen as had been formerly observed at point A.
+ the same events 
+\emph on
+should
+\emph default
+ happen as had been formerly observed / recorded at point A.
 \end_layout
 
 \begin_layout Standard
@@ -1610,10 +1610,7 @@ gear ratio
 
  of 1:100 (or let it be only 1:1.1) would lead to heavy distortions of the
  measurement results.
-\end_layout
-
-\begin_layout Standard
-In order to switch off the page / buffer cache, 
+ In order to switch off the page / buffer cache, 
 \family typewriter
 \size footnotesize
 blkreplay
@@ -1621,11 +1618,136 @@ blkreplay
 \size default
  uses 
 \family typewriter
-\size footnotesize
 O_DIRECT
 \family default
-\size default
  mode as offered by the Linux kernel.
+\end_layout
+
+\begin_layout Standard
+Notice that even by this measure, there are often some subtle differences
+ between the operations occurring at point A and point B.
+ The block layer of the Linux kernel does some optimizations, for example
+ it tries to 
+\emph on
+coalesce
+\emph default
+ adjacent requests, or to 
+\emph on
+split
+\emph default
+ some requests, depending on the capabilities of the hardware.
+ Usually, these are minor modifications, occurring at less than 1% of all
+ requests.
+ However, keep in mind (and check) these effects.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ The 
+\series bold
+elevator strategy
+\series default
+ (aka IO scheduler) of the Linux block layer is a bigger influence factor.
+ It can 
+\emph on
+reorder
+\emph default
+ requests, and it can even add 
+\emph on
+artificial latencies
+\emph default
+.
+ For example, 
+\family typewriter
+\size footnotesize
+CFQ
+\family default
+\size default
+ adds some speculative latencies in some cases to increase the chances for
+ request mergers.
+ Selecting the 
+\begin_inset Quotes eld
+\end_inset
+
+wrong
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Many sources from the internet claim that 
+\family typewriter
+CFQ
+\family default
+ is the 
+\begin_inset Quotes eld
+\end_inset
+
+best
+\begin_inset Quotes erd
+\end_inset
+
+ IO scheduler.
+ While this is often true for typical workstation load pattern (and interactive
+ user expectations), our experience at 1&1 is different with regards to
+ 
+\emph on
+server
+\emph default
+ loads.
+ Check yourself! Run some 
+\family typewriter
+blkreplay
+\family default
+ comparisons between different IO schedulers.
+ Hint: there may be even non-linear dependencies from the lower level, whether
+ you have some RAID with BBU cache, or not.
+\end_layout
+
+\end_inset
+
+
+\begin_inset Quotes erd
+\end_inset
+
+ scheduler may lead to larger distortions, even to seemingly 
+\begin_inset Quotes eld
+\end_inset
+
+bad
+\begin_inset Quotes erd
+\end_inset
+
+ behaviour (which is 
+\emph on
+not
+\emph default
+ the fault of bad hardware).
+ In order to really get (almost) the same behaviour at points A and B, you
+ 
+\emph on
+must
+\emph default
+ select the 
+\family typewriter
+NOOP
+\family default
+ or at least the 
+\family typewriter
+DEADLINE
+\family default
+ scheduler.
+ See 
+\family typewriter
+/sys/dev/block/*/queue/scheduler
+\family default
+.
 \end_layout
 
 \begin_layout Chapter
@@ -2490,7 +2612,8 @@ the workload contains unevenly distributed access frequencies.
 \end_layout
 
 \begin_layout Standard
-Case 1 occurs only in special cases.
+Case 1 occurs only in special cases, such as in-memory databases (or workstation
+ loads on large RAM machines).
  Case 2 appears more often.
 \end_layout
 
@@ -2516,8 +2639,11 @@ In case of
 \emph on
 exclusive
 \emph default
- cache hierarchies, the whole picture can be replaced by a simplified one
- having only one cache level.
+ cache hierarchies, the whole picture can be 
+\emph on
+approximately(!)
+\emph default
+ replaced by a simplified one having only one cache level.
  The size of the new simplified cache is just the 
 \emph on
 sum
@@ -2615,7 +2741,7 @@ Probably you already know this, and you think you don't violate it.
 \end_inset
 
 TB or more).
- At the time of writing this paper, many commercial storage systems don't
+ At the time of writing this paper, some commercial storage systems don't
  match this seemingly simple requirement.
 \end_layout
 
@@ -2767,7 +2893,11 @@ future
 
 \end_inset
 
- the interesting point in time t.
+ the interesting point in time 
+\begin_inset Formula $t$
+\end_inset
+
+.
  Notice that we have a 
 \emph on
 set
@@ -2837,8 +2967,8 @@ neglect
  Then we can model the following interesting property:
 \end_layout
 
-\begin_layout Quotation
-A cache is called to work 
+\begin_layout Quote
+A cache is called to be designed 
 \series bold
 efficiently
 \series default
@@ -2853,11 +2983,15 @@ name "A-cache-is"
 \begin_inset Formula $t$
 \end_inset
 
- the following condition holds: 
+ the following condition holds:
+\begin_inset Newline newline
+\end_inset
+
+ 
 \begin_inset Formula $|WS(t,\delta)|\leq|\text{{cachesize}}|$
 \end_inset
 
- and 
+ for some 
 \begin_inset Formula $\delta\geq(\text{{time\, to\, fill\, the\, cache\, once}})$
 \end_inset
 
@@ -2912,7 +3046,15 @@ fit
 status open
 
 \begin_layout Plain Layout
-This holds only if a 
+Of course, this holds only if the workload contains some 
+\emph on
+repetitions
+\emph default
+ during the window 
+\begin_inset Formula $\delta$
+\end_inset
+
+, and if the cache employs some 
 \begin_inset Quotes eld
 \end_inset
 
@@ -2920,7 +3062,8 @@ good
 \begin_inset Quotes erd
 \end_inset
 
- strategy like LRU is used, which assures that 
+ replacement strategy like LRU.
+ The latter assures that 
 \begin_inset Quotes eld
 \end_inset
 
@@ -4657,10 +4800,8 @@ long
  A few years later, you will not remember what they exactly have meant.
  Looking into 
 \family typewriter
-\size footnotesize
 *.conf
 \family default
-\size default
  will not help other people, for example if you publish your benchmark results
  somewhere.
  Therefore it may be wise to use 
@@ -4715,7 +4856,7 @@ can
 \family typewriter
 *.conf
 \family default
- files (in shell script syntax) or in some new modules you have written.
+ files (in shell script syntax), or in some new modules you have written.
  In any case, it is advisable to write some script code to 
 \emph on
 check some preconditions
@@ -4811,6 +4952,42 @@ v002
 \end_layout
 
 \begin_layout Standard
+Hint: sometimes the ASCII sort order of names like 
+\family typewriter
+short
+\family default
+ vs 
+\family typewriter
+long
+\family default
+ is boring, because you want to run the 
+\family typewriter
+short
+\family default
+ benchmarks first.
+ As a workaround in larger projects, add some numerical prefixes like in
+ 
+\family typewriter
+01_short
+\family default
+ vs 
+\family typewriter
+09_long
+\family default
+ (leaving some numerical space such that you can later add 
+\family typewriter
+05_medium
+\family default
+).
+ As a side effect, this also improves the ASCII sort order of your later
+ 
+\family typewriter
+*.png
+\family default
+ graphics.
+\end_layout
+
+\begin_layout Standard
 Hint: when you design your 
 \family typewriter
 *.conf
@@ -4825,8 +5002,11 @@ Hint: when you design your
 ./short/model1/
 \family default
 ).
- However, in practice it influences the ASCII sort order and therefore the
- order in which your benchmarks are run.
+ However, in practice it influences the ASCII sort order (taking the 
+\emph on
+full
+\emph default
+ path) and therefore the order in which your benchmarks are run.
 \end_layout
 
 \begin_layout Standard
@@ -4888,7 +5068,7 @@ default-*.conf
 
 \end_inset
 
- It is easy to misconfigure almost anything.
+ It is easy to misconfigure almost anything by accident.
  Check each step you make.
  In particular, run tools like 
 \family typewriter
