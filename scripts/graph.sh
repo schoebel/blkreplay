@@ -138,6 +138,8 @@ for window in $ws_list; do
     ws=$myfifo.all.sort2.$window
     mkfifo $ws
     ws_fifos="$ws_fifos $ws"
+    mkfifo $myfifo.all.dist1.$window
+    mkfifo $myfifo.all.dist2.$window
 done
 for mode in reads writes; do
     for k in {0..5}; do
@@ -159,7 +161,7 @@ function compute_ws
     window=$1
     advance=$1
     (( advance <= 0 )) && advance=1
-    awk -F ";" "BEGIN{ start=0.0; count=0; } { if (!start) start=\$1; while (\$1 >= start + $advance) { printf(\"%f %d\n\", start+$advance, count); if ($window) { count = 0; delete table; } start += $advance; } if (!table[\$2]) { table[\$2]=1; count++; } }"
+    awk -F ";" "BEGIN{ start = 0.0; count = 0; } { if (!start) start = \$1; while (\$1 >= start + $advance) { delta = 0.0; if ($window) { c = asorti(table); delta = table[c-1] - table[0]; } printf(\"%f %d %f %f\n\", start+$advance, count, delta, (c > 0 ? delta/c : 0)); if ($window) { count = 0; delete table; } start += $advance; } if (!table[\$2]) { table[\$2] = \$2; count++; } }"
 }
 
 
@@ -203,7 +205,7 @@ if (( static_mode )); then
     cat $myfifo.all.sort2.1 | cut -d ';' -f 2 | awk "$awk_thrp" >\
 	$out.g90.orig.thrp.total.bins &
     cat $myfifo.all.sort0.1 | awk -F ";" '{ printf("%d\n", $2+$6+$7); }' | $sort -n | awk "$awk_thrp" >\
-	$out.g90.thrp.total.bins &
+	$out.g20.thrp.total.bins &
 else
     cat $myfifo.all.sort2.1 > /dev/null &
     cat $myfifo.all.sort0.1 > /dev/null &
@@ -218,9 +220,17 @@ else
     cat $myfifo.all.sort2.3 > /dev/null &
 fi
 for window in $ws_list; do
-    cat $myfifo.all.sort2.$window | cut -d ';' -f 2,3 | compute_ws $window >\
-	$out.g20.ws_log.$window.extra &
-    ln -sf $out.g20.ws_log.$window.extra $out.g21.ws_lin.$window.extra 
+    cat $myfifo.all.sort2.$window | cut -d ';' -f 2,3 | compute_ws $window |\
+	tee $myfifo.all.dist1.$window $myfifo.all.dist2.$window |\
+	awk '{print $1, $2; }' >\
+	$out.g30.ws_log.$window.extra &
+    ln -sf $out.g30.ws_log.$window.extra $out.g31.ws_lin.$window.extra 
+    cat $myfifo.all.dist1.$window |\
+	awk '{print $1, $3; }' >\
+	$out.g32.sum_dist.$window.extra &
+    cat $myfifo.all.dist2.$window |\
+	awk '{print $1, $4; }' >\
+	$out.g33.avg_dist.$window.extra &
 done
 
 # intermediate pipelines for Reads/Writes
@@ -360,7 +370,7 @@ EOF
     ) &
 done
 
-for mode in thrp ws_log ws_lin ; do
+for mode in thrp ws_log ws_lin sum_dist avg_dist; do
     plot=""
     delim="plot"
     using=""
@@ -369,10 +379,20 @@ for mode in thrp ws_log ws_lin ; do
     [ $mode = latency ] && lines="linespoints"
     for i in $tmp/*.$mode.total.bins $tmp/*.$mode.*.extra; do
 	[ -s $i ] || continue
+	case $mode in
+	    sum_dist | avg_dist)
+	    case $i in
+		*.00[0-5].*)
+		rm -f "$i"
+		continue
+		;;
+	    esac
+	    ;;
+	esac
 	title=$(basename $i | sed 's/\.\(tmp\|extra\)//g')
 	plot="$plot$delim '$i' $using title '$title' with $lines"
 	delim=","
-	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i).$picturetype"
+	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i | sed 's/\.\(tmp\|extra\|000\)//g').$picturetype"
     done
 
     if [ -n "$plot" ]; then
@@ -391,6 +411,16 @@ for mode in thrp ws_log ws_lin ; do
 	    ws_lin)
 	    xlabel="Duration [sec]"
 	    ylabel="Workingset Size"
+	    ;;
+	    avg_dist)
+	    xlabel="Duration [sec]"
+	    ylabel="Average Distance [sectors]"
+	    scale="set logscale y;"
+	    ;;
+	    sum_dist)
+	    xlabel="Duration [sec]"
+	    ylabel="Total Distance [sectors]"
+	    scale="set logscale y;"
 	    ;;
 	esac
 	<<EOF gnuplot
