@@ -31,6 +31,16 @@ bad_delay="10.0" # seconds
 bad_ignore=1 # the n'th exceeding the limit
 ws_list="000 001 006 060 600"
 
+# check some preconditions
+
+check_list="grep sed awk head tail cat cut tee sort mkfifo nice date gzip gunzip zcat gcc gnuplot"
+for i in $check_ist; do
+    if ! which $i >/dev/null 2>&1; then
+	echo "Sorry, program '$i' is not installed."
+	exit -1
+    fi
+done
+
 base_dir=$(dirname $(which "$0"))
 [ -x $base_dir/../src/bins.exe ] || \
     gcc -O2 -Wall -lm $base_dir/../src/bins.c -o $base_dir/../src/bins.exe

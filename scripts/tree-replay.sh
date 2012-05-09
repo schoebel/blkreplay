@@ -29,7 +29,7 @@ dry_run=0
 
 # check some preconditions
 
-check_list="grep awk head tail cat cut nice date gzip gunzip ssh rsync buffer"
+check_list="grep sed awk head tail cat cut nice date gzip gunzip zcat ssh rsync buffer"
 for i in $check_ist; do
     if ! which $i >/dev/null 2>&1; then
 	echo "Sorry, program '$i' is not installed."
