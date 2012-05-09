@@ -34,7 +34,7 @@ ws_list="000 001 006 060 600"
 # check some preconditions
 
 check_list="grep sed awk head tail cat cut tee sort mkfifo nice date gzip gunzip zcat gcc gnuplot"
-for i in $check_ist; do
+for i in $check_list; do
     if ! which $i >/dev/null 2>&1; then
 	echo "Sorry, program '$i' is not installed."
 	exit -1

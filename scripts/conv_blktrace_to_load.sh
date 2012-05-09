@@ -37,6 +37,16 @@ if ! [ -f "$filename.blktrace.0" ]; then
     exit -1
 fi
 
+# check some preconditions
+
+check_list="grep sed cut gzip blkparse"
+for i in $check_list; do
+    if ! which $i >/dev/null 2>&1; then
+	echo "Sorry, program '$i' is not installed."
+	exit -1
+    fi
+done
+
 {
     # Notice: the following GNU all-permissive license applies to the
     # generated DATA file only, and does not change the GPL of this script.
