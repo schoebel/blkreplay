@@ -79,7 +79,6 @@ char *mmap_ptr = NULL;
 char *main_name = NULL;
 long long main_size = 0;
 long long max_size = 0;
-int pre_wait = 10;
 int mmap_mode = 0;
 int conflict_mode = 0; 
 /* 0 = allow arbitrary permutations in ordering
@@ -718,35 +717,18 @@ void do_done(struct request *old)
 	del_request(old->sector, old->seqnr);
 }
 
-/* FIXME: polling is a bad idea.
- * In order to remove this, we would need a dedicated receiver thread.
- * The current version tries to avoid pthreads for sake of
- * (potential) portability.
- */
 static
-int poll_answer(int blocking)
+int get_answer(void)
 {
-	static int old_blocking = 1;
 	struct request rq = {};
 	int status;
 	int res = 0;
 
 #ifdef DEBUG_TIMING
-	printf("poll_answer\n");
+	printf("get_answer\n");
 #endif
 	if (!already_forked)
 		goto done;
-
-	if (blocking != old_blocking) {
-		if (blocking) {
-			// set blocking mode
-			fcntl(answer[0], F_SETFL, 0);
-		} else {
-			// set nonblocking mode
-			fcntl(answer[0], F_SETFL, O_NONBLOCK);
-		}
-		old_blocking = blocking;
-	}
 
 	status = read(answer[0], &rq, RQ_SIZE);
 	if (status == RQ_SIZE) {
@@ -786,7 +768,7 @@ done:
 ///////////////////////////////////////////////////////////////////////
 
 static
-void do_wait(struct request *rq, struct timespec *now, int less_wait, int do_poll)
+void do_wait(struct request *rq, struct timespec *now, int less_wait)
 {
 #ifdef DEBUG_TIMING
 	printf("do_wait\n");
@@ -802,10 +784,10 @@ void do_wait(struct request *rq, struct timespec *now, int less_wait, int do_pol
 
 		rest_wait.tv_sec -= less_wait;
 
+
 #ifdef DEBUG_TIMING
-		printf("(%d) %d %d %lld.%09ld %lld.%09ld %lld.%09ld\n",
+		printf("(%d) %d %lld.%09ld %lld.%09ld %lld.%09ld\n",
 		       getpid(),
-		       do_poll,
 		       less_wait,
 		       (long long)now->tv_sec,
 		       now->tv_nsec,
@@ -820,18 +802,6 @@ void do_wait(struct request *rq, struct timespec *now, int less_wait, int do_pol
 			break;
 		}
 
-		if (do_poll &&
-		    ((long long)rest_wait.tv_sec > 0 || rest_wait.tv_nsec > NANO/10)) {
-			if (poll_answer(0))
-				continue; // got answer => immediate retry
-
-			// avoid traffic jam on the answer pipline by frequent polling
-			rest_wait.tv_sec = 0;
-			rest_wait.tv_nsec >>= 1;
-			if (rest_wait.tv_nsec > NANO/100)
-				rest_wait.tv_nsec = NANO/100;
-		}
-
 		nanosleep(&rest_wait, NULL);
 	}
 }
@@ -843,7 +813,7 @@ void do_action(struct request *rq)
 	struct timespec t1 = {};
 	int code;
 
-	do_wait(rq, &t0, 0, 0);
+	do_wait(rq, &t0, 0);
 
 	code = similar_execute(rq);
 
@@ -1004,8 +974,6 @@ void fork_childs()
 				printf("ERROR: cannot create order pipe\n");
 				exit(-1);
 			}
-			// set nonblocking mode
-			fcntl(queue[i][1], F_SETFL, O_NONBLOCK);
 
 			pid = fork();
 			if (pid < 0) {
@@ -1023,8 +991,6 @@ void fork_childs()
 		}
 		close(answer[1]);
 	}
-	// set nonblocking mode on answer channel
-	fcntl(answer[0], F_SETFL, O_NONBLOCK);
 
 	printf("done forking\n\n");
 	fflush(stdout);
@@ -1044,9 +1010,7 @@ void pipe_write(int fd, void *data, int len)
 		} else {
 			printf("WARN: bad pipe write fd=%d status=%d (%d %s)\n", fd, status, errno, strerror(errno));
 			fflush(stdout);
-			poll_answer(1);
-			while (poll_answer(0)) {
-			}
+			exit(-1);
 		}
 	}
 }
@@ -1080,12 +1044,6 @@ int execute(struct request *rq)
 		rq->old_version = NULL;
 	}
 
-	// pre-wait to avoid too much discrepancy between verify_table and completion_table
-	if (pre_wait > 0) {
-		struct timespec now = {};
-		do_wait(rq, &now, pre_wait, 1);
-	}
-
 	if (verify_mode) {
 		rq->old_version = get_blockversion(verify_fd, rq->sector, rq->length);
 	}
@@ -1106,17 +1064,11 @@ int execute(struct request *rq)
 			printf("INFO: dropping block=%lld len=%d mode=%c\n", rq->sector, rq->length, rq->rwbs);
 			fflush(stdout);
 			statist_dropped++;
-#if 1
-			while (poll_answer(0)) {
-			}
-#endif
 			return 0;
 		}
 		// wait until conflict has gone...
 		if (count_completion) {
-			poll_answer(1);
-			while (poll_answer(0)) { // this improves performance
-			}
+			get_answer();
 			continue;
 		}
 		printf("FATAL ERROR: block %lld waiting for up-to-date version\n", rq->sector);
@@ -1160,8 +1112,11 @@ void parse(FILE *inp)
 
 		statist_lines++;
 
-		while (poll_answer(0)) {
+		// avoid flooding the pipelines too much
+		if (count_completion > QUEUES * 2) {
+			get_answer();
 		}
+
 		if (!rq)
 			rq = malloc(sizeof(struct request));
 		if (!rq) {
@@ -1196,6 +1151,12 @@ void parse(FILE *inp)
 		if (rq->rwbs != 'R' && rq->rwbs != 'W') {
 			printf("ERROR: bad character '%c'\n", rq->rwbs);
 			continue;
+		}
+
+		// avoid running too much ahead in time
+		if (count_completion > 0) {
+			struct timespec now = {};
+			do_wait(rq, &now, 1);
 		}
 
 		rq->seqnr = ++statist_total;
@@ -1239,10 +1200,7 @@ void parse(FILE *inp)
 	printf("--------------------------------------\n");
 	fflush(stdout);
 
-	// reset nonblocking mode on answer channel
-	fcntl(answer[0], F_SETFL, 0);
-
-	while (poll_answer(1)) {
+	while (get_answer()) {
 	}
 
 	printf("=======================================\n\n");
@@ -1257,7 +1215,6 @@ void parse(FILE *inp)
 	printf("# completed requests          : %6d\n", statist_completed);
 	printf("# dropped   requests          : %6d\n", statist_dropped);
 	printf("# verify errors during replay : %6lld\n", verify_errors);
-	printf("pre_wait                      : %6d\n", pre_wait);
 	printf("conflict_mode                 : %6d\n", conflict_mode);
 	printf("verify_mode                   : %6d\n", verify_mode);
 	if (fly_count)
@@ -1302,9 +1259,6 @@ int main(int argc, char *argv[])
 	}
 	if (verify_mode >= 2)
 		final_verify_mode++;
-	if (verify_mode == 1 || final_verify_mode) { // pre-wait 1 second
-		pre_wait = 1;
-	}
 	if (argc >= 3) {
 		time_factor = atof(argv[2]);
 		time_stretch = 1.0 / time_factor;
@@ -1318,9 +1272,6 @@ int main(int argc, char *argv[])
 	}
 	if (argc >= 5) {
 		max_time = atoi(argv[4]);
-	}
-	if (argc >= 6) {
-		pre_wait = atoi(argv[5]);
 	}
 
 	if (time_factor != 0.0) {
