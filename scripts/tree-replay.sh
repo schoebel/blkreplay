@@ -93,18 +93,20 @@ while [ $# -ge 1 ]; do
     esac
 done
 
+ignore="grep -v '[/.]old' | grep -v 'ignore'"
+
 # find directories
 resume=1
 while (( resume )); do
     echo "Scanning directory structure."
     resume=0
-    for test_dir in $(find . -type d | grep -v "[/.]old" | grep -v "ignore" | sort); do
+    for test_dir in $(find . -type d | eval "$ignore" | sort); do
 	(( dry_run )) || rm -f $test_dir/dry-run.replay.gz
 	if [ -e "$test_dir/skip" ]; then
 	    echo "Skipping directory $test_dir"
 	    continue
 	fi
-	if [ $(find $test_dir -type d | wc -l) -gt 1 ]; then
+	if [ $(find $test_dir -type d | eval "$ignore" | wc -l) -gt 1 ]; then
 	    echo "Ignoring inner directory $test_dir"
 	    continue
 	fi
