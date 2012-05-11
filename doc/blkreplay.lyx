@@ -4698,6 +4698,15 @@ xxx
 .conf
 \family default
  in the current working directory or in one of its parents.
+ In the whole subdirectory structure, and directory ending with 
+\family typewriter
+.old
+\family default
+ or including the substring 
+\family typewriter
+ignore
+\family default
+ will be ignored.
 \end_layout
 
 \begin_layout Labeling
@@ -4898,8 +4907,64 @@ tree-replay.sh
  This allows an incremental style of working.
 \end_layout
 
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+Continued
+\begin_inset space ~
+\end_inset
+
+example: normally, you can call 
+\family typewriter
+tree-replay.sh
+\family default
+ again, but nothing happens, because all leaf directories already contain
+ some results.
+ However, then you find a problem with the results in 
+\family typewriter
+./short/model1/
+\family default
+, so you want to repeat that benchmark without deleting your first (questionable
+) results.
+ Now you create a subdirectory 
+\family typewriter
+./short/model1/try1.old/
+\family default
+ and move your results there.
+ As said above, any directory names ending with 
+\family typewriter
+.old
+\family default
+ or containing the substring 
+\family typewriter
+ignore
+\family default
+ are ignored, so the directory 
+\family typewriter
+./short/model1/
+\family default
+ will continue to count as a leaf (despite its newer subdirectory, which
+ is just ignored).
+ Since the 
+\family typewriter
+*.replay.gz
+\family default
+ files are now missing in 
+\family typewriter
+./short/model1/
+\family default
+ due to the 
+\family typewriter
+mv
+\family default
+, 
+\family typewriter
+tree-replay.sh
+\family default
+ will repeat that single benchmark there.
+\end_layout
+
 \begin_layout Standard
-In addition, you may skip any leaf directory by creating a file 
+You may skip any leaf directory by creating a file 
 \family typewriter
 skip
 \family default
@@ -4909,7 +4974,7 @@ skip
 touch ./short/model1/skip
 \family default
  will disable that leaf.
- Later, you can remove that file in order to fire off that benchmarks.
+ Later, you can remove that file in order to fire off that benchmark.
 \end_layout
 
 \begin_layout Standard
