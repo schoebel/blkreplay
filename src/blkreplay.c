@@ -81,13 +81,16 @@ long long main_size = 0;
 long long max_size = 0;
 int pre_wait = 10;
 int mmap_mode = 0;
-int verify_mode = 0; 
+int conflict_mode = 0; 
 /* 0 = allow arbitrary permutations in ordering
  * 1 = drop conflicting requests
- * 2 = enforce ordering by waiting for conflictss, do not verify data
- * 3 = additionally verify data during execution, but not afterwards
- * 4 = additionally verify data after execution
- * 5 = additionally re-read and verify data immediatley after each write
+ * 2 = enforce ordering by waiting for conflicts
+ */
+int verify_mode = 0; 
+/* 0 = no verify
+ * 1 = verify data during execution
+ * 2 = additionally verify data after execution
+ * 3 = additionally re-read and verify data immediatley after each write
  */
 int final_verify_mode = 0; 
 
@@ -213,6 +216,99 @@ void del_request(long long sector, long long seqnr)
 
 ///////////////////////////////////////////////////////////////////////
 
+/* Fast in-memory determination of conflicts.
+ * Used in place of temporary files (where possible).
+ */
+#define FLY_HASH      2048
+#define FLY_ZONE        64
+#define FLY_HASH_FN(sector) (((sector) / FLY_ZONE) % FLY_HASH)
+#define FLY_NEXT_ZONE(sector) (((sector / FLY_ZONE) + 1) * FLY_ZONE)
+
+struct fly {
+	struct fly *fl_next;
+	long long   fl_sector;
+	int         fl_len;
+};
+
+static struct fly *fly_hash_table[FLY_HASH];
+static int fly_count = 0;
+
+static
+void fly_add(long long sector, int len)
+{
+	while (len > 0) {
+		struct fly *new = malloc(sizeof(struct fly));
+		int index = FLY_HASH_FN(sector);
+		int max_len = FLY_NEXT_ZONE(sector) - sector;
+		int this_len = len;
+		if (this_len > max_len)
+			this_len = max_len;
+
+		if (!new) {
+			printf("FATAL ERROR: out of memory for hashing\n");
+			fflush(stdout);
+			exit(-1);
+		}
+		new->fl_sector = sector;
+		new->fl_len = this_len;
+		new->fl_next = fly_hash_table[index];
+		fly_hash_table[index] = new;
+		fly_count++;
+
+		sector += this_len;
+		len -= this_len;
+	}
+}
+
+static
+int fly_check(long long sector, int len)
+{
+	while (len > 0) {
+		struct fly *tmp = fly_hash_table[FLY_HASH_FN(sector)];
+		int max_len = FLY_NEXT_ZONE(sector) - sector;
+		int this_len = len;
+		if (this_len > max_len)
+			this_len = max_len;
+
+		for (; tmp != NULL; tmp = tmp->fl_next) {
+			if (sector + this_len > tmp->fl_sector && sector <= tmp->fl_sector + tmp->fl_len) {
+				return 1;
+			}
+		}
+
+		sector += this_len;
+		len -= this_len;
+	}
+	return 0;
+}
+
+static
+void fly_delete(long long sector, int len)
+{
+	while (len > 0) {
+		struct fly **res = &fly_hash_table[FLY_HASH_FN(sector)];
+		struct fly *tmp;
+		int max_len = FLY_NEXT_ZONE(sector) - sector;
+		int this_len = len;
+		if (this_len > max_len)
+			this_len = max_len;
+		
+		for (tmp = *res; tmp != NULL; res = &tmp->fl_next, tmp = *res) {
+			if (tmp->fl_sector == sector && tmp->fl_len == this_len) {
+				*res = tmp->fl_next;
+				fly_count--;
+				free(tmp);
+				break;
+			}
+		}
+		
+		sector += this_len;
+		len -= this_len;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////
+
 // abstracting read() and write()
 
 static
@@ -313,7 +409,7 @@ void put_blockversion(int fd, unsigned int *data, long long blocknr, int count)
 	meta_delay_count++;
 
 	if (status < 0) {
-		printf("ERROR: write to verify table failed %d (%s)\n", errno, strerror(errno));
+		printf("FATAL ERROR: write to verify table failed %d (%s)\n", errno, strerror(errno));
 		fflush(stdout);
 		verify_mode = 0;
 	}
@@ -363,7 +459,7 @@ void check_tags(struct request *rq, void *buffer, int len, int do_write)
 {
 	int i;
 	char *mode = do_write ? "write" : "read";
-	if (verify_mode < 3  || !rq->old_version)
+	if (!verify_mode || !rq->old_version)
 		return;
 	for (i = 0; i < len; i += 512) {
 		struct verify_tag *tag = buffer+i;
@@ -397,7 +493,7 @@ void make_tags(struct request *rq, void *buffer, int len)
 	int i;
 
 	// check old tag before overwriting
-	if (verify_mode >= 3) {
+	if (verify_mode >= 1) {
 		int status;
 		status = do_read(buffer, len);
 		if (status == len) {
@@ -563,7 +659,7 @@ int similar_execute(struct request *rq)
 		if (rq->rwbs == 'W') {
 			make_tags(rq, buffer, len);
 			status = do_write(buffer, len);
-			if (verify_mode >= 5 && status == len) { // additional re-read and verify
+			if (verify_mode >= 3 && status == len) { // additional re-read and verify
 				paranoia_check(rq, buffer);
 			}
 		} else {
@@ -663,11 +759,16 @@ int poll_answer(int blocking)
 		} else {
 			printf("ERROR: request %lld vanished\n", rq.sector);
 		}
-		if (rq.rwbs == 'W' && verify_mode) {
-			unsigned int *data = get_blockversion(complete_fd, rq.sector, rq.length);
-			advance_blockversion(data, rq.length, rq.tag.tag_write_seqnr);
+		if (rq.rwbs == 'W') {
+			if (conflict_mode) {
+				fly_delete(rq.sector, rq.length);
+			}
+			if (verify_mode) {
+				unsigned int *data = get_blockversion(complete_fd, rq.sector, rq.length);
+				advance_blockversion(data, rq.length, rq.tag.tag_write_seqnr);
       
-			put_blockversion(complete_fd, data, rq.sector, rq.length);
+				put_blockversion(complete_fd, data, rq.sector, rq.length);
+			}
 		}
 		verify_errors += rq.verify_errors;
 		count_completion--;
@@ -796,11 +897,16 @@ char *mk_temp(const char *basename)
 static
 void verify_open(int again)
 {
-	int flags = O_RDWR | O_CREAT | O_LARGEFILE | O_TRUNC;
+	int flags;
+
+	if (!verify_mode)
+		return;
+
+	flags = O_RDWR | O_CREAT | O_LARGEFILE | O_TRUNC;
 	if (again) {
 		flags = O_RDONLY | O_LARGEFILE;
 	}
-	if (verify_mode && verify_fd < 0) {
+	if (verify_fd < 0) {
 		char *file = getenv("VERIFY_TABLE");
 		if (!file) {
 			file = mk_temp(VERIFY_TABLE);
@@ -808,12 +914,11 @@ void verify_open(int again)
 		verify_fd = open(file, flags, S_IRUSR | S_IWUSR);
 		if (verify_fd < 0) {
 			printf("ERROR: cannot open '%s' (%d %s)\n", VERIFY_TABLE, errno, strerror(errno));
-		}
-		if (verify_fd < 0) {
+			fflush(stdout);
 			verify_mode = 0;
 		}
 	}
-	if (verify_mode && complete_fd < 0) {
+	if (complete_fd < 0) {
 		char *file = getenv("COMPLETION_TABLE");
 		if (!file) {
 			file = mk_temp(COMPLETION_TABLE);
@@ -821,8 +926,7 @@ void verify_open(int again)
 		complete_fd = open(file, flags, S_IRUSR | S_IWUSR);
 		if (complete_fd < 0) {
 			printf("ERROR: cannot open '%s' (%d %s)\n", COMPLETION_TABLE, errno, strerror(errno));
-		}
-		if (complete_fd < 0) {
+			fflush(stdout);
 			verify_mode = 0;
 		}
 	}
@@ -982,52 +1086,45 @@ int execute(struct request *rq)
 		do_wait(rq, &now, pre_wait, 1);
 	}
 
-	rq->old_version = get_blockversion(verify_fd, rq->sector, rq->length);
 	if (verify_mode) {
-		for (;;) {
-			int i;
+		rq->old_version = get_blockversion(verify_fd, rq->sector, rq->length);
+	}
+	for (;;) {
+		int status = 0;
+		if (conflict_mode) {
+			status = fly_check(rq->sector, rq->length);
+		} else if (verify_mode) {
 			unsigned int *now_version = get_blockversion(complete_fd, rq->sector, rq->length);
-			int status = compare_blockversion(rq->old_version, now_version, rq->length);
-			if (!status) { // no conflict
-				free(now_version);
-				break;
-			}
-			// well, we have a conflict.
-			if (verify_mode == 1) { // drop request
-				free(now_version);
-				printf("INFO: dropping block=%lld len=%d mode=%c\n", rq->sector, rq->length, rq->rwbs);
-				fflush(stdout);
-				statist_dropped++;
-#if 1
-				while (poll_answer(0)) {
-				}
-#endif
-				return 0;
-			}
-			// wait until conflict has gone...
-			if (count_completion) {
-				free(now_version);
-				poll_answer(1);
-				while (poll_answer(0)) { // this improves performance
-				}
-#if 0 // not necessary
-				if (rq->old_version)
-					free(rq->old_version);
-				rq->old_version = get_blockversion(verify_fd, rq->sector, rq->length);
-#endif
-				continue;
-			}
-			printf("FATAL ERROR: block %lld waiting for up-to-date version\n", rq->sector);
-			for (i = 0; i < rq->length; i++) {
-				printf("%lld+%d: now %u != old %u\n", rq->sector, i, now_version[i], rq->old_version[i]);
-			}
-			fflush(stdout);
-			//sleep(1);
+			status = compare_blockversion(rq->old_version, now_version, rq->length);
 			free(now_version);
-			exit(-1);
 		}
+		if (!status) { // no conflict
+			break;
+		}
+		// well, we have a conflict.
+		if (conflict_mode == 1) { // drop request
+			printf("INFO: dropping block=%lld len=%d mode=%c\n", rq->sector, rq->length, rq->rwbs);
+			fflush(stdout);
+			statist_dropped++;
+#if 1
+			while (poll_answer(0)) {
+			}
+#endif
+			return 0;
+		}
+		// wait until conflict has gone...
+		if (count_completion) {
+			poll_answer(1);
+			while (poll_answer(0)) { // this improves performance
+			}
+			continue;
+		}
+		printf("FATAL ERROR: block %lld waiting for up-to-date version\n", rq->sector);
+		exit(-1);
 	}
 	if (rq->rwbs == 'W') {
+		if (conflict_mode)
+			fly_add(rq->sector, rq->length);
 		write_seqnr++;
 		force_blockversion(verify_fd, write_seqnr, rq->sector, rq->length);
 	}
@@ -1161,6 +1258,10 @@ void parse(FILE *inp)
 	printf("# dropped   requests          : %6d\n", statist_dropped);
 	printf("# verify errors during replay : %6lld\n", verify_errors);
 	printf("pre_wait                      : %6d\n", pre_wait);
+	printf("conflict_mode                 : %6d\n", conflict_mode);
+	printf("verify_mode                   : %6d\n", verify_mode);
+	if (fly_count)
+		printf("fly_count                     : %6d\n", fly_count);
 	printf("size of device:      %12lld blocks (%lld kB)\n", main_size, main_size/2);
 	printf("max block# occurred: %12lld blocks (%lld kB)\n", max_size, max_size/2);
 	printf("wraparound factor:   %6.3f\n", (double)max_size / (double)main_size);
@@ -1181,6 +1282,10 @@ int main(int argc, char *argv[])
 	}
 	main_name = argv[1];
 	for (; *main_name; main_name++) {
+		if (*main_name == '#') { // switch on conflict modes
+			conflict_mode++;
+			continue;
+		}
 		if (*main_name == '?') { // switch on verify mode
 			verify_mode++;
 			continue;
@@ -1195,7 +1300,9 @@ int main(int argc, char *argv[])
 		}
 		break;
 	}
-	if (verify_mode == 1 || verify_mode >= 4) { // pre-wait 1 second
+	if (verify_mode >= 2)
+		final_verify_mode++;
+	if (verify_mode == 1 || final_verify_mode) { // pre-wait 1 second
 		pre_wait = 1;
 	}
 	if (argc >= 3) {
@@ -1248,7 +1355,7 @@ int main(int argc, char *argv[])
 	}
 
 	// verify the end result
-	if (verify_mode >= 4 || final_verify_mode) {
+	if (final_verify_mode) {
 		printf("-------------------------------\n");
 		printf("verifying the end result.......\n");
 		fflush(stdout);

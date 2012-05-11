@@ -109,32 +109,37 @@ function main_run
     delta="${replay_delta:-0}"
     for i in $(eval echo {0..$replay_max}); do
 	mode_dev="${replay_device[$i]}"
+	case "$cmode" in
+	    with-conflicts)
+	    mode_dev="$mode_dev"
+	    ;;
+	    with-drop)
+	    mode_dev="#$mode_dev"
+	    ;;
+	    with-ordering)
+	    mode_dev="##$mode_dev"
+	    ;;
+	    *)
+	    echo "Warning: no cmode is set. Falling back to 'with-conflicts'."
+	    mode_dev="$mode_dev"
+	    ;;
+	esac
 	case "$vmode" in
-	    *-verify)
+	    *-final)
             mode_dev="!$mode_dev"
 	    ;;
 	esac
 	case "$vmode" in
-	    with-conflicts*)
-	    mode_dev="$mode_dev"
-	    ;;
-	    with-drop*)
+	    with-verify*)
 	    mode_dev="?$mode_dev"
 	    ;;
-	    with-ordering*)
+	    with-final-verify*)
 	    mode_dev="??$mode_dev"
 	    ;;
-	    with-verify*)
+	    with-paranoia*)
 	    mode_dev="???$mode_dev"
 	    ;;
-	    with-final-verify*)
-	    mode_dev="????$mode_dev"
-	    ;;
-	    with-paranoia*)
-	    mode_dev="?????$mode_dev"
-	    ;;
 	    *)
-	    echo "Warning: no vmode is set. Falling back to 'with-conflicts'."
 	    mode_dev="$mode_dev"
 	    ;;
 	esac

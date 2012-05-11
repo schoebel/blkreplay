@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.9
+Version 0.10
 \end_layout
 
 \begin_layout Standard
@@ -151,7 +151,6 @@ status open
 
 \begin_layout Plain Layout
 
-\family typewriter
 
 \backslash
 sloppy
@@ -159,7 +158,7 @@ sloppy
 
 \end_inset
 
-blkreplay
+ blkreplay
 \family default
  is a GPL'ed userspace tool for testing the block layer of Linux (or other
  Unix-like OSes) while measuring latency and throughput of IO operations
@@ -1312,104 +1311,48 @@ In order to avoid damaged IO,
 \family typewriter
 blkreplay
 \family default
- internally uses two temporary files: 
-\family typewriter
-
-\begin_inset Flex URL
-status collapsed
-
-\begin_layout Plain Layout
-
-/tmp/verify_table
+ uses some in-memory hash tables to detect any (potential) conflicts between
+ IO requests.
+ There are two modes of operation:
 \end_layout
 
-\end_inset
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
 
-
-\family default
- and 
 \family typewriter
-
-\begin_inset Flex URL
-status collapsed
-
-\begin_layout Plain Layout
-
-/tmp/completion_table
+with-drop
+\family default
+ Whenever a new write request is conflicting with an old (already issued)
+ request, it is simply dropped.
+ This has no side effects, other than that some writes may be missing.
+ Depending on properties of the load, the number of dropped writes may be
+ rather high.
+ Please check the end of the result file.
+ In the statistics section, you will find the number of dropped requests.
+ If this number is higher than, say, 5%, you should consider the next option.
 \end_layout
 
-\end_inset
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
 
-
-\family default
-.
- Both are sparse files, containing a simple (sparse) array of sequence numbers,
- indexed by the position (sector#).
- Whenever a write is started, a new sequence number is recorded in 
 \family typewriter
-
-\begin_inset Flex URL
-status collapsed
-
-\begin_layout Plain Layout
-
-/tmp/verify_table
-\end_layout
-
-\end_inset
-
-
+with-ordering
 \family default
-.
- Whenever that write is completed, the same number is recorded in 
-\family typewriter
-
-\begin_inset Flex URL
-status collapsed
-
-\begin_layout Plain Layout
-
-/tmp/completion_table
-\end_layout
-
-\end_inset
-
-
-\family default
-.
- At any time, both tables keep track of the current progress of write operations.
- Whenever the sequence numbers at the same position (sector#) are different
- between both files, we know that a write operation has not yet completed.
- Thus we can delay another IO to/from the same sector, if someone tries
- to start one at the 
-\begin_inset Quotes eld
-\end_inset
-
-wrong
-\begin_inset Quotes erd
-\end_inset
-
- moment.
-\end_layout
-
-\begin_layout Standard
-Notice that the current version of 
-\family typewriter
-blkreplay
-\family default
- works as follows: the main process spreads its IO requests to the worker
- processes in a round-robin fashion over their anonymous pipes.
+ Notice that the main process spreads its IO requests to the worker processes
+ in a round-robin fashion over their anonymous pipes.
  Whenever conflicting IO requests (in the sense of damaged IO) are detected,
  this spreading process will stop until the conflict has gone away.
-\end_layout
-
-\begin_layout Standard
-As a side effect, all following IO requests are also delayed, even if they
+ As a side effect, all following IO requests are also delayed, even if they
  don't conflict with anything else.
 \end_layout
 
 \begin_layout Standard
-Future versions of 
+The latter can lead to 
+\emph on
+artificial delays
+\emph default
+.
+ Future versions of 
 \family typewriter
 blkreplay
 \family default
@@ -1418,7 +1361,7 @@ blkreplay
 
 \begin_layout Standard
 However, practical experience from many hardware tests shows that the current
- behaviour seems to be an 
+ behaviour (artificial delays) seems to be an 
 \emph on
 advantage
 \emph default
@@ -1436,7 +1379,18 @@ If you know what you are doing, you may switch on an option of
 \family typewriter
 blkreplay
 \family default
-, which just 
+ (see 
+\family typewriter
+cmode
+\family default
+ in appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "chap:Config-File-Parameters"
+
+\end_inset
+
+), which just 
 \emph on
 drops
 \emph default
@@ -1776,6 +1730,197 @@ DEADLINE
 /sys/dev/block/*/queue/scheduler
 \family default
 .
+\end_layout
+
+\begin_layout Section
+Verification of Storage Semantics
+\end_layout
+
+\begin_layout Standard
+In order to allow verification of the sector headers and their timestamps
+ / version stamps, 
+\family typewriter
+blkreplay
+\family default
+ needs some temporary storage where information can be kept for a longer
+ time than just during IO.
+ Two temporary files are used: 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/tmp/verify_table
+\end_layout
+
+\end_inset
+
+
+\family default
+ and 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/tmp/completion_table
+\end_layout
+
+\end_inset
+
+
+\family default
+.
+ Both are sparse files, containing a simple (sparse) array of sequence numbers,
+ indexed by the position (sector#).
+ Whenever a write is started, a new sequence number is recorded in 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/tmp/verify_table
+\end_layout
+
+\end_inset
+
+
+\family default
+.
+ Whenever that write is completed, the same number is recorded in 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/tmp/completion_table
+\end_layout
+
+\end_inset
+
+
+\family default
+.
+ At any time, both tables keep track of the current progress of write operations.
+ 
+\end_layout
+
+\begin_layout Standard
+Whenever the sequence numbers at the same position (sector#) are different
+ between both files, we know that a write operation has not yet completed.
+ If they are the same, we know which sequence number should appear in the
+ header of the corresponding sector.
+\end_layout
+
+\begin_layout Standard
+There are following variants of verification modes:
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+with-verify
+\family default
+ Whenever a sector is read (by a regular read request) which has been written
+ before (by an ordinary write request), the read data is checked against
+ the sequence numbers from the tables.
+ Any mismatches are reported by the string 
+\family typewriter
+VERIFY ERROR
+\family default
+ in the result file.
+ Thus, 
+\family typewriter
+zgrep 
+\begin_inset Quotes eld
+\end_inset
+
+VERIFY ERROR
+\begin_inset Quotes erd
+\end_inset
+
+ *.replay.gz
+\family default
+ will show them to you.
+ In addition, the statistics section at the end of the output file will
+ contain some valuable information.
+\begin_inset Newline newline
+\end_inset
+
+Warning! this mode can only reveal errors in the storage semantics if written
+ blocks are re-read somewhen.
+ When sectors are just written, but never read, this mode will not detect
+ anything.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+with-final-verify
+\family default
+ In addition to 
+\family typewriter
+with-verify
+\family default
+, a separate pass will be started at the end of a 
+\family typewriter
+blkreplay
+\family default
+ run.
+ All sectors which have been touched before, will be checked.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+with-paranoia
+\family default
+ In addition, any written sector will be immediately re-read during operation.
+ This doubles the IO rate and leads to extremely high distortions of measurement
+ results.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ All verify modes will create temporary tables in 
+\family typewriter
+/tmp/
+\family default
+.
+ Although the temporary files are sparse, they can use up a significant
+ amount of storage (depending on the load).
+ The additional IOs form a 
+\emph on
+sequential bottleneck
+\emph default
+, and therefore can slowdown 
+\family typewriter
+blkreplay
+\family default
+ considerably.
+ Please use the verify modes only for 
+\emph on
+validation
+\emph default
+, but not for measurements / determining performance!
 \end_layout
 
 \begin_layout Chapter
@@ -2843,7 +2988,7 @@ MU-based paging / swapping systems and their strategies like LRU.
 \begin_layout Standard
 \begin_inset Formula 
 \[
-WS(t,\delta)=\big\{\text{{set\, of\, all\, sectors\, touched\, in\, the\, time\, interval\,[t-\delta,t]}}\big\}
+WS(t,\delta)=\big\{\text{{set\,\ of\,\ all\,\ sectors\,\ touched\,\ in\,\ the\,\ time\,\ interval\,[t-\delta,t]}}\big\}
 \]
 
 \end_inset
@@ -3012,7 +3157,7 @@ name "A-cache-is"
 \end_inset
 
  for some 
-\begin_inset Formula $\delta\geq(\text{{time\, to\, fill\, the\, cache\, once}})$
+\begin_inset Formula $\delta\geq(\text{{time\,\ to\,\ fill\,\ the\,\ cache\,\ once}})$
 \end_inset
 
 .
@@ -3024,7 +3169,7 @@ The potential painpoint is easy to see: just take
 \end_inset
 
  as the time to fill the cache from the background storage, which is 
-\begin_inset Formula $(\text{{accesstime\, to\, storage}})\star(\text{{cachesize}})$
+\begin_inset Formula $(\text{{accesstime\,\ to\,\ storage}})\star(\text{{cachesize}})$
 \end_inset
 
 .
