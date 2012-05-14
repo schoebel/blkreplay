@@ -114,10 +114,10 @@ function main_run
 	    mode_dev="$mode_dev"
 	    ;;
 	    with-drop)
-	    mode_dev="#$mode_dev"
+	    mode_dev="\#$mode_dev"
 	    ;;
 	    with-ordering)
-	    mode_dev="##$mode_dev"
+	    mode_dev="\#\#$mode_dev"
 	    ;;
 	    *)
 	    echo "Warning: no cmode is set. Falling back to 'with-conflicts'."
