@@ -204,6 +204,9 @@ void del_request(long long sector, long long seqnr)
 	if (*ptr && (*ptr)->sector == sector) {
 		found = *ptr;
 		*ptr = found->next;
+		if (found->old_version) {
+			free(found->old_version);
+		}
 		free(found);
 	}
 }
@@ -248,6 +251,12 @@ unsigned int *get_blockversion(int fd, long long blocknr, int count)
 	clock_gettime(CLOCK_REALTIME, &t0);
 
 	data = malloc(memlen);
+	if (!data) {
+		printf("FATAL ERROR: out of memory for hashing\n");
+		fflush(stdout);
+		verify_mode = 0;
+		return NULL;
+	}
 	if (lseek64(fd, blocknr * sizeof(unsigned int), SEEK_SET) != blocknr * sizeof(unsigned int)) {
 		printf("FATAL ERROR: llseek(%lld) in verify table failed %d (%s)\n", blocknr, errno, strerror(errno));
 		fflush(stdout);
@@ -775,6 +784,7 @@ char *mk_temp(const char *basename)
 	char *res = malloc(1024);
 	int len;
 	if (!res) {
+		printf("FATAL ERROR: out of memory for tmp pathname\n");
 		exit(-1);
 	}
 	len = snprintf(res, 1024, "%s/blkreplay.%d/", TMP_DIR, getpid());
@@ -836,22 +846,32 @@ void do_son(int in_fd, int back_fd)
 		if (!status)
 			break;
 		if (status < 0) {
-			printf("ERROR: pipe read error %d\n", errno);
+			printf("FATAL ERROR: pipe read error %d\n", errno);
 			fflush(stdout);
-			continue;
+			exit(-1);
 		}
 		if (rq.has_version) {
 			int size = rq.length * sizeof(unsigned int);
 			rq.old_version = malloc(size);
+			if (!rq.old_version) {
+				printf("FATAL ERROR: out of memory\n");
+				fflush(stdout);
+				exit(-1);
+			}
+
 			status = read(in_fd, rq.old_version, size);
 			if (status < 0) {
-				printf("ERROR: pipe read error %d\n", errno);
+				printf("FATAL ERROR: pipe read error %d\n", errno);
 				fflush(stdout);
 				continue;
 			}
 		}
 		do_action(&rq);
 		write(back_fd, &rq, RQ_SIZE);
+		if (rq.old_version) {
+			free(rq.old_version);
+			rq.old_version = NULL;
+		}
 	}
 	close(in_fd);
 	close(back_fd);
@@ -951,8 +971,10 @@ int execute(struct request *rq)
 	// generate write tag
 	rq->tag.tag_start = start_stamp.tv_sec;
 	rq->tag.tag_seqnr = seqnr;
-	if (rq->old_version)
+	if (rq->old_version) {
 		free(rq->old_version);
+		rq->old_version = NULL;
+	}
 
 	// pre-wait to avoid too much discrepancy between verify_table and completion_table
 	if (pre_wait > 0) {
@@ -1045,6 +1067,11 @@ void parse(FILE *inp)
 		}
 		if (!rq)
 			rq = malloc(sizeof(struct request));
+		if (!rq) {
+			printf("FATAL ERROR: out of memory for requests\n");
+			fflush(stdout);
+			exit(-1);
+		}
 		memset(rq, 0, sizeof(struct request));
 		//count = sscanf(buffer, ": %c%c%c%c%c %lld %ld.%ld %lld %d", &rq->code, &dummy, rq->rwbs+0, rq->rwbs+1, rq->rwbs+2, &rq->seqnr, &rq->orig_stamp.tv_sec, &rq->orig_stamp.tv_nsec, &rq->sector, &rq->length);
 		count = sscanf(buffer, "%ld.%ld ; %lld ; %d ; %c", &rq->orig_stamp.tv_sec, &rq->orig_stamp.tv_nsec, &rq->sector, &rq->length, &rq->rwbs);
