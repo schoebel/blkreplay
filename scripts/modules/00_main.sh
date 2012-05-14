@@ -168,7 +168,7 @@ function main_finish
     echo $FUNCNAME
     if (( !omit_tmp_cleanup )); then
 	echo "Cleaning all remote /tmp/ directories..."
-	remote_all "rm -rf /tmp/blkreplay.*"
+	remote_all "rm -rf \${TMPDIR:-/tmp}/blkreplay.*"
     fi
 }
 

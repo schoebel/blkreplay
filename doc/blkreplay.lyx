@@ -4378,7 +4378,11 @@ reference "sub:Pitfalls-from-Workingset"
 \family typewriter
 /tmp/
 \family default
- for temporary intermediate files.
+ (or in another 
+\family typewriter
+$TMPDIR
+\family default
+) for temporary intermediate files.
  If your 
 \family typewriter
 *.load.gz
@@ -5430,7 +5434,11 @@ gimp
 \family typewriter
 /tmp/
 \family default
- for temporary intermediate files.
+ (or in another 
+\family typewriter
+$TMPDIR
+\family default
+) for temporary intermediate files.
  If your 
 \family typewriter
 blkreplay

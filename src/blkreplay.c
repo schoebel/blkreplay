@@ -852,13 +852,16 @@ void main_open(int again)
 static
 char *mk_temp(const char *basename)
 {
+	char *tmpdir = getenv("TMPDIR");
 	char *res = malloc(1024);
 	int len;
 	if (!res) {
 		printf("FATAL ERROR: out of memory for tmp pathname\n");
 		exit(-1);
 	}
-	len = snprintf(res, 1024, "%s/blkreplay.%d/", TMP_DIR, getpid());
+	if (!tmpdir)
+		tmpdir = TMP_DIR;
+	len = snprintf(res, 1024, "%s/blkreplay.%d/", tmpdir, getpid());
 	(void)mkdir(res, 0700);
 	snprintf(res + len, 1024 - len, "%s", basename);
 	return res;

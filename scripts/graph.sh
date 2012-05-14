@@ -45,7 +45,7 @@ base_dir=$(dirname $(which "$0"))
 [ -x $base_dir/../src/bins.exe ] || \
     gcc -O2 -Wall -lm $base_dir/../src/bins.c -o $base_dir/../src/bins.exe
 
-tmp="/tmp/graph.$$"
+tmp="${TMPDIR:-/tmp}/graph.$$"
 rm -rf "$tmp"
 mkdir -p "$tmp"
 mkfifo "$tmp/master.fifo"
