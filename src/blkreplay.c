@@ -1228,6 +1228,212 @@ void parse(FILE *inp)
 	fflush(stdout);
 }
 
+///////////////////////////////////////////////////////////////////////
+
+// arg parsing
+// don't use GNU getopt, it's not available everywhere
+
+struct arg {
+	char *arg_name;
+	char *arg_descr;
+	int   arg_const;
+	int  *arg_val_int;
+	FLOAT*arg_val_float;
+};
+
+static
+const struct arg arg_table[] = {
+	{
+		.arg_name  = "|",
+		.arg_descr = "Influence replay duration:",
+	},
+	{
+		.arg_name  = "min_time",
+		.arg_descr = "start offset (in seconds)",
+		.arg_const = -1,
+		.arg_val_int = &min_time,
+	},
+	{
+		.arg_name  = "max_time",
+		.arg_descr = "end offset (in seconds, 0=unlimited)",
+		.arg_const = -1,
+		.arg_val_int = &max_time,
+	},
+	{
+		.arg_name  = "min_out_time",
+		.arg_descr = "start offset, used for output (in seconds)",
+		.arg_const = -1,
+		.arg_val_int = &min_out_time,
+	},
+
+
+	{
+		.arg_name  = "|",
+		.arg_descr = "Handling of conflicting IO requests:",
+	},
+	{
+		.arg_name  = "with-conflicts",
+		.arg_descr = "conflicting writes are ALLOWED (damaged IO)",
+		.arg_const = 0,
+		.arg_val_int = &conflict_mode,
+	},
+	{
+		.arg_name  = "with-drop",
+		.arg_descr = "conflicting writes are simply dropped",
+		.arg_const = 1,
+		.arg_val_int = &conflict_mode,
+	},
+	{
+		.arg_name  = "with-ordering",
+		.arg_descr = "enforce total order in case of conflicts",
+		.arg_const = 2,
+		.arg_val_int = &conflict_mode,
+	},
+
+
+
+	{
+		.arg_name  = "|",
+		.arg_descr = "Verification modes:",
+	},
+	{
+		.arg_name  = "no-overhead",
+		.arg_descr = "verify is OFF (default)",
+		.arg_const = 0,
+		.arg_val_int = &verify_mode,
+	},
+	{
+		.arg_name  = "with-verify",
+		.arg_descr = "verify on reads",
+		.arg_const = 1,
+		.arg_val_int = &verify_mode,
+	},
+	{
+		.arg_name  = "with-final-verify",
+		.arg_descr = "additional verify pass at the end",
+		.arg_const = 2,
+		.arg_val_int = &verify_mode,
+	},
+	{
+		.arg_name  = "with-paranoia",
+		.arg_descr = "re-read after each write (destroys performance)",
+		.arg_const = 3,
+		.arg_val_int = &verify_mode,
+	},
+
+
+
+	{
+		.arg_name  = "|",
+		.arg_descr = "Expert options (DANGEROUS):",
+	},
+	{
+		.arg_name  = "speedup",
+		.arg_descr = "speedup / slowdown by REAL factor",
+		.arg_const = -1,
+		.arg_val_float = &time_factor,
+	},
+	{
+		.arg_name  = "mmap-mode",
+		.arg_descr = "use mmap() instead of read() / write() [NYI]",
+		.arg_const = 1,
+		.arg_val_int = &mmap_mode,
+	},
+	{}
+};
+
+static
+void usage(void)
+{
+	const struct arg *tmp;
+
+	printf("usage: blkreplay {--<option>[=<value>]} <device>\n");
+
+	for (tmp = arg_table; tmp->arg_name; tmp++) {
+		int len;
+
+		if (tmp->arg_name[0] == '|') {
+			printf("\n%s\n", tmp->arg_descr);
+			continue;
+		}
+
+		len = strlen(tmp->arg_name);
+		printf("  --%s", tmp->arg_name);
+		if (tmp->arg_const < 0) {
+			printf("=<val>");
+			len += 6;
+		}
+		while (len++ < 20) {
+			printf(" ");
+		}
+		printf(" %s\n", tmp->arg_descr);
+	}
+	exit(-1);
+}
+
+static
+void parse_args(int argc, char *argv[])
+{
+	int i;
+
+	for (i = 1; i < argc; i++) {
+		char *this = argv[i];
+		const struct arg *tmp;
+		int count = 1;
+
+		if (this[0] != '-') {
+			if (main_name) {
+				printf("<device> must not be set twice\n");
+				usage();
+			}
+			main_name = this;
+			continue;
+		}
+		this++;
+		if (this[0] != '-') {
+			printf("only double options starting with -- are allowed\n");
+			usage();
+		}
+		this++;
+		for (tmp = arg_table; tmp->arg_name; tmp++) {
+			int len = strlen(tmp->arg_name);
+			if (!strncmp(tmp->arg_name, this, len)) {
+				this += len;
+				break;
+			}
+		}
+
+		if (!tmp->arg_name) {
+			printf("unknown option '%s'\n", this);
+			usage();
+		}
+
+		if (tmp->arg_const >= 0) {
+			*tmp->arg_val_int = tmp->arg_const;
+			continue;
+		}
+
+		while (*this == ' ')
+			this++;
+		if (*this == '=')
+			this++;
+
+		if (tmp->arg_val_int)
+			count = sscanf(this, "%d", tmp->arg_val_int);
+		else
+			*tmp->arg_val_float = atof(this);
+		if (count != 1) {
+			printf("cannot parse <val> '%s'\n", this);
+			usage();
+		}
+	}
+
+	if (!main_name) {
+		printf("you forgot to provide a <device>\n");
+		usage();
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	time_t now = time(NULL);
@@ -1235,49 +1441,13 @@ int main(int argc, char *argv[])
 	signal(SIGCHLD, SIG_IGN);
 
 	/* argument parsing */
-	if (argc < 2) {
-		printf("normal usage: blkreplay {?}<device> [<time_strech> [<min_time[=min_out_time]> [<max_time>]]]\n");
-		printf("verify-only mode: blkreplay '\?\?\?\?<device>' 0.0\n");
-		exit(-1);
-	}
-	main_name = argv[1];
-	for (; *main_name; main_name++) {
-		if (*main_name == '#') { // switch on conflict modes
-			conflict_mode++;
-			continue;
-		}
-		if (*main_name == '?') { // switch on verify mode
-			verify_mode++;
-			continue;
-		}
-		if (*main_name == '!') { // switch on final verify mode
-			final_verify_mode++;
-			continue;
-		}
-		if (*main_name == '*') { // switch on mmap mode
-			mmap_mode++;
-			continue;
-		}
-		break;
-	}
+	parse_args(argc, argv);
+
 	if (verify_mode >= 2)
 		final_verify_mode++;
-	if (argc >= 3) {
-		time_factor = atof(argv[2]);
-		time_stretch = 1.0 / time_factor;
-	}
-	if (argc >= 4) {
-		char *subarg = strstr(argv[3], "=");
-		min_time = atoi(argv[3]);
-		if (subarg) {
-			min_out_time = atoi(subarg+1);
-		}
-	}
-	if (argc >= 5) {
-		max_time = atoi(argv[4]);
-	}
 
 	if (time_factor != 0.0) {
+		time_stretch = 1.0 / time_factor;
 
 		/* Notice: the following GNU all-permissive license applies
 		 * to the generated DATA file only, and does not change

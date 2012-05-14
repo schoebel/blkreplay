@@ -108,47 +108,29 @@ function main_run
     len="${replay_duration:-3600}"
     delta="${replay_delta:-0}"
     for i in $(eval echo {0..$replay_max}); do
-	mode_dev="${replay_device[$i]}"
+	options=""
 	case "$cmode" in
-	    with-conflicts)
-	    mode_dev="$mode_dev"
-	    ;;
-	    with-drop)
-	    mode_dev="\#$mode_dev"
-	    ;;
-	    with-ordering)
-	    mode_dev="\#\#$mode_dev"
+	    with-conflicts | with-drop | with-ordering)
+	    options="--$cmode"
 	    ;;
 	    *)
-	    echo "Warning: no cmode is set. Falling back to 'with-conflicts'."
-	    mode_dev="$mode_dev"
+	    echo "Warning: no cmode is set. Falling back to default."
 	    ;;
 	esac
 	case "$vmode" in
-	    *-final)
-            mode_dev="!$mode_dev"
-	    ;;
-	esac
-	case "$vmode" in
-	    with-verify*)
-	    mode_dev="?$mode_dev"
-	    ;;
-	    with-final-verify*)
-	    mode_dev="??$mode_dev"
-	    ;;
-	    with-paranoia*)
-	    mode_dev="???$mode_dev"
+	    no-overhead | with-verify | with-final-verify | with-paranoia)
+	    options="$options --$vmode"
 	    ;;
 	    *)
-	    mode_dev="$mode_dev"
 	    ;;
 	esac
-	limits="$start $(( start + len))"
-	[ -n "$replay_out_start" ] && limits="$start=$replay_out_start $(( start + len))"
-	blkreplay="./blkreplay.\$(uname -m) $mode_dev ${speedup:-1.0} $limits"
+	[ -n "$speedup" ] && options="$options --speedup=${speedup:-1.0}"
+	limits="--min_time=$start --max_time=$(( start + len ))"
+	[ -n "$replay_out_start" ] && limits="$limits --min_out_time=$(( replay_out_start + len ))"
+	blkreplay="./blkreplay.\$(uname -m) $options $limits ${replay_device[$i]} "
 	#echo "$blkreplay"
 	cmd="$buffer_cmd | nice gunzip -f | $buffer_cmd | $blkreplay | $buffer_cmd 2>&1 | nice gzip | $buffer_cmd"
-	echo "Starting blkreplay on ${replay_host[$i]} device $mode_dev"
+	echo "Starting blkreplay on ${replay_host[$i]} options '$options' device ${replay_device[$i]}"
 	#echo "$cmd"
 	remote "${replay_host[$i]}" "$cmd" < "${input_file[$i]}" > "${output_file[$i]}" &
 	(( start += delta ))
