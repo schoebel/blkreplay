@@ -124,6 +124,7 @@ function main_run
 	    *)
 	    ;;
 	esac
+	[ -n "$threads" ] && options="$options --threads=${threads}"
 	[ -n "$speedup" ] && options="$options --speedup=${speedup:-1.0}"
 	limits="--min_time=$start --max_time=$(( start + len ))"
 	[ -n "$replay_out_start" ] && limits="$limits --min_out_time=$(( replay_out_start + len ))"

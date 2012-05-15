@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.10
+Version 0.11
 \end_layout
 
 \begin_layout Standard
@@ -3732,7 +3732,15 @@ invalid
 \end_layout
 
 \begin_layout Subsection
-Pitfalls from (missing) Parallelism in IO Systems
+Pitfalls from Parallelism in IO Systems
+\end_layout
+
+\begin_layout Subsubsection
+Pitfalls from 
+\emph on
+missing
+\emph default
+ Parallelism
 \end_layout
 
 \begin_layout Standard
@@ -3878,6 +3886,182 @@ reference "sub:Pitfalls-from-Replay"
 , and many others.
 \end_layout
 
+\begin_layout Subsubsection
+Pitfalls from 
+\emph on
+too high
+\emph default
+ IO Parallelism
+\end_layout
+
+\begin_layout Standard
+You can tune the number of 
+\family typewriter
+blkreplay
+\family default
+ threads via the parameter 
+\family typewriter
+threads=\SpecialChar \ldots{}
+
+\family default
+ (see appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "chap:Config-File-Parameters"
+
+\end_inset
+
+).
+ As a side effect, this will also influence the maximum number of outstanding
+ IO requests which can be 
+\begin_inset Quotes eld
+\end_inset
+
+on the fly
+\begin_inset Quotes erd
+\end_inset
+
+ in parallel, together with the replay parallelism (number of 
+\family typewriter
+blkreplay
+\family default
+ instances running in parallel on the same physical system).
+\end_layout
+
+\begin_layout Standard
+Many people believe that an increasing number of outstanding IO requests
+ will improve overall throughput.
+\end_layout
+
+\begin_layout Standard
+However, some devices / drivers / IO schedulers may respond in some 
+\emph on
+counter-productive
+\emph default
+ way when hammered with too many IO requests in parallel.
+ Sometimes, your throughput can even 
+\emph on
+collapse
+\emph default
+ to less than 1/10 of the maximum.
+ There are many possible reasons for this unexpected behaviour.
+\end_layout
+
+\begin_layout Standard
+In most cases, you will notice collapsing effects only during 
+\series bold
+overload situations
+\series default
+.
+ During normal operation, you will not notice anything, because the device
+ can 
+\emph on
+catch up
+\emph default
+ with the IO demands.
+ There are almost no queues, because the 
+\emph on
+average service time
+\emph default
+ is shorter than the average request rate.
+\end_layout
+
+\begin_layout Standard
+As soon as the device gets overloaded, the situation will change rapidly.
+ Masses of 
+\family typewriter
+blkreplay
+\family default
+ threads are trying to fire off their requests in time, starting to overlap
+ now because the service time increases.
+ Suddenly, some queuing will take place, somewhere.
+ In mathematical theory, the queue lengths could even grow indefinitely
+ whenever the average request rate is higher than the average service time.
+ In practice, there will be some limits somewhere.
+\end_layout
+
+\begin_layout Standard
+Imagine you are going shopping in a supermarket.
+ When the cashier girl cannot catch up with the demand from the customers,
+ their shopping trolleys will start to form a queue in front of her.
+ Now assume the following behaviour: the longer the queue, the 
+\emph on
+slower
+\emph default
+ she will work.
+ Imagine that! After a while, customer satisfaction will go down to zero,
+ because the queue will get longer and longer.
+ And the longer, the slower she will work.
+ And so on.
+ There is no escape, other than stopping to buy anything from there.
+\end_layout
+
+\begin_layout Standard
+A similar behaviour can be observed in some IO systems.
+ Once a queue has formed, there is almost no escape from a behaviour similar
+ to 
+\series bold
+traffic jam
+\series default
+.
+ If you cannot change the system, your only chance is to reduce load, or
+ even to remove the load at all.
+\end_layout
+
+\begin_layout Standard
+Sometimes it is even hard to trigger such behaviour.
+ A systems appears to run smoothly for months, but suddenly it collapses.
+\end_layout
+
+\begin_layout Standard
+If you have such a system (or cannot be sure to have one
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+To find out, we recommend the artifical loads 
+\family typewriter
+*bursts*.load.gz
+\family default
+ for creating anal kinds of overload.
+\end_layout
+
+\end_inset
+
+) and want to simulate its behaviour in the laboratory, you should be carefully
+ tuning the 
+\family typewriter
+threads
+\family default
+ parameter.
+ In reality, the number of outstanding requests is often limited in some
+ way.
+ For example, a typical workstation load caused by a single user has often
+ some intrinsically limited IO parallelism, similar to a limited number
+ of shopping trolleys in the supermarket.
+ On the other hand, some server loads (such as those caused by Apache) can
+ 
+\family typewriter
+fork()
+\family default
+ off a high number of threads.
+ 
+\end_layout
+
+\begin_layout Standard
+So it is quite possible to observe some traffic jam behaviour in practice,
+ depending on your application.
+ It is quite possible that such behaviour is 
+\series bold
+relevant
+\series default
+ for IT operations, at least for 
+\emph on
+some
+\emph default
+ applications (but not for all).
+\end_layout
+
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
 \begin_inset Graphics
@@ -3887,11 +4071,16 @@ reference "sub:Pitfalls-from-Replay"
 
 \end_inset
 
- Taking any of these non-linear (and sometimes even 
+ Taking any of these 
+\series bold
+non-linear
+\series default
+ (and sometimes even 
 \emph on
 binary collapsing
 \emph default
-) effects not seriously can easily lead to 
+) effects not seriously and/or using a wrong number of threads / replay
+ parallelism can easily lead to 
 \series bold
 invalid results
 \series default

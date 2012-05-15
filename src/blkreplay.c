@@ -53,20 +53,24 @@
 //
 // example: gcc -Wall -O2 blkreplay.c -lrt -lm -o blkreplay
 
-#define QUEUES 1000 // parallelism (1024 is too much for some rlimits)
+#define QUEUES                256
+#define FILL_FACTOR             4
+#define DEFAULT_THREADS      1024
+#define DEFAULT_SPEEDUP       1.0
+
 #ifndef TMP_DIR
 # define TMP_DIR "/tmp"
 #endif
 #define VERIFY_TABLE     "verify_table" // default filename for verify table
 #define COMPLETION_TABLE "completion_table" // default filename for completed requests
 
-#define RQ_HASH_MAX 1024
+#define RQ_HASH_MAX (128 * QUEUES)
 #define FLOAT long double
 
 //#define DEBUG_TIMING
 
-FLOAT time_factor = 1.0;
-FLOAT time_stretch = 1.0;
+FLOAT time_factor = DEFAULT_SPEEDUP;
+FLOAT time_stretch = 1.0 / DEFAULT_SPEEDUP;
 int min_time = 0;
 int max_time = 0;
 int min_out_time = 0;
@@ -93,6 +97,9 @@ int verify_mode = 0;
  */
 int final_verify_mode = 0; 
 
+int total_max = DEFAULT_THREADS; // parallelism
+int sub_max = 0;
+
 int count_completion = 0;  // number of requests on the fly
 int statist_lines = 0;     // total number of input lines
 int statist_total = 0;     // total number of requests
@@ -108,6 +115,9 @@ struct timespec first_stamp = {};
 struct timespec timeshift = {};
 struct timespec meta_delays = {};
 long long meta_delay_count;
+
+#define _STRINGIFY(x) #x
+#define STRINGIFY(x) _STRINGIFY(x)
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -165,6 +175,7 @@ struct request {
 	long long sector;
 	int length;
 	int verify_errors;
+	int q_nr;
 	char rwbs;
 	char has_version;
 	// starting from here, the rest is _not_ transferred over the pipelines
@@ -678,8 +689,95 @@ int similar_execute(struct request *rq)
 
 ///////////////////////////////////////////////////////////////////////
 
+// submitting requests over pipes
+
+static
+void pipe_write(int fd, void *data, int len)
+{
+	while (len > 0) {
+		int status = write(fd, data, len);
+		if (status > 0) {
+			data += status;
+			len -= status;
+		} else {
+			printf("FATAL ERROR: bad pipe write fd=%d status=%d (%d %s)\n", fd, status, errno, strerror(errno));
+			fflush(stdout);
+			exit(-1);
+		}
+	}
+}
+
+static
+int pipe_read(int fd, void *data, int len)
+{
+	int status = read(fd, data, len);
+	if (status < 0) {
+		printf("FATAL ERROR: bad pipe read fd=%d status=%d (%d %s)\n", fd, status, errno, strerror(errno));
+		fflush(stdout);
+		exit(-1);
+	}
+	return status;
+}
+
+static
+void submit_request(int fd, struct request *rq)
+{
+	pipe_write(fd, rq, RQ_SIZE);
+	if (rq->has_version) {
+		int size = rq->length * sizeof(unsigned int);
+		pipe_write(fd, rq->old_version, size);
+	}
+}
+
+static
+int get_request(int fd, struct request *rq)
+{
+	int status = pipe_read(fd, rq, RQ_SIZE);
+	if (status == RQ_SIZE && rq->has_version) {
+		int size = rq->length * sizeof(unsigned int);
+		rq->old_version = malloc(size);
+		if (!rq->old_version) {
+			printf("FATAL ERROR: out of memory\n");
+			fflush(stdout);
+			exit(-1);
+		}
+		pipe_read(fd, rq->old_version, size);
+	}
+	return status;
+}
+
+///////////////////////////////////////////////////////////////////////
+
+// the pipes
+
 static int queue[QUEUES][2];
 static int answer[2];
+
+static
+void make_all_queues(int q[][2], int max)
+{
+	int i;
+	for(i = 0; i < max; i++) {
+		int status = pipe(q[i]);
+		if (status < 0) {
+			printf("FATAL ERROR: cannot create pipe %d\n", i);
+			exit(-1);
+		}
+	}
+}
+
+static
+void close_all_queues(int q[][2], int max, int i2, int except)
+{
+	int i;
+	for(i = 0; i < max; i++) {
+		if (i == except)
+			continue;
+		close(q[i][i2]);
+	}
+}
+
+///////////////////////////////////////////////////////////////////////
 
 static
 void dump_request(struct request *rq)
@@ -730,7 +828,7 @@ int get_answer(void)
 	if (!already_forked)
 		goto done;
 
-	status = read(answer[0], &rq, RQ_SIZE);
+	status = get_request(answer[0], &rq);
 	if (status == RQ_SIZE) {
 		struct request *old = find_request_seq(rq.sector, rq.seqnr);
 		if (old) {
@@ -908,7 +1006,7 @@ void verify_open(int again)
 ///////////////////////////////////////////////////////////////////////
 
 static
-void do_son(int in_fd, int back_fd)
+void do_worker(int in_fd, int back_fd)
 {
 	/* Each worker needs his own filehandle instance to avoid races
 	 * between seek() and read()/write().
@@ -919,112 +1017,139 @@ void do_son(int in_fd, int back_fd)
 	}
 	for (;;) {
 		struct request rq = {};
-		int status = read(in_fd, &rq, RQ_SIZE);
+		int status = get_request(in_fd, &rq);
 		if (!status)
 			break;
-		if (status < 0) {
-			printf("FATAL ERROR: pipe read error %d\n", errno);
-			fflush(stdout);
-			exit(-1);
-		}
-		if (rq.has_version) {
-			int size = rq.length * sizeof(unsigned int);
-			rq.old_version = malloc(size);
-			if (!rq.old_version) {
-				printf("FATAL ERROR: out of memory\n");
-				fflush(stdout);
-				exit(-1);
-			}
 
-			status = read(in_fd, rq.old_version, size);
-			if (status < 0) {
-				printf("FATAL ERROR: pipe read error %d\n", errno);
-				fflush(stdout);
-				continue;
-			}
-		}
 		do_action(&rq);
-		write(back_fd, &rq, RQ_SIZE);
+
 		if (rq.old_version) {
 			free(rq.old_version);
 			rq.old_version = NULL;
 		}
+		rq.has_version = 0;
+
+		submit_request(back_fd, &rq);
 	}
 	close(in_fd);
 	close(back_fd);
 }
 
+/* Intermediate thread.
+ * Necessary to distribute the requests to more than 1000 workers,
+ * since the max number of filehandles / pipes is limited.
+ */
+static
+void do_intermediate(int in_fd, int this_max)
+{
+	static int sub_queue[QUEUES][2] = {};
+	int i;
+
+	make_all_queues(sub_queue, this_max);
+
+	for (i = 0; i < this_max; i++) {
+		pid_t pid;
+
+		pid = fork();
+		if (pid < 0) {
+			printf("FATAL ERROR: cannot fork\n");
+			exit(-1);
+		}
+		if (!pid) { // son
+			close_all_queues(sub_queue, this_max, 0, i);
+			close_all_queues(sub_queue, this_max, 1, -1);
+
+			do_worker(sub_queue[i][0], answer[1]);
+
+			exit(0);
+		}
+	}
+	close_all_queues(sub_queue, this_max, 0, -1);
+	close(answer[1]);
+
+	for (;;) {
+		struct request rq = {};
+		int index;
+		int status = get_request(in_fd, &rq);
+		if (!status)
+			break;
+
+		index = rq.q_nr % QUEUES;
+		submit_request(sub_queue[index][1], &rq);
+
+		if (rq.old_version) {
+			free(rq.old_version);
+			rq.old_version = NULL;
+		}
+	}
+}
+
 static
 void fork_childs()
 {
+	int i;
+	int status;
+
 	if (already_forked)
 		return;
 	already_forked++;
+
 	// setup pipes and fork()
-	printf("forking %d child processes\n", QUEUES);
+
+	status = pipe(answer);
+	if (status < 0) {
+		printf("FATAL ERROR: cannot create answer pipe\n");
+		exit(-1);
+	}
+
+	sub_max = total_max / QUEUES;
+	if (total_max % QUEUES > 0)
+		sub_max++;
+
+	make_all_queues(queue, sub_max);
+
+	printf("forking %d child processes in total, sub_max=%d\n", total_max, sub_max);
 	fflush(stdout);
-	{
-		int i;
-		int status = pipe(answer);
-		if (status < 0) {
-			printf("ERROR: cannot create answer pipe\n");
+
+	for (i = 0; i < sub_max; i++) {
+		int this_max = QUEUES;
+		pid_t pid;
+
+		if (i == sub_max - 1 && total_max % QUEUES > 0)
+			this_max = total_max % QUEUES;
+
+		pid = fork();
+		if (pid < 0) {
+			printf("FATAL ERROR: cannot fork\n");
 			exit(-1);
 		}
-		for (i = 0; i < QUEUES; i++) {
-			pid_t pid;
-			status = pipe(queue[i]);
-			if (status < 0) {
-				printf("ERROR: cannot create order pipe\n");
-				exit(-1);
-			}
+		if (!pid) { // son
+			fclose(stdin);
+			close_all_queues(queue, sub_max, 0, i);
+			close_all_queues(queue, sub_max, 1, -1);
+			close(answer[0]);
 
-			pid = fork();
-			if (pid < 0) {
-				printf("ERROR: cannot fork\n");
-				exit(-1);
-			}
-			if (!pid) { // son
-				fclose(stdin);
-				close(queue[i][1]);
-				close(answer[0]);
-				do_son(queue[i][0], answer[1]);
-				exit(0);
-			}
-			close(queue[i][0]);
+			do_intermediate(queue[i][0], this_max);
+
+			exit(0);
 		}
-		close(answer[1]);
 	}
+	close_all_queues(queue, sub_max, 0, -1);
+	close(answer[1]);
 
 	printf("done forking\n\n");
 	fflush(stdout);
-
 }
 
 ///////////////////////////////////////////////////////////////////////
-
-static
-void pipe_write(int fd, void *data, int len)
-{
-	while (len > 0) {
-		int status = write(fd, data, len);
-		if (status > 0) {
-			data += status;
-			len -= status;
-		} else {
-			printf("WARN: bad pipe write fd=%d status=%d (%d %s)\n", fd, status, errno, strerror(errno));
-			fflush(stdout);
-			exit(-1);
-		}
-	}
-}
 
 static
 int execute(struct request *rq)
 {
 	static long long seqnr = 0;
 	static long long write_seqnr = 0;
-	int q = ++seqnr % QUEUES;
 
+	rq->q_nr = ++seqnr % total_max;
 	if (!start_stamp.tv_sec) { // only upon first call
 		// get start time, but only after opening everything, since open() may produce delays
 		memcpy(&first_stamp, &rq->orig_stamp, sizeof(first_stamp));
@@ -1088,12 +1213,25 @@ int execute(struct request *rq)
 
 	// submit request to worker threads
 	count_completion++;
-	pipe_write(queue[q][1], rq, RQ_SIZE);
-	if (rq->has_version) {
-		int size = rq->length * sizeof(unsigned int);
-		pipe_write(queue[q][1], rq->old_version, size);
-	}
+	submit_request(queue[rq->q_nr / QUEUES][1], rq);
 	return 1;
+}
+
+static
+int delay_distance(struct timespec *check)
+{
+	struct timespec now;
+	struct timespec diff;
+
+	if (!check->tv_sec)
+		return 0;
+
+	clock_gettime(CLOCK_REALTIME, &now);
+	timespec_diff(&diff, &now, check);
+	if ((long)diff.tv_sec >= 1)
+		return 1;
+
+	return 0;
 }
 
 static
@@ -1116,7 +1254,8 @@ void parse(FILE *inp)
 		statist_lines++;
 
 		// avoid flooding the pipelines too much
-		if (count_completion > QUEUES * 2) {
+		while (count_completion > total_max * FILL_FACTOR ||
+		       (count_completion > 1 && delay_distance(&old_stamp))) {
 			get_answer();
 		}
 
@@ -1156,12 +1295,6 @@ void parse(FILE *inp)
 			continue;
 		}
 
-		// avoid running too much ahead in time
-		if (count_completion > 0) {
-			struct timespec now = {};
-			do_wait(rq, &now, 1);
-		}
-
 		rq->seqnr = ++statist_total;
 		if (rq->rwbs == 'W')
 			statist_writes++;
@@ -1192,13 +1325,8 @@ void parse(FILE *inp)
 	printf("--------------------------------------\n");
 	fflush(stdout);
 
-	// close all pipes
-	{
-		int i;
-		for (i = 0; i < QUEUES; i++) {
-			close(queue[i][1]);
-		}
-	}
+	// close all pipes => leads to EOF at childs
+	close_all_queues(queue, sub_max, 1, -1);
 
 	printf("--------------------------------------\n");
 	fflush(stdout);
@@ -1294,6 +1422,19 @@ const struct arg arg_table[] = {
 
 	{
 		.arg_name  = "|",
+		.arg_descr = "Replay parameters:",
+	},
+	{
+		.arg_name  = "threads",
+		.arg_descr = "parallelism (default=" STRINGIFY(DEFAULT_THREADS) ")",
+		.arg_const = -1,
+		.arg_val_int = &total_max,
+	},
+
+
+
+	{
+		.arg_name  = "|",
 		.arg_descr = "Verification modes:",
 	},
 	{
@@ -1329,7 +1470,7 @@ const struct arg arg_table[] = {
 	},
 	{
 		.arg_name  = "speedup",
-		.arg_descr = "speedup / slowdown by REAL factor",
+		.arg_descr = "speedup / slowdown by REAL factor (default=" STRINGIFY(DEFAULT_SPEEDUP) ")",
 		.arg_const = -1,
 		.arg_val_float = &time_factor,
 	},
@@ -1445,6 +1586,11 @@ int main(int argc, char *argv[])
 
 	if (verify_mode >= 2)
 		final_verify_mode++;
+
+	if (total_max > QUEUES * QUEUES)
+		total_max = QUEUES * QUEUES;
+	if (total_max < 1)
+		total_max = 1;
 
 	if (time_factor != 0.0) {
 		time_stretch = 1.0 / time_factor;
