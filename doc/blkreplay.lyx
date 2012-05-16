@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.11
+Version 0.12
 \end_layout
 
 \begin_layout Standard
@@ -5510,6 +5510,69 @@ blindly
 Visualization of Results
 \end_layout
 
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ You need enough space in 
+\family typewriter
+/tmp/
+\family default
+ (or in another 
+\family typewriter
+$TMPDIR
+\family default
+) for temporary intermediate files.
+ If your 
+\family typewriter
+blkreplay
+\family default
+ run was very long (several hours or even days), or if your replay had a
+ high degree of parallelism, you may need several gigabytes, in extreme
+ cases even several hundreds of gigabytes (as well as rather long running
+ times -- please don't interrupt 
+\family typewriter
+graph.sh
+\family default
+ as it spawns lots of subprocesses and creates lots of temporary files).
+ Currently, there are no checks for free space in 
+\family typewriter
+/tmp/
+\family default
+, so running out of space may produce wrong results 
+\emph on
+silently
+\emph default
+.
+ As a countermeasure, run 
+\family typewriter
+watch df /tmp/
+\family default
+ in a separate window during your run of 
+\family typewriter
+graph.sh
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+If you have enabled the module 
+\family typewriter
+graph
+\family default
+ in the config file 
+\family typewriter
+default-graph.conf
+\family default
+, the following steps will be carried out automatically for you.
+ In case you need some individual graphics, read on.
+\end_layout
+
 \begin_layout Standard
 After a run of 
 \family typewriter
@@ -5569,56 +5632,6 @@ lpr
 , or even work on with graphical editors like 
 \family typewriter
 gimp
-\family default
-.
-\end_layout
-
-\begin_layout Labeling
-\labelwidthstring 00.00.0000
-\begin_inset Graphics
-	filename images/MatieresCorrosives.png
-	lyxscale 50
-	scale 17
-
-\end_inset
-
- You need enough space in 
-\family typewriter
-/tmp/
-\family default
- (or in another 
-\family typewriter
-$TMPDIR
-\family default
-) for temporary intermediate files.
- If your 
-\family typewriter
-blkreplay
-\family default
- run was very long (several hours or even days), or if your replay had a
- high degree of parallelism, you may need several gigabytes, in extreme
- cases even several hundreds of gigabytes (as well as rather long running
- times -- please don't interrupt 
-\family typewriter
-graph.sh
-\family default
- as it spawns lots of subprocesses and creates lots of temporary files).
- Currently, there are no checks for free space in 
-\family typewriter
-/tmp/
-\family default
-, so running out of space may produce wrong results 
-\emph on
-silently
-\emph default
-.
- As a countermeasure, run 
-\family typewriter
-watch df /tmp/
-\family default
- in a separate window during your run of 
-\family typewriter
-graph.sh
 \family default
 .
 \end_layout
@@ -6292,6 +6305,247 @@ Advanced Features
 TBD
 \end_layout
 
+\begin_layout Subsection
+Modules
+\end_layout
+
+\begin_layout Standard
+The script 
+\family typewriter
+tree-replay.sh
+\family default
+ can be extended by plugins, aka modules.
+ Some modules are delivered with the 
+\family typewriter
+blkreplay
+\family default
+ suite, but you can add your own ones (and you should consider submitting
+ them to the opensource project 
+\family typewriter
+blkreplay
+\family default
+ at 
+\family typewriter
+github.com
+\family default
+ if they could be useful for a broader audience).
+\end_layout
+
+\begin_layout Standard
+Here is a list of already existing modules:
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+graph
+\family default
+ When enabled, the script 
+\family typewriter
+graph.sh
+\family default
+ will be called automatically for you at the end of each 
+\family typewriter
+blkreplay
+\family default
+ run.
+\end_layout
+
+\begin_layout Standard
+In order to write your own module, just look at the existing ones and take
+ them as a kind of 
+\begin_inset Quotes eld
+\end_inset
+
+template
+\begin_inset Quotes erd
+\end_inset
+
+.
+ Modules are simply 
+\family typewriter
+/bin/bash
+\family default
+ code residing in 
+\family typewriter
+scripts/modules/
+\family default
+ and starting with a number
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+The number is used to determine the ASCII sort order, and thus the order
+ in which modules are 
+\family typewriter
+source
+\family default
+d.
+\end_layout
+
+\end_inset
+
+, followed by an underscore, and finally 
+\family typewriter
+\emph on
+modulename
+\emph default
+.sh
+\family default
+.
+ Any existing module is automatically 
+\family typewriter
+source
+\family default
+d by 
+\family typewriter
+tree-replay.sh
+\family default
+, provided that some config file 
+\family typewriter
+default-
+\emph on
+modulename
+\emph default
+.conf
+\family default
+ exists in your working directory (or in any parent directory down the 
+\family typewriter
+../
+\family default
+ path).
+\end_layout
+
+\begin_layout Standard
+Modules are sourced only once at the start of 
+\family typewriter
+tree-replay.sh
+\family default
+.
+ Thus they should only define some shell 
+\family typewriter
+function
+\family default
+s and change some list variables.
+ The shell functions will be called later for each leaf directory.
+ The names of your functions should obey the following conventions:
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+\emph on
+modulename
+\emph default
+_prepare()
+\family default
+ is called during the preparation phase.
+ Typically, you can set some variables here, initialize some controllers,
+ setup your network, create some iSCSI connections, or the like.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+\emph on
+modulename
+\emph default
+_setup()
+\family default
+ The setup phase starts after 
+\emph on
+all
+\emph default
+ prepare functions of all modules have been executed.
+ For example, some device setup operations are only possible after some
+ iSCSI connections have been already established.
+ Therefore, the plugin methodology offers you a separate phase in order
+ to guarantee some overall order on operations even from unknown foreign
+ modules.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+\emph on
+modulename
+\emph default
+_run()
+\family default
+ Typically, you won't do anything here, because the running phase is usually
+ the task of the 
+\family typewriter
+main
+\family default
+ module.
+ Only in very special cases, you would need to hook yourself into this phase.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+\emph on
+modulename
+\emph default
+_cleanup()
+\family default
+ Typically, you will de-configure something here, remove some temporary
+ files, check your results, create some statistics, etc.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+\emph on
+modulename
+\emph default
+_finish()
+\family default
+ Typically, network connections etc will be shutdown only here, because
+ some operations from the cleanup phase could be relying on them being active
+ yet.
+\end_layout
+
+\begin_layout Standard
+For each phase, there exists a variable 
+\family typewriter
+\emph on
+phasename
+\emph default
+_list
+\family default
+ determining the order in which the functions will be called.
+ In most cases, you will just 
+\emph on
+append
+\emph default
+ your function name to that list.
+ In some cases, you may want to 
+\emph on
+pre
+\emph default
+pend instead.
+ Look into the existing code of small modules like 
+\family typewriter
+graph
+\family default
+ to get an impression, and read the 
+\family typewriter
+main()
+\family default
+ function in the 
+\family typewriter
+main
+\family default
+ module.
+\end_layout
+
 \begin_layout Section
 Lowlevel Details and Expert Usage
 \end_layout
@@ -6374,6 +6628,36 @@ status open
 
 \backslash
 lstinputlisting[language=bash]{default-main.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Module Parameters
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-graph.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-graph.conf}
 \end_layout
 
 \end_inset

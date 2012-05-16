@@ -50,7 +50,7 @@ function source_config
     done
     setup=$setup_dir/$name.conf
     echo "Sourcing config file $setup"
-    . $setup || exit $?
+    source $setup || exit $?
     return 0
 }
 
@@ -65,7 +65,7 @@ for module in $base_dir/modules/*.sh; do
     modname="$(basename $module | sed 's/^[0-9]*_\([^.]*\)\..*/\1/')"
     if source_config default-$modname; then
 	echo "Sourcing module $modname"
-	. $module || exit $?
+	source $module || exit $?
     elif [ "$modname" = "main" ]; then
 	echo "Cannot use main module. Please provide some config file 'default-$modname.conf' in $(pwd) or in some parent directory."
 	exit -1
