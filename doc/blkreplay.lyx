@@ -576,9 +576,15 @@ Experiences at big data centers at 1&1 show that sometimes the differences
  between results from artificial benchmarks and real-world application behaviour
  are very large.
  We found cases where artificial benchmarks (adjusting parameters like IOPS)
- suggested that a particular application should run on a particular hardware
- system, but the real application didn't: after deployment, a systematic
- series of incidents 
+ suggested that a particular application 
+\emph on
+should
+\emph default
+ run on a particular hardware system, but the real application 
+\emph on
+didn't
+\emph default
+: after deployment, a systematic series of incidents 
 \emph on
 disproved
 \emph default
@@ -607,9 +613,9 @@ originally intended statement
 \emph default
 .
  The failed prediction from the artificial benchmarks led to a 
-\emph on
+\series bold
 failed invest
-\emph default
+\series default
 .
 \end_layout
 
@@ -1158,7 +1164,7 @@ IO parallelism
  in folklore).
  In opposite, purely positionly overlapping (without timely overlapping)
  is also a frequent case, for example when the same sector is re-read after
- a while, or re-written when the contents of a files changes frequently.
+ a while, or re-written when the contents of a file changes frequently.
  Completely unrelated requests (neither timely nor positionly overlapping)
  are even the most frequent case in most practical load scenarios at production
  sites.
@@ -1215,7 +1221,7 @@ copies
 uniqueness
 \emph default
  properties stating that any sector is cached at most once.
- Therefore, this case also does not appear in practice.
+ Consequently, this case also never appears in practice.
 \end_layout
 
 \end_inset
@@ -1313,7 +1319,7 @@ blkreplay
 \family default
  uses some in-memory hash tables to detect any (potential) conflicts between
  IO requests.
- There are two modes of operation:
+ Following are the modes of operation:
 \end_layout
 
 \begin_layout Labeling
@@ -1327,7 +1333,7 @@ with-drop
  This has no side effects, other than that some writes may be missing.
  Depending on properties of the load, the number of dropped writes may be
  rather high.
- Please check the end of the result file.
+ Please check the tail of the result file.
  In the statistics section, you will find the number of dropped requests.
  If this number is higher than, say, 5%, you should consider the next option.
 \end_layout
@@ -1360,8 +1366,8 @@ blkreplay
 \end_layout
 
 \begin_layout Standard
-However, practical experience from many hardware tests shows that the current
- behaviour (artificial delays) seems to be an 
+However, practical experience from many hardware tests shows that artificial
+ delays seem to be even an 
 \emph on
 advantage
 \emph default
@@ -1372,49 +1378,6 @@ indicator
 \series default
  for massive IO problems of the test candidate.
  Thus we feel that this behaviour is more a feature than a bug.
-\end_layout
-
-\begin_layout Standard
-If you know what you are doing, you may switch on an option of 
-\family typewriter
-blkreplay
-\family default
- (see 
-\family typewriter
-cmode
-\family default
- in appendix 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "chap:Config-File-Parameters"
-
-\end_inset
-
-), which just 
-\emph on
-drops
-\emph default
- conflicting requests instead of delaying them.
- As a consequence, stalls caused by potentially damaged IO are avoided,
- but at the cost of lost IO operations (deviating from the original recording
-\begin_inset Foot
-status open
-
-\begin_layout Plain Layout
-Some loads don't suffer from repeated writes to the same place, but others
- do.
- Please check the output files of 
-\family typewriter
-blkreplay
-\family default
-.
- At the end, the number of dropped requests is displayed in the statistics
- section.
-\end_layout
-
-\end_inset
-
-).
 \end_layout
 
 \begin_layout Section
@@ -1500,7 +1463,7 @@ always
 \emph default
  some cache hits, for example caused by metadata requests from the filesystem.
  In practice, the cache hit rate will never go down to 0%.
- Notice that these inevitable cache effect are 
+ Notice that these inevitable cache effects are 
 \emph on
 already included
 \emph default
@@ -1594,8 +1557,8 @@ gear ratio
 \begin_inset Quotes erd
 \end_inset
 
- of 1:100 (or let it be only 1:1.1) would lead to heavy distortions of the
- measurement results.
+ of 1:10 (or let it be only 1:1.1) would lead to distortions of the measurement
+ results.
  In order to switch off the page / buffer cache, 
 \family typewriter
 blkreplay
@@ -5733,7 +5696,7 @@ static
 \emph on
 dynamic
 \emph default
- ones are produces.
+ ones are produced.
  In order additionally switch on any (or both), just add one of the options
  
 \family typewriter
@@ -6283,7 +6246,7 @@ histogram
 \end_layout
 
 \begin_layout Standard
-Hint: since the internal data format of 
+Hint: the internal data format of 
 \family typewriter
 *.replay.gz
 \family default
@@ -6291,11 +6254,12 @@ Hint: since the internal data format of
 \family typewriter
 *.load.gz
 \family default
-, you can use 
+.
+ Thus you can use 
 \family typewriter
 /path/to/graph.sh --static *.replay.gz
 \family default
- to additionall create the same static analysis graphics as described in
+ to additionally create the same static analysis graphics as described in
  section 
 \begin_inset CommandInset ref
 LatexCommand ref
