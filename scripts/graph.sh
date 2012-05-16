@@ -325,15 +325,20 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	esac
 	with="with points ps 0.1"
 	xlabel="Duration [sec]"
-	ylabel="Time [sec]"
+	ylabel="Latency [sec]"
 	xlogscale=""
+	case $reads_file in
+	    *.delay.*)
+	    ylabel="Delay [sec]"
+	    ;;
+	esac
 	case $reads_file in
 	    *.points)
 	    xlabel="Requests [count]"
 	    ;;
 	    *.bins)
 	    with="with linespoints"
-	    xlabel="Time [sec]"
+	    xlabel="$ylabel"
 	    ylabel="Number in Bin"
 	    xlogscale="set logscale x;"
 	    ;;
@@ -395,28 +400,24 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist; do
 
     if [ -n "$plot" ]; then
 	echo "---> plot on $mode"
+	xlabel="Duration [sec]"
 	scale=""
 	case $mode in
 	    thrp)
-	    xlabel="Duration [sec]"
 	    ylabel="Throughput [IOs/sec]"
 	    ;;
 	    ws_log)
-	    xlabel="Duration [sec]"
 	    ylabel="Workingset Size"
 	    scale="set logscale y;"
 	    ;;
 	    ws_lin)
-	    xlabel="Duration [sec]"
 	    ylabel="Workingset Size"
 	    ;;
 	    avg_dist)
-	    xlabel="Duration [sec]"
 	    ylabel="Average Distance [sectors]"
 	    scale="set logscale y;"
 	    ;;
 	    sum_dist)
-	    xlabel="Duration [sec]"
 	    ylabel="Total Distance [sectors]"
 	    scale="set logscale y;"
 	    ;;
