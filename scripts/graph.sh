@@ -22,18 +22,16 @@
 # usage: /path/to/graph.sh *.replay.gz
 # TST started November 2009
 
-picturetype="png" # [ps|jpeg|gif|...]
-
-#pictureoptions="size 1600,1200"
-pictureoptions="small size 1200,800"
-bad_latency="5.0" # seconds
-bad_delay="10.0" # seconds
-bad_ignore=1 # the n'th exceeding the limit
-ws_list="000 001 006 060 600"
+picturetype="${picturetype:-png}" # [ps|jpeg|gif|...]
+pictureoptions="${pictureoptions:=small size 1200,800}" # other values: "size 800,600" etc
+bad_latency="${bad_latency:-5.0}" # seconds
+bad_delay="${bad_delay:-10.0}" # seconds
+bad_ignore="${bad_ignore:-1}" # the n'th exceeding the limit
+ws_list="${ws_list:-000 001 006 060 600}"
 
 # check some preconditions
 
-check_list="grep sed awk head tail cat cut tee sort mkfifo nice date gzip gunzip zcat gcc gnuplot"
+check_list="grep sed awk head tail cat cut tee sort mkfifo nice date pwd find gzip gunzip zcat gcc gnuplot"
 for i in $check_list; do
     if ! which $i >/dev/null 2>&1; then
 	echo "Sorry, program '$i' is not installed."

@@ -83,8 +83,12 @@ function main_prepare
     for i in $(eval echo {0..$replay_max}); do
 	[ -z "${input_file[$j]}" ] && j=0
 	input_file[$i]="${input_file[$j]}"
-	devname="$(echo ${replay_device[$i]} | sed 's/[\/]\?dev[\/]\?//'| sed 's/\//./g' | sed 's/\.\././g')"
-	output_file[$i]="${output_label:-TEST}$sub_prefix.${replay_host[$i]}.$devname.$(basename ${input_file[$i]} | sed 's/\.\(load\|gz\)//g').replay.gz"
+	infix=""
+	(( output_add_path   )) && infix="$infix$sub_prefix"
+	(( output_add_host   )) && infix="$infix.${replay_host[$i]}"
+	(( output_add_device )) && infix="$infix.$(echo ${replay_device[$i]} | sed 's/[\/]\?dev[\/]\?//'| sed 's/\//./g' | sed 's/\.\././g')"
+	(( output_add_input  )) && infix="$infix.$(basename ${input_file[$i]} | sed 's/\.\(load\|gz\)//g')"
+	output_file[$i]="${output_label:-TEST}$infix.replay.gz"
 	echo " $i: ${replay_host[$i]} ${replay_device[$i]} $(basename ${input_file[$i]}) ${output_file[$i]}"
 	(( j++ ))
     done

@@ -98,7 +98,7 @@ ignore="grep -v '[/.]old' | grep -v 'ignore'"
 # find directories
 resume=1
 while (( resume )); do
-    echo "Scanning directory structure."
+    echo "Scanning directory structure starting from $(pwd)"
     resume=0
     for test_dir in $(find . -type d | eval "$ignore" | sort); do
 	(( dry_run )) || rm -f $test_dir/dry-run.replay.gz
@@ -127,16 +127,16 @@ while (( resume )); do
 		    exit -1
 		fi
 	    done
-	    export sub_prefix=$(echo $conf_dir | sed 's/\//./g')
+	    export sub_prefix=$(echo $test_dir | sed 's/\//./g' | sed 's/\.\././g')
 	    cd $test_dir
 	    if (( dry_run )); then
 		echo "==> Dry Run ..."
 		touch dry-run.replay.gz
 	    else
-		echo "==> Starting..."
+		echo "==> $(date) Starting $sub_prefix"
 		main || { echo "Replay failure $?"; exit -1; }
 	    fi
-	    echo "==> Finished."
+	    echo "==> $(date) Finished."
 	) || { echo "Failure $?"; exit -1; }
 	echo "==============================================================="
 	echo ""
@@ -144,3 +144,6 @@ while (( resume )); do
 	break
     done
 done
+
+echo "======== Finished pwd=$(pwd)"
+exit 0
