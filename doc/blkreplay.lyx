@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.12
+Version 0.13
 \end_layout
 
 \begin_layout Standard
@@ -6294,15 +6294,166 @@ Human Interpretation of Results
 \end_layout
 
 \begin_layout Standard
+Many existing benchmark tools try to deliver a single number as a result,
+ such as 
+\begin_inset Formula $x$
+\end_inset
+
+ 
+\family typewriter
+hyper-ops
+\family default
+ or 
+\begin_inset Formula $x$
+\end_inset
+
+ 
+\family typewriter
+hell-stones
+\family default
+.
+ Such numbers cannot describe the reality, which has multiple dimensions
+ and is much more complex.
+ Sometimes, new dimensions are even discovered to have an influence.
+\end_layout
+
+\begin_layout Standard
+By default, 
+\family typewriter
+blkreplay
+\family default
+ does not produce any (single) number, but graphics, showing the behaviour
+ over time (or in other dimensions).
+ Although some of those graphics like 
+\family typewriter
+*thrp*
+\family default
+ could be used for production of numbers, most of them serve as input to
+ the human brain: the human 
+\begin_inset Quotes eld
+\end_inset
+
+neural network
+\begin_inset Quotes erd
+\end_inset
+
+ can be 
+\emph on
+trained
+\emph default
+ to detect 
+\series bold
+hidden properties
+\series default
+ in your measurement data, which cannot be (easily) detected by current
+ AI technology.
+\end_layout
+
+\begin_layout Subsection
+Sonar Diagrams
+\end_layout
+
+\begin_layout Standard
+The following example shows the replay latencies of a natural load over
+ real time.
+ Note that the y axis is logarithmic scale (otherwise you would'nt see too
+ much in the lower bands):
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename images/example1.g01.replay.realtime.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Reads are depicted blue, while writes are red.
+ They form some kind of 
+\begin_inset Quotes eld
+\end_inset
+
+clouds
+\begin_inset Quotes erd
+\end_inset
+
+, showing some 
+\begin_inset Quotes eld
+\end_inset
+
+density
+\begin_inset Quotes erd
+\end_inset
+
+ both in time scale, as well as in the 
+\begin_inset Quotes eld
+\end_inset
+
+latency scale
+\begin_inset Quotes erd
+\end_inset
+
+.
+ As you can see, there are two main 
+\begin_inset Quotes eld
+\end_inset
+
+bands
+\begin_inset Quotes erd
+\end_inset
+
+ optically visible to the human interpretation.
+ These look similar to 
+\begin_inset Quotes eld
+\end_inset
+
+fish swarms
+\begin_inset Quotes erd
+\end_inset
+
+ occuring in sonar diagrams; hence the name.
+\end_layout
+
+\begin_layout Standard
+It requires some experience to interpret sonar diagrams.
+\end_layout
+
+\begin_layout Standard
+Most obviously, 
+\series bold
+cache hierarchies
+\series default
+ can be identified visually, by looking at the 
+\begin_inset Quotes eld
+\end_inset
+
+bands
+\begin_inset Quotes erd
+\end_inset
+
+.
+ In addition, the natural fluctuation of the load can be seen.
+ Even better, it is quite interesting how the test candidate is responding
+ to the fluctuation, even over time.
+\end_layout
+
+\begin_layout Subsection
+Delay Diagrams
+\end_layout
+
+\begin_layout Standard
 TBD
 \end_layout
 
 \begin_layout Section
 Advanced Features
-\end_layout
-
-\begin_layout Standard
-TBD
 \end_layout
 
 \begin_layout Subsection
