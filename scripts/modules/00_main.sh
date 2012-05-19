@@ -1,4 +1,4 @@
-!/bin/bash
+#!/bin/bash
 # Copyright 2010-2012 Thomas Schoebel-Theuer, sponsored by 1&1 Internet AG
 #
 # Email: tst@1und1.de
@@ -108,14 +108,23 @@ function main_setup
 function main_run
 {
     echo $FUNCNAME
-    start="${replay_start:-0}"
-    len="${replay_duration:-3600}"
-    delta="${replay_delta:-0}"
     for i in $(eval echo {0..$replay_max}); do
 	options=""
+	optlist="dry_run"
+	for opt in $optlist; do
+	    if eval "(( $opt ))"; then
+		options="$options --$(echo $opt | sed 's/_/-/g')"
+	    fi
+	done
+	optlist="replay_start replay_duration replay_out threads speedup"
+	for opt in $optlist; do
+	    if eval "[ -n \"\$$opt\" ]"; then
+		options="$options --$(echo $opt | sed 's/_/-/g')=$(eval echo \$${opt})"
+	    fi
+	done
 	case "$cmode" in
 	    with-conflicts | with-drop | with-ordering)
-	    options="--$cmode"
+	    options="$options --$cmode"
 	    ;;
 	    *)
 	    echo "Warning: no cmode is set. Falling back to default."
@@ -128,17 +137,15 @@ function main_run
 	    *)
 	    ;;
 	esac
-	[ -n "$threads" ] && options="$options --threads=${threads}"
-	[ -n "$speedup" ] && options="$options --speedup=${speedup:-1.0}"
-	limits="--min_time=$start --max_time=$(( start + len ))"
-	[ -n "$replay_out_start" ] && limits="$limits --min_out_time=$(( replay_out_start + len ))"
-	blkreplay="./blkreplay.\$(uname -m) $options $limits ${replay_device[$i]} "
+	blkreplay="./blkreplay.\$(uname -m) $options ${replay_device[$i]} "
 	#echo "$blkreplay"
 	cmd="$buffer_cmd | nice gunzip -f | $buffer_cmd | $blkreplay | $buffer_cmd 2>&1 | nice gzip | $buffer_cmd"
 	echo "Starting blkreplay on ${replay_host[$i]} options '$options' device ${replay_device[$i]}"
 	#echo "$cmd"
 	remote "${replay_host[$i]}" "$cmd" < "${input_file[$i]}" > "${output_file[$i]}" &
-	(( start += delta ))
+	if [ -n "$replay_start" ] && [ -n "$replay_delta" ]; then
+	    (( replay_start += replay_delta ))
+	fi
     done
     echo "$(date) Waiting for termination........"
     wait

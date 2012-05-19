@@ -25,7 +25,7 @@
 # Use directory names as basis for configuration variants
 
 base_dir="$(cd "$(dirname "$0")" && pwd)"
-dry_run=0
+dry_run_script=0
 
 # check some preconditions
 
@@ -78,7 +78,7 @@ while [ $# -ge 1 ]; do
     val="$(echo "$1" | cut -d= -f2-)"
     case "$key" in
 	--test | --dry-run)
-        dry_run="$val"
+        dry_run_script="$val"
 	shift
         ;;
 	--override)
@@ -101,7 +101,7 @@ while (( resume )); do
     echo "Scanning directory structure starting from $(pwd)"
     resume=0
     for test_dir in $(find . -type d | eval "$ignore" | sort); do
-	(( dry_run )) || rm -f $test_dir/dry-run.replay.gz
+	(( dry_run_script )) || rm -f $test_dir/dry-run.replay.gz
 	if [ -e "$test_dir/skip" ]; then
 	    echo "Skipping directory $test_dir"
 	    continue
@@ -129,7 +129,7 @@ while (( resume )); do
 	    done
 	    export sub_prefix=$(echo $test_dir | sed 's/\//./g' | sed 's/\.\././g')
 	    cd $test_dir
-	    if (( dry_run )); then
+	    if (( dry_run_script )); then
 		echo "==> Dry Run ..."
 		touch dry-run.replay.gz
 	    else

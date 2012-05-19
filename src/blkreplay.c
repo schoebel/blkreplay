@@ -53,9 +53,11 @@
 //
 // example: gcc -Wall -O2 blkreplay.c -lrt -lm -o blkreplay
 
-#define QUEUES                256
-#define FILL_FACTOR             4
+#define QUEUES               4096
+#define MAX_THREADS         32768
+#define FILL_FACTOR             8
 #define DEFAULT_THREADS      1024
+#define DEFAULT_FAN_OUT         8
 #define DEFAULT_SPEEDUP       1.0
 
 #ifndef TMP_DIR
@@ -64,16 +66,17 @@
 #define VERIFY_TABLE     "verify_table" // default filename for verify table
 #define COMPLETION_TABLE "completion_table" // default filename for completed requests
 
-#define RQ_HASH_MAX (128 * QUEUES)
+#define RQ_HASH_MAX (16 * QUEUES)
 #define FLOAT long double
 
 //#define DEBUG_TIMING
 
 FLOAT time_factor = DEFAULT_SPEEDUP;
 FLOAT time_stretch = 1.0 / DEFAULT_SPEEDUP;
-int min_time = 0;
-int max_time = 0;
-int min_out_time = 0;
+int replay_start = 0;
+int replay_end = 0;
+int replay_duration = 0;
+int replay_out = 0;
 int already_forked = 0;
 int overflow = 0;
 int verify_fd = -1;
@@ -83,6 +86,8 @@ char *mmap_ptr = NULL;
 char *main_name = NULL;
 long long main_size = 0;
 long long max_size = 0;
+int dry_run = 0;
+int fork_dispatcher = 1;
 int mmap_mode = 0;
 int conflict_mode = 0; 
 /* 0 = allow arbitrary permutations in ordering
@@ -99,6 +104,7 @@ int final_verify_mode = 0;
 
 int total_max = DEFAULT_THREADS; // parallelism
 int sub_max = 0;
+int fan_out = DEFAULT_FAN_OUT;
 
 int count_completion = 0;  // number of requests on the fly
 int statist_lines = 0;     // total number of input lines
@@ -324,6 +330,8 @@ void fly_delete(long long sector, int len)
 static
 int do_read(void *buffer, int len)
 {
+	if (dry_run)
+		return len;
 	if (mmap_ptr) {
 	}
 	return read(main_fd, buffer, len);
@@ -332,6 +340,8 @@ int do_read(void *buffer, int len)
 static
 int do_write(void *buffer, int len)
 {
+	if (dry_run)
+		return len;
 	if (mmap_ptr) {
 	}
 	return write(main_fd, buffer, len);
@@ -476,6 +486,8 @@ void check_tags(struct request *rq, void *buffer, int len, int do_write)
 		if (!rq->old_version[i/512]) { // version not yet valid
 			continue;
 		}
+		if (dry_run)
+			continue;
 		if (tag->tag_start != start_stamp.tv_sec) {
 			printf("VERIFY ERROR (%s): bad start tag at sector %lld+%d (tag %lld != [expected] %ld)\n", mode, rq->sector, i/512, tag->tag_start, start_stamp.tv_sec);
 			fflush(stdout);
@@ -582,6 +594,8 @@ void check_all_tags()
 			}
 			checked++;
 			version2 = table2[i];
+			if (dry_run)
+				continue;
 			if (tag->tag_write_seqnr != version && tag->tag_write_seqnr != version2) {
 				if (version != version2) {
 					printf("VERIFY MISMATCH: at block %lld (%u != %u != %u)\n", blocknr, tag->tag_write_seqnr, version, version2);
@@ -629,6 +643,8 @@ void paranoia_check(struct request *rq, void *buffer)
 		rq->verify_errors++;
 		goto done;
 	}
+	if (dry_run)
+		goto done;
 	if (memcmp(buffer, buffer2, len)) {
 		printf("VERIFY ERROR: memcmp(): bad storage semantics at sector = %lld len = %d tag_start = %lld tag2_start = %lld\n", rq->sector, len, tag->tag_start, tag2->tag_start);
 		fflush(stdout);
@@ -798,7 +814,7 @@ void dump_request(struct request *rq)
 	       rq->length,
 	       rq->rwbs,
 
-	       delay.tv_sec + min_out_time,
+	       delay.tv_sec + replay_out,
 	       delay.tv_nsec,
 
 	       rq->replay_duration.tv_sec,
@@ -928,7 +944,7 @@ void main_open(int again)
 {
 	long long size;
 	int flags = O_RDWR | O_LARGEFILE | O_DIRECT;
-	if (again) {
+	if (again || dry_run) {
 		flags = O_RDONLY | O_LARGEFILE | O_DIRECT;
 	}
 	main_fd = open(main_name, flags);
@@ -1035,19 +1051,85 @@ void do_worker(int in_fd, int back_fd)
 	close(back_fd);
 }
 
-/* Intermediate thread.
+/* Intermediate copy thread.
+ * When too many threads are writing into the same pipe,
+ * lock contention may put a serious limit onto overall
+ * throughput.
+ * In order to limit the fan-in / fan-out, we create intermediate
+ * "distributor threads" limiting the maximum competition.
+ */
+static
+void do_dispatcher_copy(int in_fd, int out_fd)
+{
+	for (;;) {
+		struct request rq = {};
+		int status = get_request(in_fd, &rq);
+		if (!status)
+			break;
+
+		submit_request(out_fd, &rq);
+	}
+}
+
+static
+void _fork_answer_dispatcher()
+{
+	int old_answer_1 = answer[1];
+	int status;
+	pid_t pid;
+				
+	status = pipe(answer);
+	if (status < 0) {
+		printf("FATAL ERROR: cannot create sub-answer pipe\n");
+		exit(-1);
+	}
+	
+	pid = fork();
+	if (pid < 0) {
+		printf("FATAL ERROR: cannot fork\n");
+		exit(-1);
+	}
+	if (!pid) { // son
+		close(answer[1]);
+		
+		do_dispatcher_copy(answer[0], old_answer_1);
+		
+		exit(0);
+	}
+	close(old_answer_1);
+}
+
+/* Intermediate submit thread.
+ * Also useful to reduce contention.
  * Necessary to distribute the requests to more than 1000 workers,
  * since the max number of filehandles / pipes is limited.
  */
 static
-void do_intermediate(int in_fd, int this_max)
+void _fork_childs(int in_fd, int this_max)
 {
-	static int sub_queue[QUEUES][2] = {};
+	static int next_max[QUEUES] = {};
+	int rest;
 	int i;
 
-	make_all_queues(sub_queue, this_max);
+	if (this_max <= 1 && in_fd >= 0) {
+		do_worker(in_fd, answer[1]);
+		return;
+	}
 
-	for (i = 0; i < this_max; i++) {
+	sub_max = fan_out;
+	if (this_max < sub_max)
+		sub_max = this_max;
+
+	rest = this_max - ((this_max / sub_max) * sub_max);
+	for (i = 0; i < sub_max; i++) {
+		next_max[i] = this_max / sub_max;
+		if (rest-- > 0)
+			next_max[i]++;
+	}
+
+	make_all_queues(queue, sub_max);
+
+	for (i = 0; i < sub_max; i++) {
 		pid_t pid;
 
 		pid = fork();
@@ -1056,16 +1138,28 @@ void do_intermediate(int in_fd, int this_max)
 			exit(-1);
 		}
 		if (!pid) { // son
-			close_all_queues(sub_queue, this_max, 0, i);
-			close_all_queues(sub_queue, this_max, 1, -1);
+			if (in_fd < 0)
+				fclose(stdin);
+			else
+				close(answer[0]);
+			close_all_queues(queue, sub_max, 0, i);
+			close_all_queues(queue, sub_max, 1, -1);
 
-			do_worker(sub_queue[i][0], answer[1]);
+			if (fork_dispatcher && in_fd >= 0) {
+				_fork_answer_dispatcher();
+			}
+
+			_fork_childs(queue[i][0], next_max[i]);
 
 			exit(0);
 		}
 	}
-	close_all_queues(sub_queue, this_max, 0, -1);
+
+	close_all_queues(queue, sub_max, 0, -1);
 	close(answer[1]);
+
+	if (in_fd  < 0)
+		return;
 
 	for (;;) {
 		struct request rq = {};
@@ -1074,8 +1168,9 @@ void do_intermediate(int in_fd, int this_max)
 		if (!status)
 			break;
 
-		index = rq.q_nr % QUEUES;
-		submit_request(sub_queue[index][1], &rq);
+		index = rq.q_nr % sub_max;
+		rq.q_nr /= sub_max;
+		submit_request(queue[index][1], &rq);
 
 		if (rq.old_version) {
 			free(rq.old_version);
@@ -1087,7 +1182,6 @@ void do_intermediate(int in_fd, int this_max)
 static
 void fork_childs()
 {
-	int i;
 	int status;
 
 	if (already_forked)
@@ -1102,42 +1196,12 @@ void fork_childs()
 		exit(-1);
 	}
 
-	sub_max = total_max / QUEUES;
-	if (total_max % QUEUES > 0)
-		sub_max++;
-
-	make_all_queues(queue, sub_max);
-
-	printf("forking %d child processes in total, sub_max=%d\n", total_max, sub_max);
+	printf("forking %d child processes in total\n", total_max);
 	fflush(stdout);
 
-	for (i = 0; i < sub_max; i++) {
-		int this_max = QUEUES;
-		pid_t pid;
+	_fork_childs(-1, total_max);
 
-		if (i == sub_max - 1 && total_max % QUEUES > 0)
-			this_max = total_max % QUEUES;
-
-		pid = fork();
-		if (pid < 0) {
-			printf("FATAL ERROR: cannot fork\n");
-			exit(-1);
-		}
-		if (!pid) { // son
-			fclose(stdin);
-			close_all_queues(queue, sub_max, 0, i);
-			close_all_queues(queue, sub_max, 1, -1);
-			close(answer[0]);
-
-			do_intermediate(queue[i][0], this_max);
-
-			exit(0);
-		}
-	}
-	close_all_queues(queue, sub_max, 0, -1);
-	close(answer[1]);
-
-	printf("done forking\n\n");
+	printf("done forking (fan_out=%d)\n\n", sub_max);
 	fflush(stdout);
 }
 
@@ -1148,6 +1212,7 @@ int execute(struct request *rq)
 {
 	static long long seqnr = 0;
 	static long long write_seqnr = 0;
+	int index;
 
 	rq->q_nr = ++seqnr % total_max;
 	if (!start_stamp.tv_sec) { // only upon first call
@@ -1213,7 +1278,9 @@ int execute(struct request *rq)
 
 	// submit request to worker threads
 	count_completion++;
-	submit_request(queue[rq->q_nr / QUEUES][1], rq);
+	index = rq->q_nr % sub_max;
+	rq->q_nr /= sub_max;
+	submit_request(queue[index][1], rq);
 	return 1;
 }
 
@@ -1284,10 +1351,10 @@ void parse(FILE *inp)
 		}
 		memcpy(&old_stamp, &rq->orig_stamp, sizeof(old_stamp));
 		// check replay time window
-		if (rq->orig_stamp.tv_sec < min_time) {
+		if (rq->orig_stamp.tv_sec < replay_start) {
 			continue;
 		}
-		if (max_time && rq->orig_stamp.tv_sec >= max_time) {
+		if (replay_end && rq->orig_stamp.tv_sec >= replay_end) {
 			break;
 		}
 		if (rq->rwbs != 'R' && rq->rwbs != 'W') {
@@ -1376,22 +1443,28 @@ const struct arg arg_table[] = {
 		.arg_descr = "Influence replay duration:",
 	},
 	{
-		.arg_name  = "min_time",
-		.arg_descr = "start offset (in seconds)",
+		.arg_name  = "replay-start",
+		.arg_descr = "start offset (in seconds, 0=from_start)",
 		.arg_const = -1,
-		.arg_val_int = &min_time,
+		.arg_val_int = &replay_start,
 	},
 	{
-		.arg_name  = "max_time",
+		.arg_name  = "replay-end",
 		.arg_descr = "end offset (in seconds, 0=unlimited)",
 		.arg_const = -1,
-		.arg_val_int = &max_time,
+		.arg_val_int = &replay_end,
 	},
 	{
-		.arg_name  = "min_out_time",
+		.arg_name  = "replay-duration",
+		.arg_descr = "alternatively specify the end offset as delta",
+		.arg_const = -1,
+		.arg_val_int = &replay_duration,
+	},
+	{
+		.arg_name  = "replay-out",
 		.arg_descr = "start offset, used for output (in seconds)",
 		.arg_const = -1,
-		.arg_val_int = &min_out_time,
+		.arg_val_int = &replay_out,
 	},
 
 
@@ -1469,6 +1542,24 @@ const struct arg arg_table[] = {
 		.arg_descr = "Expert options (DANGEROUS):",
 	},
 	{
+		.arg_name  = "dry-run",
+		.arg_descr = "don't actually do IO, measure internal overhead",
+		.arg_const = 1,
+		.arg_val_int = &dry_run,
+	},
+	{
+		.arg_name  = "fan-out",
+		.arg_descr = "only for kernel hackers (default=" STRINGIFY(DEFAULT_FAN_OUT) ")",
+		.arg_const = -1,
+		.arg_val_int = &fan_out,
+	},
+	{
+		.arg_name  = "no-dispatcher",
+		.arg_descr = "only for kernel hackers",
+		.arg_const = 0,
+		.arg_val_int = &fork_dispatcher,
+	},
+	{
 		.arg_name  = "speedup",
 		.arg_descr = "speedup / slowdown by REAL factor (default=" STRINGIFY(DEFAULT_SPEEDUP) ")",
 		.arg_const = -1,
@@ -1504,7 +1595,7 @@ void usage(void)
 			printf("=<val>");
 			len += 6;
 		}
-		while (len++ < 20) {
+		while (len++ < 21) {
 			printf(" ");
 		}
 		printf(" %s\n", tmp->arg_descr);
@@ -1587,10 +1678,21 @@ int main(int argc, char *argv[])
 	if (verify_mode >= 2)
 		final_verify_mode++;
 
-	if (total_max > QUEUES * QUEUES)
-		total_max = QUEUES * QUEUES;
+	if (total_max > MAX_THREADS)
+		total_max = MAX_THREADS;
 	if (total_max < 1)
 		total_max = 1;
+	if (fan_out > QUEUES)
+		fan_out = QUEUES;
+	if (replay_duration > 0)
+		replay_end = replay_start + replay_duration;
+
+	if (dry_run) {
+		printf("INFO: this is a DRY_RUN!!!!!!!!!\n"
+		       "INFO: measurements results are FAKE results!\n"
+		       "\n"
+		       );
+	}
 
 	if (time_factor != 0.0) {
 		time_stretch = 1.0 / time_factor;
@@ -1633,6 +1735,13 @@ int main(int argc, char *argv[])
 		main_open(1);
 		sleep(3);
 		check_all_tags();
+	}
+
+	if (dry_run) {
+		printf("\n"
+		       "INFO: this was a DRY_RUN!!!!!!!!!\n"
+		       "INFO: measurements results are FAKE results!\n"
+		       );
 	}
 
 	return 0;
