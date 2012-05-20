@@ -162,6 +162,10 @@ function compute_ws
     awk -F ";" "BEGIN{ start = 0.0; count = 0; } { if (!start) start = \$1; while (\$1 >= start + $advance) { delta = 0.0; if ($window) { c = asorti(table); delta = table[c-1] - table[0]; } printf(\"%f %d %f %f\n\", start+$advance, count, delta, (c > 0 ? delta/c : 0)); if ($window) { count = 0; delete table; } start += $advance; } if (!table[\$2]) { table[\$2] = \$2; count++; } }"
 }
 
+[[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
+thrp_window=${thrp_window:-3}
+
+awk_thrp="{ time=int(\$1); if(time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; while(time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); oldtime += $thrp_window; }; count=0; }; count++; }"
 
 out="$tmp/$name"
 
@@ -196,9 +200,6 @@ for mode in reads writes; do
 done
 
 # worker pipelines for all requests
-span=30
-[[ "$name" =~ impulse ]] && span=1
-awk_thrp="{ time=int(\$1); if(time - oldtime >= $span) { printf(\"%d %13.3f\\n\", oldtime, count / $span.0); oldtime += $span; while(time - oldtime >= $span) { printf(\"%d 0.0\\n\", oldtime); oldtime += $span; }; count=0; }; count++; }"
 if (( static_mode )); then
     cat $myfifo.all.sort2.1 | cut -d ';' -f 2 | awk "$awk_thrp" >\
 	$out.g90.orig.thrp.total.bins &
