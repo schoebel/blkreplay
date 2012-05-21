@@ -105,6 +105,7 @@ int final_verify_mode = 0;
 int total_max = DEFAULT_THREADS; // parallelism
 int sub_max = 0;
 int fan_out = DEFAULT_FAN_OUT;
+int bottleneck = 0;
 
 int count_completion = 0;  // number of requests on the fly
 int statist_lines = 0;     // total number of input lines
@@ -1321,7 +1322,7 @@ void parse(FILE *inp)
 		statist_lines++;
 
 		// avoid flooding the pipelines too much
-		while (count_completion > total_max * FILL_FACTOR ||
+		while (count_completion > bottleneck ||
 		       (count_completion > 1 && delay_distance(&old_stamp))) {
 			get_answer();
 		}
@@ -1560,6 +1561,12 @@ const struct arg arg_table[] = {
 		.arg_val_int = &fork_dispatcher,
 	},
 	{
+		.arg_name  = "bottleneck",
+		.arg_descr = "max #requests on dispatch",
+		.arg_const = -1,
+		.arg_val_int = &bottleneck,
+	},
+	{
 		.arg_name  = "speedup",
 		.arg_descr = "speedup / slowdown by REAL factor (default=" STRINGIFY(DEFAULT_SPEEDUP) ")",
 		.arg_const = -1,
@@ -1684,6 +1691,8 @@ int main(int argc, char *argv[])
 		total_max = 1;
 	if (fan_out > QUEUES)
 		fan_out = QUEUES;
+	if (bottleneck <= 0)
+		bottleneck = total_max * FILL_FACTOR;
 	if (replay_duration > 0)
 		replay_end = replay_start + replay_duration;
 
