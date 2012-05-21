@@ -202,9 +202,9 @@ done
 # worker pipelines for all requests
 if (( static_mode )); then
     cat $myfifo.all.sort2.1 | cut -d ';' -f 2 | awk "$awk_thrp" >\
-	$out.g90.orig.thrp.total.bins &
+	$out.g20.demand.thrp.total.bins &
     cat $myfifo.all.sort0.1 | awk -F ";" '{ printf("%d\n", $2+$6+$7); }' | $sort -n | awk "$awk_thrp" >\
-	$out.g20.thrp.total.bins &
+	$out.g20.actual.thrp.total.bins &
 else
     cat $myfifo.all.sort2.1 > /dev/null &
     cat $myfifo.all.sort0.1 > /dev/null &
@@ -396,7 +396,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist; do
 	title=$(basename $i | sed 's/\.\(tmp\|extra\)//g')
 	plot="$plot$delim '$i' $using title '$title' with $lines"
 	delim=","
-	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i | sed 's/\.\(tmp\|extra\|000\)//g').$picturetype"
+	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i | sed 's/\.\(tmp\|extra\|000\|actual\)//g').$picturetype"
     done
 
     if [ -n "$plot" ]; then

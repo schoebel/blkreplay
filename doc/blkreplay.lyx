@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.13
+Version 0.14
 \end_layout
 
 \begin_layout Standard
@@ -6364,7 +6364,7 @@ The following example shows the replay latencies of a natural load over
 \noindent
 \align center
 \begin_inset Graphics
-	filename images/example1.g01.replay.realtime.png
+	filename images/example1.g01.latency.realtime.png
 	lyxscale 20
 	width 100col%
 
@@ -6401,7 +6401,17 @@ latency scale
 \end_inset
 
 .
- As you can see, there are two main 
+\end_layout
+
+\begin_layout Standard
+It requires some experience to interpret sonar diagrams.
+\end_layout
+
+\begin_layout Itemize
+\noindent
+As you can see, there are two main 
+\series bold
+
 \begin_inset Quotes eld
 \end_inset
 
@@ -6409,6 +6419,8 @@ bands
 \begin_inset Quotes erd
 \end_inset
 
+
+\series default
  optically visible to the human interpretation.
  These look similar to 
 \begin_inset Quotes eld
@@ -6418,14 +6430,18 @@ fish swarms
 \begin_inset Quotes erd
 \end_inset
 
- occuring in sonar diagrams; hence the name.
+ occuring in sonar diagrams; hence the name 
+\begin_inset Quotes eld
+\end_inset
+
+sonar diagram
+\begin_inset Quotes erd
+\end_inset
+
+.
 \end_layout
 
-\begin_layout Standard
-It requires some experience to interpret sonar diagrams.
-\end_layout
-
-\begin_layout Standard
+\begin_layout Itemize
 Most obviously, 
 \series bold
 cache hierarchies
@@ -6444,12 +6460,239 @@ bands
  to the fluctuation, even over time.
 \end_layout
 
+\begin_layout Itemize
+The red 
+\begin_inset Quotes eld
+\end_inset
+
+needles
+\begin_inset Quotes erd
+\end_inset
+
+ are indications of queueing.
+ In difference to a single 
+\begin_inset Quotes eld
+\end_inset
+
+hang
+\begin_inset Quotes erd
+\end_inset
+
+ which would just 
+\begin_inset Quotes eld
+\end_inset
+
+fly above
+\begin_inset Quotes erd
+\end_inset
+
+ other requests, intermediate latencies from 
+\begin_inset Quotes eld
+\end_inset
+
+fellow requests
+\begin_inset Quotes erd
+\end_inset
+
+ are also present, spanning almost the full range from 
+\begin_inset Quotes eld
+\end_inset
+
+fast
+\begin_inset Quotes erd
+\end_inset
+
+ requests to the queued ones.
+\end_layout
+
+\begin_layout Itemize
+In case of the strongest needle, you can even see a 
+\begin_inset Quotes eld
+\end_inset
+
+lash
+\begin_inset Quotes erd
+\end_inset
+
+ behind it.
+ There are no 
+\begin_inset Quotes eld
+\end_inset
+
+faster
+\begin_inset Quotes erd
+\end_inset
+
+ request during this lash (i.e.
+ the space below it appears empty - even as if there were in interruption
+ in the time axis).
+ This is an indication of a 
+\emph on
+global
+\emph default
+ queuing strategy.
+\end_layout
+
+\begin_layout Standard
+The same latencies are now displayed as a histogram:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename images/example1.g06.latency.bins.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+You can identify the 
+\begin_inset Quotes eld
+\end_inset
+
+bands
+\begin_inset Quotes erd
+\end_inset
+
+ a second time by looking at the camel-like 
+\begin_inset Quotes eld
+\end_inset
+
+humps
+\begin_inset Quotes erd
+\end_inset
+
+.
+ In addition to the sonar diagram, you can identify the 
+\begin_inset Quotes eld
+\end_inset
+
+hight
+\begin_inset Quotes erd
+\end_inset
+
+ and 
+\begin_inset Quotes eld
+\end_inset
+
+thickness
+\begin_inset Quotes erd
+\end_inset
+
+ of a hump more easily.
+ Some very small additional humps can also be found, probably an indicator
+ for further caches or probably for some scheduler timeouts.
+\end_layout
+
 \begin_layout Subsection
 Delay Diagrams
 \end_layout
 
 \begin_layout Standard
-TBD
+As already explained, delays are the difference between the 
+\emph on
+intended/demanded
+\emph default
+ starting time of an IO requests, and its 
+\emph on
+real
+\emph default
+ starting time.
+ Huge delays are almost always an indication that the system cannot 
+\begin_inset Quotes eld
+\end_inset
+
+catch up
+\begin_inset Quotes erd
+\end_inset
+
+ with the application demands.
+ Here is an example:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename images/example1.g04.delay.setpoint.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Here are some interpretations:
+\end_layout
+
+\begin_layout Itemize
+You will immediately notice the 
+\begin_inset Quotes eld
+\end_inset
+
+runaway tail
+\begin_inset Quotes erd
+\end_inset
+
+ after the purple indicator line, which is just a strong indication that
+ overall throughput is too low.
+\end_layout
+
+\begin_layout Itemize
+Even before, you can see some 
+\begin_inset Quotes eld
+\end_inset
+
+needles
+\begin_inset Quotes erd
+\end_inset
+
+ with a 
+\begin_inset Quotes eld
+\end_inset
+
+lash
+\begin_inset Quotes erd
+\end_inset
+
+ behind.
+ Another indication, even occurring in a section with rather 
+\begin_inset Quotes eld
+\end_inset
+
+low
+\begin_inset Quotes erd
+\end_inset
+
+ throughput demands.
+\end_layout
+
+\begin_layout Standard
+In order to compare this with the actual throughput, look at the following
+ picture, where demanded throughput is colored green, while actually delivered
+ throughput is red:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename images/example1.g20.thrp.total.bins.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
