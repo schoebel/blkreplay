@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.17
+Version 0.18
 \end_layout
 
 \begin_layout Standard
@@ -7233,7 +7233,130 @@ name "chap:How-to-use"
 \end_layout
 
 \begin_layout Standard
-TBD
+The tool 
+\family typewriter
+blktrace
+\family default
+, as well as its friends like 
+\family typewriter
+blkparse
+\family default
+, are described elsewhere.
+ Here are some additions:
+\end_layout
+
+\begin_layout Itemize
+You will need a kernel with compile-time option 
+\family typewriter
+CONFIG_BLK_DEV_IO_TRACE
+\family default
+ enabled.
+ Although many newer Linux distros have it already enabled by default, you
+ may stuble over elder systems / distributions where it was missing (so
+ you may need to install and/or recompile a different kernel).
+\end_layout
+
+\begin_layout Itemize
+Please note that some 
+\family typewriter
+man
+\family default
+ pages about 
+\family typewriter
+blktrace
+\family default
+ contain unclear / misleading information about the physical unit of the
+ 
+\family typewriter
+-b
+\family default
+ / 
+\family typewriter
+--bufer-size
+\family default
+ option, which can lead to serious problems (including kernel crashes) if
+ you (accidentally) try to allocate more kernel memory than physically available.
+ Unless you are recording extremely high-performance loads, the default
+ settings will succeed; so there will be no risk for IT operations.
+\end_layout
+
+\begin_layout Itemize
+Tracing multiple devices in parallel is possible, but works differently
+ than described.
+ Before recording blocktraces at production sites, we recommend to test
+ it somewhere in advance.
+\end_layout
+
+\begin_layout Standard
+Please note that you need enough filesystem space for recording, residing
+ on a 
+\emph on
+different
+\emph default
+ partition than you want to record the IO traffic! Otherwise, your measurements
+ might be distorted.
+\end_layout
+
+\begin_layout Standard
+You should record at least 8 hours of operation; better 24h.
+\end_layout
+
+\begin_layout Standard
+Once blktrace has finished, some files 
+\family typewriter
+\emph on
+yourname
+\emph default
+.blktrace.{0..8}
+\family default
+ (or other numbers, corresponding to the number of CPUs) will exist in the
+ current working directory of your production machine.
+ Please copy all of them to your workstation before proceeding (never risk
+ more than necessary on production systems).
+\end_layout
+
+\begin_layout Standard
+After copying, issue the following command:
+\end_layout
+
+\begin_layout Quote
+
+\family typewriter
+/path/to/blkreplay/scripts/conv_blktrace_to_load.sh 
+\emph on
+yourname
+\end_layout
+
+\begin_layout Standard
+This will produce an output file 
+\family typewriter
+\emph on
+yourname
+\emph default
+.load.gz
+\family default
+ in your working directory.
+ In order to describe your load in an intuitive way, you should seriously
+ consider it renaming to 
+\family typewriter
+\emph on
+some_better_name
+\emph default
+.load.gz
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+When your load contains some interesting effects and could be of broader
+ interest to a larger community, please contact the author of this paper
+ by Email in order to publish your load at 
+\family typewriter
+www.blkreplay.org
+\family default
+.
+ In particular, unusual and novel application areas, heavy ordinary workloads,
+ and recordings of incidents, are of a broader interest.
 \end_layout
 
 \begin_layout Chapter
