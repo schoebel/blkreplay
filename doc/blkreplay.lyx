@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.15
+Version 0.16
 \end_layout
 
 \begin_layout Standard
@@ -286,12 +286,12 @@ Furthermore, it can be used for tests of the
 Linux kernel
 \series default
 , e.g.
- for testing device drivers, comparing different IO schedulers at different
- load patterns, determining the overhead of Linux 
+ for testing device drivers, comparing IO schedulers at different load patterns,
+ determining the overhead of Linux 
 \family typewriter
 dm
 \family default
- targets, determining the impact of network problems to DRBD, and much more.
+ targets or the impact of network problems to DRBD, and much more.
 \end_layout
 
 \begin_layout Abstract
@@ -321,6 +321,8 @@ blkreplay
  servers, etc) which have been released to the public by 1&1 under GPL.
  Some of these natural loads have recorded the real-life disk access behaviour
  from servers serving thousands of customers in parallel.
+ Static analysis of the workingset behaviour of such natural loads is implemente
+d.
 \end_layout
 
 \begin_layout Abstract
@@ -3361,7 +3363,28 @@ blktrace
 \family default
 , which is currently the best approximation of the workingset behaviour
  of the application we can easily get access to.
- 
+ Following is an example, showing different window sizes 
+\begin_inset Formula $\delta$
+\end_inset
+
+ in the same picture (where 000 means cumulation to 
+\begin_inset Formula $\infty$
+\end_inset
+
+):
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename images/example1.g30.ws_log.png
+	lyxscale 30
+	width 100col%
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Labeling
