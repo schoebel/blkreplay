@@ -87,6 +87,7 @@ char *main_name = NULL;
 long long main_size = 0;
 long long max_size = 0;
 int dry_run = 0;
+int fake_io = 0;
 int fork_dispatcher = 1;
 int mmap_mode = 0;
 int conflict_mode = 0; 
@@ -672,6 +673,8 @@ int similar_execute(struct request *rq)
 		printf("ERROR: trying to position at %lld (main_size=%lld)\n", rq->sector, main_size);
 		fflush(stdout);
 	}
+	if (fake_io)
+		return 0;
 	newpos = (long long)rq->sector * 512;
 	s_status = lseek64(main_fd, newpos, SEEK_SET);
 	if (s_status != newpos) {
@@ -1549,6 +1552,12 @@ const struct arg arg_table[] = {
 		.arg_val_int = &dry_run,
 	},
 	{
+		.arg_name  = "fake-io",
+		.arg_descr = "omit lseek() and tags, even less internal overhead",
+		.arg_const = 1,
+		.arg_val_int = &fake_io,
+	},
+	{
 		.arg_name  = "fan-out",
 		.arg_descr = "only for kernel hackers (default=" STRINGIFY(DEFAULT_FAN_OUT) ")",
 		.arg_const = -1,
@@ -1689,6 +1698,8 @@ int main(int argc, char *argv[])
 		total_max = MAX_THREADS;
 	if (total_max < 1)
 		total_max = 1;
+	if (fan_out < 2)
+		fan_out = 2;
 	if (fan_out > QUEUES)
 		fan_out = QUEUES;
 	if (bottleneck <= 0)
@@ -1696,6 +1707,8 @@ int main(int argc, char *argv[])
 	if (replay_duration > 0)
 		replay_end = replay_start + replay_duration;
 
+	if (fake_io)
+		dry_run = 1;
 	if (dry_run) {
 		printf("INFO: this is a DRY_RUN!!!!!!!!!\n"
 		       "INFO: measurements results are FAKE results!\n"

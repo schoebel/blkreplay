@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.16
+Version 0.17
 \end_layout
 
 \begin_layout Standard
@@ -6973,7 +6973,248 @@ Lowlevel Details and Expert Usage
 \end_layout
 
 \begin_layout Standard
-TBD
+Ordinary users should skip this section.
+\end_layout
+
+\begin_layout Subsection
+Internal Overhead
+\end_layout
+
+\begin_layout Standard
+Some new SSDs are promising IO rates of more than 100.000 IOPS when operated
+ over extremely fast IO channels.
+ When you try to achieve such high rates, you may probably stumble over
+ several difficulties.
+\end_layout
+
+\begin_layout Standard
+For example, running too much threads / processes on the same file handle
+ or on the same pipe can lead to serious lock contention in the Linux kernel,
+ limiting overall throughput.
+ Although some people might argue that 
+\family typewriter
+blkreplay
+\family default
+ itself could produce an 
+\begin_inset Quotes eld
+\end_inset
+
+artificial
+\begin_inset Quotes erd
+\end_inset
+
+ bottleneck, please keep in mind that you need some 
+\emph on
+real applications
+\emph default
+ which were capable of producing / consuming such extremely high IO traffic.
+\end_layout
+
+\begin_layout Standard
+Anyway, here is some advice how to deal with extremely high IO traffic.
+ For 
+\begin_inset Quotes eld
+\end_inset
+
+normal
+\begin_inset Quotes erd
+\end_inset
+
+ IO rates in the region of a few 10.000, the following is usually not needed.
+ Otherwise, you should be prepared to look into internals of the kernel,
+ compile your own high-speed custom kernels with some debugging options
+ switched off / better tuning of schedulers etc, and possibly use tools
+ like 
+\family typewriter
+oprofile
+\family default
+ to check what is really going on.
+\end_layout
+
+\begin_layout Standard
+In order to determine the internal overhead of 
+\family typewriter
+blkreplay
+\family default
+, play around with the following parameters:
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+--threads=\SpecialChar \ldots{}
+
+\family default
+ (or 
+\family typewriter
+threads=\SpecialChar \ldots{}
+
+\family default
+ as a shell variable in 
+\family typewriter
+*.conf
+\family default
+) The most important setting.
+ Although counter-intuitive, too high numbers of threads may increase the
+ overall overhead and thus reduce throughput.
+ Be prepared to degrade this to rather low numbers in order to really achieve
+ extremely high IO throughput.
+ Usually, no more than 32 should be used.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+--dry-run
+\family default
+ (or, as a shell variable, 
+\family typewriter
+dry_run
+\family default
+ with underscore instead of minus) Omit any 
+\family typewriter
+read()
+\family default
+ and 
+\family typewriter
+write()
+\family default
+ operations, but continue to use 
+\family typewriter
+lseek64()
+\family default
+ on the file handles.
+ This way, you can determine the internal overhead in isolation.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+--fake-io
+\family default
+ Additionally omit even 
+\family typewriter
+lseek64()
+\family default
+ operations, as well as creation of header data.
+ Compare results with 
+\family typewriter
+--dry-run
+\family default
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+--fan-out=\SpecialChar \ldots{}
+
+\family default
+ In order to reduce parallelism on 
+\family typewriter
+pipe()
+\family default
+ channels, 
+\family typewriter
+blkreplay
+\family default
+ spawns internal distributor threads, forming a tree with limited fan-out
+ degree.
+ Too high numbers will increase pipe overhead, while too low numbers will
+ increase thread and scheduling overhead.
+ The optimum may depend on hardware (e.g.
+ NUMA) and kernel version.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+--no-dispatcher
+\family default
+ Omit distributor threads for the answer channels completely.
+ When combined with high numbers of threads, this may increase the kernel
+ overhead to almost unusable regions.
+ Use this for kernel tuning.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+--bottleneck=\SpecialChar \ldots{}
+
+\family default
+ Limit the number of flying IO requests.
+ Has a similar effect than 
+\family typewriter
+--threads
+\family default
+, but is not the same.
+ Can be used for determining internal kernel and even hardware overheads
+ such as TLB thrashing (e.g.
+ by keeping 
+\family typewriter
+--bottleneck
+\family default
+ constant and increasing 
+\family typewriter
+--threads
+\family default
+).
+ Could be useful for kernel and hardware tuning.
+\begin_inset Newline newline
+\end_inset
+
+
+\series bold
+Hint:
+\series default
+ you can even set this to much higher numbers than 
+\family typewriter
+--threads
+\family default
+, in order to pre-fill the communication pipes with some ahead requests
+ (minimizing the risk of waiting times).
+ However, when the number is way too high, a 
+\emph on
+coprocess deadlock
+\emph default
+ could occur (see the literature about coprocesses).
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+--speedup=\SpecialChar \ldots{}
+
+\family default
+ A very dangerous option when used with natural loads.
+ Leads to heavy distortions of the relationship between timely and positionly
+ behaviour; in essence 
+\emph on
+a natural load will not remain a natural load any more
+\emph default
+.
+ For artificial loads, however, such as 
+\family typewriter
+*bursts*
+\family default
+, it is useful to reach top IOPS regions.
+\end_layout
+
+\begin_layout Standard
+In any case, extremely high IOPS rates are likely to be reached only by
+ running multiple 
+\family typewriter
+blkreplay
+\family default
+ instances in parallel.
 \end_layout
 
 \begin_layout Chapter

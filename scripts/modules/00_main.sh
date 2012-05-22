@@ -110,13 +110,13 @@ function main_run
     echo $FUNCNAME
     for i in $(eval echo {0..$replay_max}); do
 	options=""
-	optlist="dry_run"
+	optlist="dry_run fake_io no_dispatcher"
 	for opt in $optlist; do
 	    if eval "(( $opt ))"; then
 		options="$options --$(echo $opt | sed 's/_/-/g')"
 	    fi
 	done
-	optlist="replay_start replay_duration replay_out threads speedup"
+	optlist="replay_start replay_duration replay_out threads speedup fan_out bottleneck"
 	for opt in $optlist; do
 	    if eval "[ -n \"\$$opt\" ]"; then
 		options="$options --$(echo $opt | sed 's/_/-/g')=$(eval echo \$${opt})"
