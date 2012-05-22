@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.14
+Version 0.15
 \end_layout
 
 \begin_layout Standard
@@ -6461,6 +6461,11 @@ bands
 \end_layout
 
 \begin_layout Itemize
+Any differences between read and write behaviour will immediately catch
+ your eye.
+\end_layout
+
+\begin_layout Itemize
 The red 
 \begin_inset Quotes eld
 \end_inset
@@ -6523,8 +6528,8 @@ faster
 \begin_inset Quotes erd
 \end_inset
 
- request during this lash (i.e.
- the space below it appears empty - even as if there were in interruption
+ requests (not even reads) during this lash (i.e.
+ the space below it appears empty - even as if there were an interruption
  in the time axis).
  This is an indication of a 
 \emph on
