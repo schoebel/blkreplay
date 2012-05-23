@@ -19,22 +19,6 @@
 
 #####################################################################
 
-function remote
-{
-    host="$1"
-    shift
-    ssh root@"$host" "$@"
-}
-
-function remote_all
-{
-    for host in $replay_hosts_unique; do
-	remote "$host" "$@" || exit $?
-    done
-}
-
-#####################################################################
-
 function main_prepare
 {
     replay_count=0
@@ -162,7 +146,7 @@ function main_finish
     echo $FUNCNAME
     if (( !omit_tmp_cleanup )); then
 	echo "Cleaning all remote /tmp/ directories..."
-	remote_all "rm -rf \${TMPDIR:-/tmp}/blkreplay.*"
+	remote_all "$replay_hosts_unique" "rm -rf \${TMPDIR:-/tmp}/blkreplay.*"
     fi
 }
 

@@ -31,15 +31,12 @@ ws_list="${ws_list:-000 001 006 060 600}"
 
 # check some preconditions
 
-check_list="grep sed awk head tail cat cut tee sort mkfifo nice date pwd find gzip gunzip zcat gcc gnuplot"
-for i in $check_list; do
-    if ! which $i >/dev/null 2>&1; then
-	echo "Sorry, program '$i' is not installed."
-	exit -1
-    fi
-done
+base_dir="$(dirname "$(which "$0")")"
+source "$base_dir/modules/lib.sh" || exit $?
 
-base_dir=$(dirname $(which "$0"))
+check_list="grep sed awk head tail cat cut tee sort mkfifo nice date pwd find gzip gunzip zcat gcc gnuplot"
+check_installed "$check_list"
+
 [ -x $base_dir/../src/bins.exe ] || \
     gcc -O2 -Wall -lm $base_dir/../src/bins.c -o $base_dir/../src/bins.exe
 

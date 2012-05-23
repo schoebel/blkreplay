@@ -24,35 +24,15 @@
 # Make many measurements in subtrees of current working directory.
 # Use directory names as basis for configuration variants
 
-base_dir="$(cd "$(dirname "$0")" && pwd)"
+base_dir="$(dirname "$(which "$0")")"
+source "$base_dir/modules/lib.sh" || exit $?
+
 dry_run_script=0
 
 # check some preconditions
 
 check_list="grep sed awk head tail cat cut nice date gzip gunzip zcat ssh rsync buffer"
-for i in $check_list; do
-    if ! which $i >/dev/null 2>&1; then
-	echo "Sorry, program '$i' is not installed."
-	exit -1
-    fi
-done
-
-# sourcing of config files (may be a parent dir of cwd)
-
-function source_config
-{
-    name="$1"
-    setup_dir=$(pwd)
-    limit=0
-    until [ -r $setup_dir/$name.conf ]; do
-	setup_dir="$(cd $setup_dir/..; pwd)"
-	(( limit++ > 10 )) && { echo "No base dir found for config file $name.conf."; return 1; }
-    done
-    setup=$setup_dir/$name.conf
-    echo "Sourcing config file $setup"
-    source $setup || exit $?
-    return 0
-}
+check_installed "$check_list"
 
 # include modules
 prepare_list=""
@@ -61,7 +41,7 @@ run_list=""
 cleanup_list=""
 finish_list=""
 shopt -s nullglob
-for module in $base_dir/modules/*.sh; do
+for module in $base_dir/modules/[0-9]*.sh; do
     modname="$(basename $module | sed 's/^[0-9]*_\([^.]*\)\..*/\1/')"
     if source_config default-$modname; then
 	echo "Sourcing module $modname"
