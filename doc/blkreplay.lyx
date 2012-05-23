@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.18
+Version 0.19
 \end_layout
 
 \begin_layout Standard
@@ -7307,7 +7307,7 @@ Once blktrace has finished, some files
 \emph on
 yourname
 \emph default
-.blktrace.{0..8}
+.blktrace.{0..7}
 \family default
  (or other numbers, corresponding to the number of CPUs) will exist in the
  current working directory of your production machine.
@@ -7361,16 +7361,6 @@ www.blkreplay.org
 
 \begin_layout Chapter
 Experiences with some Setups and some Loads
-\end_layout
-
-\begin_layout Standard
-TBD
-\end_layout
-
-\begin_layout Chapter
-Internals of 
-\family typewriter
-blkreplay
 \end_layout
 
 \begin_layout Standard
@@ -7449,6 +7439,158 @@ lstinputlisting[language=bash]{default-graph.conf}
 \end_inset
 
 
+\end_layout
+
+\begin_layout Chapter
+File Format
+\end_layout
+
+\begin_layout Standard
+The 
+\family typewriter
+*.load.gz
+\family default
+ and 
+\family typewriter
+*.replay.gz
+\family default
+ files are in essence compressed CSV files, using 
+\family typewriter
+
+\begin_inset Quotes eld
+\end_inset
+
+;
+\begin_inset Quotes erd
+\end_inset
+
+
+\family default
+ as delimiter.
+ However, errors and comments can also occur in the file, violating the
+ classical CSV format.
+\end_layout
+
+\begin_layout Standard
+In order to extract classical CSV, use the following command:
+\end_layout
+
+\begin_layout Quotation
+
+\family typewriter
+zgrep 
+\begin_inset Quotes eld
+\end_inset
+
+;
+\begin_inset Quotes erd
+\end_inset
+
+ 
+\emph on
+myname
+\emph default
+.replay.gz | less
+\end_layout
+
+\begin_layout Standard
+The first line of the output contains the column names (and could be removed
+ by inserting 
+\family typewriter
+| tail -n +2
+\family default
+ into the pipeline).
+ In 
+\emph on
+theory
+\emph default
+, you could even use MS Excel to work on the above output.
+ However, in practice the file will be so extremely large that interactive
+ workstation tools will likely start swapping your system to death, or even
+ bombing.
+\end_layout
+
+\begin_layout Standard
+So the usual way to operate on the output is a 
+\begin_inset Quotes eld
+\end_inset
+
+pipe and filters style
+\begin_inset Quotes erd
+\end_inset
+
+, using stream-processing tools like 
+\family typewriter
+sed
+\family default
+, 
+\family typewriter
+awk
+\family default
+, 
+\family typewriter
+perl
+\family default
+, and so on.
+\end_layout
+
+\begin_layout Standard
+Both 
+\family typewriter
+*.load.gz
+\family default
+ and 
+\family typewriter
+*.replay.gz
+\family default
+ use the same format.
+ However, 
+\family typewriter
+*.load.gz
+\family default
+ 
+\series bold
+\emph on
+must
+\series default
+\emph default
+ be sorted numerically according to the timestamp, while 
+\family typewriter
+*.replay.gz
+\family default
+ is usually unsorted (roughly showing the order of request completion in
+ most cases, which is different from the submission timestamp ordering).
+ In order to re-use 
+\family typewriter
+*.replay.gz
+\family default
+ again as input for another run of 
+\family typewriter
+blkreplay
+\family default
+, you must sort it with 
+\family typewriter
+sort -n
+\family default
+.
+ In some cases, public 
+\family typewriter
+blktrace
+\family default
+ recordings at 
+\family typewriter
+www.blktrace.org/loads/
+\family default
+ will contain only constants 0.0 as delays and latencies.
+\end_layout
+
+\begin_layout Standard
+Feel free to filter your results, or create your own artifical loads.
+\end_layout
+
+\begin_layout Standard
+\noindent
+Enjoy.
 \end_layout
 
 \begin_layout Chapter
