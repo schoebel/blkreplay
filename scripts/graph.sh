@@ -34,7 +34,7 @@ ws_list="${ws_list:-000 001 006 060 600}"
 base_dir="$(dirname "$(which "$0")")"
 source "$base_dir/modules/lib.sh" || exit $?
 
-check_list="grep sed awk head tail cat cut tee sort mkfifo nice date pwd find gzip gunzip zcat gcc gnuplot"
+check_list="grep sed gawk head tail cat cut tee sort mkfifo nice date pwd find gzip gunzip zcat gcc gnuplot"
 check_installed "$check_list"
 
 [ -x $base_dir/../src/bins.exe ] || \
@@ -148,7 +148,7 @@ done
 function make_statistics
 {
     bad=$1
-    awk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if(\$2 > $bad) { if(!hit) start=\$1; hit++; } } END { printf (\"min=%f\nmax=%f\ncount=%d\navg=%f\nhit=%d\nstart=%f\n\", min, max, count, (count > 0 ? sum/count : 0), hit, start); }"
+    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if(\$2 > $bad) { if(!hit) start=\$1; hit++; } } END { printf (\"min=%f\nmax=%f\ncount=%d\navg=%f\nhit=%d\nstart=%f\n\", min, max, count, (count > 0 ? sum/count : 0), hit, start); }"
 }
 
 function compute_ws
@@ -156,13 +156,13 @@ function compute_ws
     window=$1
     advance=$1
     (( advance <= 0 )) && advance=1
-    awk -F ";" "BEGIN{ start = 0.0; count = 0; } { if (!start) start = \$1; while (\$1 >= start + $advance) { delta = 0.0; if ($window) { c = asorti(table); delta = table[c-1] - table[0]; } printf(\"%f %d %f %f\n\", start+$advance, count, delta, (c > 0 ? delta/c : 0)); if ($window) { count = 0; delete table; } start += $advance; } if (!table[\$2]) { table[\$2] = \$2; count++; } }"
+    gawk -F ";" "BEGIN{ start = 0.0; count = 0; } { if (!start) start = \$1; while (\$1 >= start + $advance) { delta = 0.0; if ($window) { c = asorti(table); delta = table[c-1] - table[0]; } printf(\"%f %d %f %f\n\", start+$advance, count, delta, (c > 0 ? delta/c : 0)); if ($window) { count = 0; delete table; } start += $advance; } if (!table[\$2]) { table[\$2] = \$2; count++; } }"
 }
 
 [[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
 thrp_window=${thrp_window:-3}
 
-awk_thrp="{ time=int(\$1); if(time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; while(time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); oldtime += $thrp_window; }; count=0; }; count++; }"
+gawk_thrp="{ time=int(\$1); if(time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; while(time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); oldtime += $thrp_window; }; count=0; }; count++; }"
 
 out="$tmp/$name"
 
@@ -171,7 +171,7 @@ for mode in reads writes; do
     inp=$myfifo.$mode
     i="$mode.tmp"
     if (( dynamic_mode )); then
-	cat $inp.sort0.1 | awk -F ";" '{ printf("%f %f\n", $2+$6, $7); }' >\
+	cat $inp.sort0.1 | gawk -F ";" '{ printf("%f %f\n", $2+$6, $7); }' >\
 	    $out.g01.latency.$i.realtime &
 	cat $inp.sort2.1 | cut -d ';' -f 2,7 | sed 's/;/ /' >\
 	    $out.g02.latency.$i.setpoint &
@@ -198,9 +198,9 @@ done
 
 # worker pipelines for all requests
 if (( static_mode )); then
-    cat $myfifo.all.sort2.1 | cut -d ';' -f 2 | awk "$awk_thrp" >\
+    cat $myfifo.all.sort2.1 | cut -d ';' -f 2 | gawk "$gawk_thrp" >\
 	$out.g20.demand.thrp.total.bins &
-    cat $myfifo.all.sort0.1 | awk -F ";" '{ printf("%d\n", $2+$6+$7); }' | $sort -n | awk "$awk_thrp" >\
+    cat $myfifo.all.sort0.1 | gawk -F ";" '{ printf("%d\n", $2+$6+$7); }' | $sort -n | gawk "$gawk_thrp" >\
 	$out.g20.actual.thrp.total.bins &
 else
     cat $myfifo.all.sort2.1 > /dev/null &
@@ -218,14 +218,14 @@ fi
 for window in $ws_list; do
     cat $myfifo.all.sort2.$window | cut -d ';' -f 2,3 | compute_ws $window |\
 	tee $myfifo.all.dist1.$window $myfifo.all.dist2.$window |\
-	awk '{print $1, $2; }' >\
+	gawk '{print $1, $2; }' >\
 	$out.g30.ws_log.$window.extra &
     ln -sf $out.g30.ws_log.$window.extra $out.g31.ws_lin.$window.extra 
     cat $myfifo.all.dist1.$window |\
-	awk '{print $1, $3; }' >\
+	gawk '{print $1, $3; }' >\
 	$out.g32.sum_dist.$window.extra &
     cat $myfifo.all.dist2.$window |\
-	awk '{print $1, $4; }' >\
+	gawk '{print $1, $4; }' >\
 	$out.g33.avg_dist.$window.extra &
 done
 
