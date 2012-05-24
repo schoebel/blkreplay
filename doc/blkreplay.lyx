@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.20
+Version 0.21
 \end_layout
 
 \begin_layout Standard
@@ -6776,6 +6776,63 @@ Here is a list of already existing modules:
 \labelwidthstring 00.00.0000
 
 \family typewriter
+iscsi_target_iet
+\family default
+ When enabled, your 
+\family typewriter
+iet
+\family default
+ iSCSI target will be automatically configured for you, automatically generating
+ iSCSI 
+\family typewriter
+IQN
+\family default
+ names for you.
+ Usually this module is used in combination with 
+\family typewriter
+iscsi_initiator
+\family default
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+iscsi_initiator
+\family default
+ When enabled, your 
+\family typewriter
+blkreplay
+\family default
+ runs will automatically act on iSCSI 
+\family typewriter
+IQN
+\family default
+ identifiers instead of on device names, transparently creating iSCSI connection
+s for you.
+ It can be used standalone, for example to connect to commercial storage
+ boxes.
+ When combined with module 
+\family typewriter
+iscsi_target_
+\family default
+*, even the 
+\family typewriter
+IQN
+\family default
+ name generation will be automated transparently (in this case you just
+ supply the device names present at the 
+\family typewriter
+iscsi_target
+\family default
+ host).
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
 graph
 \family default
  When enabled, the script 
@@ -6787,6 +6844,21 @@ graph.sh
 blkreplay
 \family default
  run.
+\end_layout
+
+\begin_layout Standard
+Detailed documentation of the module parameters can be found in 
+\family typewriter
+default-*.conf
+\family default
+, or in appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Module-Parameters"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
@@ -7428,6 +7500,13 @@ lstinputlisting[language=bash]{default-main.conf}
 
 \begin_layout Section
 Module Parameters
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Module-Parameters"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -7449,6 +7528,58 @@ status open
 
 \backslash
 lstinputlisting[language=bash]{default-graph.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-iscsi_target_iet.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-iscsi_target_iet.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-iscsi_initiator.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-iscsi_initiator.conf}
 \end_layout
 
 \end_inset

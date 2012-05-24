@@ -32,7 +32,7 @@ function main_prepare
     if echo $replay_host_list | grep -q ":"; then
 	for i in $replay_host_list; do
 	    host=$(echo $i | cut -d: -f1)
-	    device=$(echo $i | cut -d: -f2)
+	    device=$(echo $i | cut -d: -f2-)
 	    replay_host[$replay_count]=$host
 	    replay_device[$replay_count]=$device
 	    replay_max=$replay_count

@@ -21,6 +21,7 @@
 
 function graph_finish
 {
+    (( !enable_graph )) && return 0
     echo "$FUNCNAME running graph.sh"
     if ! ls *.replay.gz > /dev/null; then
 	echo "no results exist => skip graph.sh"
@@ -36,6 +37,4 @@ function graph_finish
     )
 }
 
-if (( enable_graph )); then
-    finish_list="$finish_list graph_finish"
-fi
+finish_list="$finish_list graph_finish"
