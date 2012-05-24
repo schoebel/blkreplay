@@ -31,7 +31,7 @@ ws_list="${ws_list:-000 001 006 060 600}"
 
 # check some preconditions
 
-base_dir="${base_dir:-$(dirname "$(which "$0")")}"
+base_dir="${base_dir:-$(cd "$(dirname "$(which "$0")")"; pwd)}"
 source "$base_dir/modules/lib.sh" || exit $?
 
 check_list="grep sed gawk head tail cat cut tee sort mkfifo nice date pwd find gzip gunzip zcat gcc gnuplot"
