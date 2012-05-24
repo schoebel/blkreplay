@@ -47,6 +47,7 @@ mkfifo "$tmp/master.fifo"
 
 static_mode=0
 dynamic_mode=0
+sequential_mode=0
 if echo "$@" | grep -q "\.load"; then
     static_mode=1
 fi
@@ -71,6 +72,14 @@ for file in $@; do
     fi
     if [ "$file" = "--no-dynamic" ]; then
 	dynamic_mode=0
+	continue
+    fi
+    if [ "$file" = "--sequential" ]; then
+	sequential_mode=1
+	continue
+    fi
+    if [ "$file" = "--no-sequential" ]; then
+	sequential_mode=0
 	continue
     fi
     if ! [ -r "$file" ]; then
@@ -369,6 +378,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	$plot;
 EOF
     ) &
+    (( sequential_mode )) && wait
 done
 
 for mode in thrp ws_log ws_lin sum_dist avg_dist; do
@@ -430,6 +440,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist; do
 	$plot;
 EOF
     fi &
+    (( sequential_mode )) && wait
 done
 
 echo "Final wait..."
