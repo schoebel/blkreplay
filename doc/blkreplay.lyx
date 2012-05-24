@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.19
+Version 0.20
 \end_layout
 
 \begin_layout Standard
@@ -160,9 +160,9 @@ sloppy
 
  blkreplay
 \family default
- is a GPL'ed userspace tool for testing the block layer of Linux (or other
- Unix-like OSes) while measuring latency and throughput of IO operations
- for later visualization (so-called 
+ is a GPL'ed userspace driving the block layer of Linux (or other Unix-like
+ OSes) while measuring latency and throughput of IO operations for later
+ visualization (so-called 
 \begin_inset Quotes eld
 \end_inset
 
@@ -171,6 +171,18 @@ sonar diagrams
 \end_inset
 
  and others).
+\end_layout
+
+\begin_layout Abstract
+
+\family typewriter
+blkreplay
+\family default
+ comes with a modular and extensible 
+\series bold
+test suite
+\series default
+, automating large projects for testing and/or benchmarking.
 \end_layout
 
 \begin_layout Abstract
@@ -252,11 +264,14 @@ blkreplay
 \family typewriter
 blkreplay
 \family default
- can compare commercial storage boxes from vendors like EMC, Net\SpecialChar \-
-App, IBM,
- Hitachi, etc to each other or to cheap off-the-shelf hardware (in order
- to determine the price/performance ratio), provided the test setup is also
- handled very carefully
+ can compare 
+\series bold
+commercial storage
+\series default
+ systems from vendors like EMC, Net\SpecialChar \-
+App, IBM, Hitachi, etc to each other
+ or to cheap off-the-shelf hardware (in order to determine the price/performance
+ ratio), provided the same care
 \begin_inset Foot
 status open
 
@@ -277,7 +292,7 @@ fake results
 
 \end_inset
 
-.
+ is taken.
 \end_layout
 
 \begin_layout Abstract
@@ -1490,7 +1505,7 @@ blkreplay
  Due to the architecture of the Linux kernel, all IO requests will continue
  to run through the buffer cache
 \begin_inset Foot
-status collapsed
+status open
 
 \begin_layout Plain Layout
 Several commercial Unices used a concept called 
