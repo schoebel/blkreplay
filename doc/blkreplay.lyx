@@ -7361,15 +7361,20 @@ blktrace
 \family typewriter
 --bufer-size
 \family default
- option, which can lead to serious problems (including kernel crashes) if
- you (accidentally) try to allocate more kernel memory than physically available.
+ option, which may lead to serious problems (including kernel hangups /
+ crashes) if you (accidentally) try to allocate more kernel memory than
+ physically available.
  Unless you are recording extremely high-performance loads, the default
  settings will succeed; so there will be no risk for IT operations.
 \end_layout
 
 \begin_layout Itemize
-Tracing multiple devices in parallel is possible, but works differently
- than described.
+Tracing multiple devices in parallel is possible, but works sometimes differentl
+y than (inconsistently) described in the 
+\family typewriter
+man
+\family default
+, possibly leading to kernel problems (depending on versions etc).
  Before recording blocktraces at production sites, we recommend to test
  it somewhere in advance.
 \end_layout
