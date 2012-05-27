@@ -37,17 +37,66 @@
 
 #define _LARGEFILE64_SOURCE
 #define _GNU_SOURCE
+#include <config.h>
+
 #include <stdio.h>
+
 #include <errno.h>
-#include <stdlib.h>
-#include <unistd.h>
+
+#ifdef STDC_HEADERS
+# include <stdlib.h>
+# include <stddef.h>
+#else
+# ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+# endif
+#endif
+
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+
 #include <fcntl.h>
+
+#ifdef HAVE_STRING_H
+# if !defined STDC_HEADERS && defined HAVE_MEMORY_H
+#  include <memory.h>
+# endif
 #include <string.h>
+#endif
+#ifdef HAVE_STRINGS_H
+# include <strings.h>
+#endif
+
 #include <time.h>
+
 #include <math.h>
+
 #include <signal.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
+/**********************************************************
+ *
+ */
+
+#ifndef HAVE_DECL_POSIX_MEMALIGN
+# if HAVE_MALLOC_H && HAVE_DECL_MEMALIGN
+#  define posix_memalign(res,align,size) ((*(res)) = memalign((align), (size)), 0)
+# else
+#  define posix_memalign(res,align,size) ((*(res)) = malloc(size), 0)
+# endif
+#endif
+
+#if !HAVE_DECL_LSEEK64
+# define lseek64 lseek
+#endif
 
 // use -lrt -lm for linking.
 //
@@ -553,15 +602,20 @@ void check_all_tags()
 	void *buffer = NULL;
 	struct verify_tag *tag;
 
-	posix_memalign((void**)&table, 4096, TAG_CHUNK);
-	posix_memalign((void**)&table2, 4096, TAG_CHUNK);
-	posix_memalign(&buffer, 512, 512);
+	printf("checking all tags..........\n");
+	fflush(stdout);
+
+	if (posix_memalign((void**)&table, 4096, TAG_CHUNK) ||
+	    posix_memalign((void**)&table2, 4096, TAG_CHUNK) ||
+	    posix_memalign(&buffer, 512, 512)) {
+		printf("FATAL ERROR: cannot allocate memory\n");
+		fflush(stdout);
+		exit(-1);
+	}
 	tag = buffer;
 
 	lseek64(verify_fd, 0, SEEK_SET);
 	lseek64(complete_fd, 0, SEEK_SET);
-	printf("checking all tags..........\n");
-	fflush(stdout);
 
 	for (;;) {
 		status = read(verify_fd, table, TAG_CHUNK);
@@ -629,7 +683,12 @@ void paranoia_check(struct request *rq, void *buffer)
 	struct verify_tag *tag2;
 	long long s_status;
 
-	posix_memalign(&buffer2, 4096, len);
+	if (posix_memalign(&buffer2, 4096, len)) {
+		printf("VERIFY ERROR: cannot allocate memory\n");
+		fflush(stdout);
+		rq->verify_errors++;
+		goto done;
+	}
 	tag2 = buffer2;
 	s_status = lseek64(main_fd, newpos, SEEK_SET);
 	if (s_status != newpos) {
@@ -685,7 +744,11 @@ int similar_execute(struct request *rq)
 	{
 		int status;
 		void *buffer = NULL;
-		posix_memalign(&buffer, 4096, len);
+		if (posix_memalign(&buffer, 4096, len)) {
+			printf("ERROR: cannot allocate memory\n");
+			fflush(stdout);
+			return -1;
+		}
 		if (rq->rwbs == 'W') {
 			make_tags(rq, buffer, len);
 			status = do_write(buffer, len);
@@ -947,10 +1010,13 @@ static
 void main_open(int again)
 {
 	long long size;
-	int flags = O_RDWR | O_LARGEFILE | O_DIRECT;
+	int flags = O_RDWR | O_DIRECT;
 	if (again || dry_run) {
-		flags = O_RDONLY | O_LARGEFILE | O_DIRECT;
+		flags = O_RDONLY | O_DIRECT;
 	}
+#if 0
+	flags |= | O_LARGEFILE;
+#endif
 	main_fd = open(main_name, flags);
 	if (main_fd < 0) {
 		printf("ERROR: cannot open file '%s', errno = %d (%s)\n", main_name, errno, strerror(errno));
@@ -993,10 +1059,13 @@ void verify_open(int again)
 	if (!verify_mode)
 		return;
 
-	flags = O_RDWR | O_CREAT | O_LARGEFILE | O_TRUNC;
+	flags = O_RDWR | O_CREAT | O_TRUNC;
 	if (again) {
-		flags = O_RDONLY | O_LARGEFILE;
+		flags = O_RDONLY;
 	}
+#if 0
+	flags |= | O_LARGEFILE;
+#endif
 	if (verify_fd < 0) {
 		char *file = getenv("VERIFY_TABLE");
 		if (!file) {

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Copyright 2010-2012 Thomas Schoebel-Theuer, sponsored by 1&1 Internet AG
 #
 # Email: tst@1und1.de
@@ -24,7 +25,7 @@ function iscsi_initiator_finish
 {
     (( !enable_iscsi_initiator )) && return 0
     echo "$FUNCNAME finishing iSCSI connections to $iscsi_ip"
-    cmd="(killall blkreplay.$(uname -m); iscsiadm -m node -U all) 2>/dev/null; exit 0"
+    cmd="(killall blkreplay.exe; iscsiadm -m node -U all) 2>/dev/null; exit 0"
     remote_all "$replay_hosts_unique" "$cmd"
 }
 

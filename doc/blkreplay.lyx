@@ -4726,17 +4726,12 @@ In addition, you need some workstation (or server) where the
 \family typewriter
 blkreplay
 \family default
- suite is installed
-\begin_inset Foot
-status open
+ suite is checked out.
+ Do the following steps:
+\end_layout
 
-\begin_layout Plain Layout
-Just checkout the git repository of 
-\family typewriter
-blkreplay
-\family default
-.
- In addition, you need 
+\begin_layout Itemize
+Ensure that 
 \family typewriter
 gcc
 \family default
@@ -4754,23 +4749,83 @@ grep
 \family default
  / 
 \family typewriter
-awk
+gawk
 \family default
- etc.
+ are installed.
+ If you need multiple machine architectures (such as 
+\family typewriter
+x86_64
+\family default
+ and 
+\family typewriter
+i386
+\family default
+) in parallel, ensure that 
+\family typewriter
+gcc
+\family default
+ can cross-compile via flags 
+\family typewriter
+-m32
+\family default
+ / 
+\family typewriter
+-m64
+\family default
+ and that the appropriate libs are installed.
+\end_layout
+
+\begin_layout Itemize
+
+\family typewriter
+git clone https://github.com/schoebel/blkreplay
+\end_layout
+
+\begin_layout Itemize
+
+\family typewriter
+cd blkreplay
+\end_layout
+
+\begin_layout Itemize
+
+\family typewriter
+./configure
+\end_layout
+
+\begin_layout Itemize
+
+\family typewriter
+make
+\end_layout
+
+\begin_layout Itemize
+Attention! 
+\family typewriter
+make install
+\family default
+ is not yet supported.
+ Just leave everything in place.
+ You can either put 
+\family typewriter
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+/path/to/blkreplay/scripts/
 \end_layout
 
 \end_inset
 
-.
- Go to subdirectory 
-\family typewriter
-src/
+
 \family default
- and type 
+ into your 
 \family typewriter
-make
+$PATH
 \family default
- there.
+, or call the scripts via hard path.
 \end_layout
 
 \begin_layout Standard

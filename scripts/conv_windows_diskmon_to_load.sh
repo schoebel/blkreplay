@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2010-2012 Thomas Schoebel-Theuer, sponsored by 1&1 Internet AG
 #
 # Email: tst@1und1.de

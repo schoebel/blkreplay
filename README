@@ -1,0 +1,76 @@
+More info: www.blkreplay.org
+
+----------------------------------------------------------------
+
+Abstract:
+
+blkreplay is a GPL’ed userspace tool driving the block layer of
+Linux (or other Unix-like OSes) while measuring latency and throughput
+of IO operations for later visualization (so-called “sonar diagrams”
+and others).
+
+In addition to artiﬁcial loads like random read-write sweeps and
+various kinds of overload tests, blkreplay can replay **natural loads**
+which have been recorded by blktrace (or Windows iskMon) at
+heavily-loaded production servers at big data centers.
+
+blkreplay comes with a **large collection of natural loads**
+from a wide spectrum of applications (such as web servers,
+databases, dedicated servers, etc) which have been released
+to the public by 1&1 under GPL. See http://www.blkreplay.org/loads/ .
+Some of these natural loads have recorded the real-life disk access
+behaviour from servers serving thousands of customers in parallel.
+
+Static analysis of the workingset behaviour of such natural loads
+is also implemented.
+
+blkreplay comes with a modular and extensible **test suite**,
+automating large projects for testing and/or benchmarking.
+
+blkreplay can be used to test physical hardware, e.g. compare
+diﬀerent brands of hard disks, or RAID controllers / their settings /
+RAID rebuild performance degradation, or to evaluate the eﬀect of
+SSD caching, or to compare diﬀerent block level transports
+like iSCSI vs Fibrechannel (over diﬀerent kinds of storage networks).
+
+It can compare virtual hardware (like vmware or XenServer block devices,
+or any type of block-level storage virtualization) to each other
+or to physical hardware, provided the test setup is handled very carefully.
+
+blkreplay can compare commercial storage boxes from vendors like EMC,
+NetApp, IBM, Hitachi, etc to each other or to cheap oﬀ-the-shelf
+hardware (in order to determine the price/performance ratio),
+provided the test setup is also handled very carefully.
+
+Furthermore, it can be used for tests of the Linux kernel, e.g.
+for testing device drivers, comparing diﬀerent IO schedulers at
+diﬀerent load patterns, determining the overhead of Linux dm targets,
+determining the impact of network problems to DRBD,
+and much more.
+
+At 1&1, blkreplay has even been used as a tool for root cause analysis
+of incidents: for example, high load peaks presumably stemming from
+traﬃc jam (or other sources of overload) were recorded at production
+sites in real time by <tt>blktrace</tt>, and later replayed
+in the laboratory (without causing customer impact) seeking for
+the cause of trouble, or improving the safety margins by choice
+of better hardware.
+
+For experts in IO subsystems, visualization techniques like
+“sonar diagrams” can reveal (parts of) the internal structure
+of complex IO systems, such as cache hierarchies or other
+hierarchical storage systems.
+
+As a community project under GPL, blkreplay is open to contributions
+from hardware vendors, other data centers, the kernel hacker
+community, etc.
+
+-------------------------------------------------------
+
+Full documentation:
+https://github.com/schoebel/blkreplay/raw/master/doc/blkreplay.pdf
+
+Sourcecode: https://github.com/schoebel/blkreplay/
+
+Database of loads: http://www.blkreplay.org/loads/
+

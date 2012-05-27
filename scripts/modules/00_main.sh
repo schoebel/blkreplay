@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2010-2012 Thomas Schoebel-Theuer, sponsored by 1&1 Internet AG
 #
 # Email: tst@1und1.de
@@ -82,16 +82,45 @@ function main_prepare
 function main_setup
 {
     echo $FUNCNAME
-    buffer_cmd="(buffer -m 16m 2>/dev/null || cat)"
+    echo "Determine target architecture(s) and copy executable(s)..."
     for host in $replay_hosts_unique; do
-	echo "Copying executables to $host..."
-	rsync -avP $base_dir/../src/blkreplay.{i686,x86_64} root@$host:
+	if remote "$host" [ -x blkreplay.exe ]; then
+	    echo "Host $host already has blkreplay.exe"
+	    continue
+	fi
+	arch="$(remote "$host" "uname -m || arch")" ||\
+	    { echo "cannot determine architecture of $host"; return 1; }
+	exe="$base_dir/../src/arch.$arch/blkreplay.exe"
+	if ! [ -x "$exe" ]; then # try generic architectures
+	    case "$arch" in
+		*_64)
+                arch="m64"
+		;;
+		i?86)
+                arch="m32"
+		;;
+	    esac
+	    exe="$base_dir/../src/arch.$arch/blkreplay.exe"
+	fi
+	if ! [ -x "$exe" ]; then
+	    echo "Sorry, no blkreplay executable for architecture $arch available."
+	    echo "Please re-make blkreplay with appropriate architecture (e.g. install cross compiler / cross libraries)."
+	    exe="$base_dir/../src/blkreplay.exe"
+	    if [ -x "$exe" ]; then
+		echo "Trying to resort to generic $exe, but this is likely to fail."
+	    else
+		return 1
+	    fi
+	fi
+	echo "Host $host has architecture $arch"
+	scp -p "$exe" root@$host:
     done
 }
 
 function main_run
 {
     echo $FUNCNAME
+    buffer_cmd="(buffer -m 16m || cat)"
     for i in $(eval echo {0..$replay_max}); do
 	options=""
 	optlist="dry_run fake_io no_dispatcher"
@@ -121,12 +150,14 @@ function main_run
 	    *)
 	    ;;
 	esac
-	blkreplay="./blkreplay.\$(uname -m) $options ${replay_device[$i]} "
+	blkreplay="./blkreplay.exe $options ${replay_device[$i]} "
 	#echo "$blkreplay"
-	cmd="$buffer_cmd | nice gunzip -f | $buffer_cmd | $blkreplay | $buffer_cmd 2>&1 | nice gzip | $buffer_cmd"
+	cmd="$buffer_cmd | $blkreplay | $buffer_cmd"
 	echo "Starting blkreplay on ${replay_host[$i]} options '$options' device ${replay_device[$i]}"
 	#echo "$cmd"
-	remote "${replay_host[$i]}" "$cmd" < "${input_file[$i]}" > "${output_file[$i]}" &
+	nice gunzip -f < "${input_file[$i]}" |\
+	    remote "${replay_host[$i]}" "$cmd" |\
+	    nice gzip > "${output_file[$i]}" &
 	if [ -n "$replay_start" ] && [ -n "$replay_delta" ]; then
 	    (( replay_start += replay_delta ))
 	fi
@@ -146,7 +177,7 @@ function main_finish
     echo $FUNCNAME
     if (( !omit_tmp_cleanup )); then
 	echo "Cleaning all remote /tmp/ directories..."
-	remote_all "$replay_hosts_unique" "rm -rf \${TMPDIR:-/tmp}/blkreplay.*"
+	remote_all_noreturn "$replay_hosts_unique" "rm -rf /tmp/blkreplay.* || rm -rf \$TMPDIR/blkreplay.* || exit 0"
     fi
 }
 

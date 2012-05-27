@@ -1,7 +1,5 @@
 *~
 *.o
-*.i686
-*.x86_64
 *.orig
 *.rej
 *.bak
@@ -9,5 +7,18 @@
 .#*
 *.cmd
 *.exe
+*.i686
+*.x86_64
 *.png
 !doc/images/*.png
+
+# created by configure:
+Makefile
+config.h
+config.log
+config.status
+*.m4
+autom4te*
+stamp-*
+autoscan.log
+.deps

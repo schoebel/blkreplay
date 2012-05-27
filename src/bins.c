@@ -18,8 +18,15 @@
  */
 
 #define _GNU_SOURCE
+#include <config.h>
+
 #include <stdio.h>
+
 #include <math.h>
+
+#if !HAVE_DECL_EXP10
+# define exp10(x) (exp((x) * log(10)))
+#endif
 
 #define MAX_BINS 1024
 

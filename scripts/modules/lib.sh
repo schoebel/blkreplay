@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2010-2012 Thomas Schoebel-Theuer, sponsored by 1&1 Internet AG
 #
 # Email: tst@1und1.de
@@ -73,7 +73,17 @@ function remote_all
     host_all="$1"
     shift
     for host in $host_all; do
-	remote "$host" "$@" || exit $?
+	remote "$host" "$@" || return $?
+    done
+    return 0
+}
+
+function remote_all_noreturn
+{
+    host_all="$1"
+    shift
+    for host in $host_all; do
+	remote "$host" "$@"
     done
 }
 
