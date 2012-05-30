@@ -77,6 +77,7 @@ function main_prepare
 	echo " $i: ${replay_host[$i]} ${replay_device[$i]} $(basename ${input_file[$i]}) ${output_file[$i]}"
 	(( j++ ))
     done
+    pipe_list="nice gunzip -f < \"\${input_file[\$i]}\""
     echo ""
 }
 
@@ -156,7 +157,7 @@ function main_run
 	cmd="$buffer_cmd | $blkreplay | $buffer_cmd"
 	echo "Starting blkreplay on ${replay_host[$i]} options '$options' device ${replay_device[$i]}"
 	#echo "$cmd"
-	nice gunzip -f < "${input_file[$i]}" |\
+	eval "$pipe_list" |\
 	    remote "${replay_host[$i]}" "$cmd" |\
 	    nice gzip > "${output_file[$i]}" &
 	if [ -n "$replay_start" ] && [ -n "$replay_delta" ]; then
@@ -191,7 +192,7 @@ setup_list="main_setup"
 run_list="main_run"
 cleanup_list="main_cleanup"
 finish_list="main_finish"
-
+pipe_list="echo 'you did not implement any filters'"
 
 function main
 {

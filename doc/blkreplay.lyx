@@ -112,7 +112,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.21
+Version 0.22
 \end_layout
 
 \begin_layout Standard
@@ -6914,6 +6914,151 @@ blkreplay
  run.
 \end_layout
 
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+pipe_*
+\family default
+ When enabled, these filtering modules modify the 
+\family typewriter
+*.load.gz
+\family default
+ input at runtime before it reaches 
+\family typewriter
+blkreplay
+\family default
+.
+ Following pipe filters are available:
+\end_layout
+
+\begin_deeper
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+pipe_repeat
+\family default
+ Repeat the same input files forever (or until the parameter 
+\family typewriter
+$replay_duration
+\family default
+ is reached).
+ This is useful if your 
+\family typewriter
+*.load.gz
+\family default
+ is too short for a longer replay.
+ However keep in mind that the 
+\emph on
+workingset
+\emph default
+ will not increase, because exactly the 
+\emph on
+same
+\emph default
+ IO operations will be repeated after a while.
+ In order to circumvent that, combine this module with 
+\family typewriter
+pipe_slip
+\family default
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+pipe_slip
+\family default
+ Add some offset to the sector# after a bunch of operations.
+ Use this in combination with 
+\family typewriter
+pipe_repeat
+\family default
+ to produce a 
+\begin_inset Quotes eld
+\end_inset
+
+slowly moving
+\begin_inset Quotes erd
+\end_inset
+
+ behaviour of the sector numbers, such that the next cycle will repeat the
+ operations at a slightly higher position.
+ Details see appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:File-default-pipe_slip.conf"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+pipe_subst
+\family default
+ Replace 
+\family typewriter
+R
+\family default
+[reads] with 
+\family typewriter
+W
+\family default
+[writes] or vice versa.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+pipe_spread
+\family default
+ Increase the region where the sector numbers will run about (corresponding
+ to the size of a LV) by some factor.
+ Details see appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:File-default-pipe_spread.conf"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+pipe_resize
+\family default
+ Increase the request size (#sectors) by some factor, or clip it to some
+ bounds.
+ Details see appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:File-default-pipe_resize.conf"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+pipe_cmd
+\family default
+ Insert arbitrary shell commands into the input pipeline.
+\end_layout
+
+\end_deeper
 \begin_layout Standard
 Detailed documentation of the module parameters can be found in 
 \family typewriter
@@ -7679,6 +7824,183 @@ status open
 
 \backslash
 lstinputlisting[language=bash]{default-scheduler.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-pipe_repeat.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-pipe_repeat.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-pipe_slip.conf
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:File-default-pipe_slip.conf"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-pipe_slip.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-pipe_subst.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-pipe_subst.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-pipe_spread.conf
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:File-default-pipe_spread.conf"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-pipe_spread.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-pipe_resize.conf
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:File-default-pipe_resize.conf"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-pipe_resize.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-pipe_cmd.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-pipe_cmd.conf}
 \end_layout
 
 \end_inset
