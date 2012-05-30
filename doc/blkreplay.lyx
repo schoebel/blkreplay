@@ -10,7 +10,9 @@
 \options abstracton
 \use_default_options true
 \begin_modules
+customHeadersFooters
 enumitem
+fixltx2e
 \end_modules
 \maintain_unincluded_children false
 \language english
@@ -20,7 +22,7 @@ enumitem
 \font_roman default
 \font_sans default
 \font_typewriter default
-\font_default_family default
+\font_default_family rmdefault
 \use_non_tex_fonts false
 \font_sc false
 \font_osf false
@@ -32,7 +34,7 @@ enumitem
 \output_sync 0
 \bibtex_command default
 \index_command default
-\paperfontsize default
+\paperfontsize 10
 \spacing single
 \use_hyperref true
 \pdf_title "blkreplay"
@@ -46,8 +48,8 @@ enumitem
 \pdf_colorlinks true
 \pdf_backref false
 \pdf_pdfusetitle true
-\papersize default
-\use_geometry false
+\papersize a4paper
+\use_geometry true
 \use_amsmath 1
 \use_esint 1
 \use_mhchem 1
@@ -62,14 +64,18 @@ enumitem
 \shortcut idx
 \color #008000
 \end_index
+\leftmargin 3.7cm
+\topmargin 2.7cm
+\rightmargin 2.8cm
+\bottommargin 2.3cm
 \secnumdepth 3
 \tocdepth 3
 \paragraph_separation indent
 \paragraph_indentation default
 \quotes_language english
 \papercolumns 1
-\papersides 1
-\paperpagestyle default
+\papersides 2
+\paperpagestyle headings
 \tracking_changes false
 \output_changes false
 \html_math_output 0
@@ -160,7 +166,7 @@ sloppy
 
  blkreplay
 \family default
- is a GPL'ed userspace driving the block layer of Linux (or other Unix-like
+ is a GPL'ed toolkit, driving the block layer of Linux (or other Unix-like
  OSes) while measuring latency and throughput of IO operations for later
  visualization (so-called 
 \begin_inset Quotes eld
@@ -726,7 +732,11 @@ blktrace
 \family typewriter
 blktrace
 \family default
- are simply replayed on another block device.
+ are simply replayed on 
+\emph on
+another
+\emph default
+ block device.
 \end_layout
 
 \begin_layout Standard
@@ -913,33 +923,9 @@ sufficient IO parallelism
 \end_layout
 
 \begin_layout Standard
-Ordinary production systems like web servers
-\begin_inset Foot
-status collapsed
-
-\begin_layout Plain Layout
-Under high load in datacenters, the behaviour of the 
-\family typewriter
-apache
-\family default
- web server may be characterized as similar to a 
-\begin_inset Quotes eld
-\end_inset
-
-fork bomb
-\begin_inset Quotes erd
-\end_inset
-
-.
- In contrast to classical toy fork bombs, these are generating heavy IO
- load in parallel.
-\end_layout
-
-\end_inset
-
- are serving many thousands of HTTP requests per second, which may lead
- to an IO parallelism at the block level of several hundred outstanding
- IO requests at the same time.
+Ordinary production systems like web servers are serving many thousands
+ of HTTP requests per second, which may lead to an IO parallelism at the
+ block level of several hundred outstanding IO requests at the same time.
 \end_layout
 
 \begin_layout Standard
@@ -970,6 +956,27 @@ blkreplay
 \end_layout
 
 \begin_layout Standard
+Method 2 is motivated by a typical Apache behaviour: it is almost a 
+\begin_inset Quotes eld
+\end_inset
+
+fork bomb
+\begin_inset Quotes erd
+\end_inset
+
+, in particular under high connection rates and slow block devices.
+ An high number of ordinary Unix processes is doing conventional 
+\family typewriter
+read()
+\family default
+ / 
+\family typewriter
+write()
+\family default
+ operations in parallel.
+\end_layout
+
+\begin_layout Standard
 For easy portability even to historic Unix flavours, 
 \family typewriter
 blkreplay
@@ -995,7 +1002,7 @@ pthreads
 \align center
 \begin_inset Graphics
 	filename architecture.fig
-	width 100col%
+	width 75col%
 
 \end_inset
 
@@ -1423,7 +1430,7 @@ Please take a look at the following picture:
 \align center
 \begin_inset Graphics
 	filename io-layers.fig
-	width 60text%
+	width 50text%
 
 \end_inset
 
@@ -2079,7 +2086,7 @@ For simplicity, this example assumes that the address translation uses the
 \begin_inset Graphics
 	filename storage-virtualization.fig
 	lyxscale 70
-	width 100col%
+	width 80col%
 
 \end_inset
 
@@ -2731,7 +2738,7 @@ smaller
 \begin_inset Graphics
 	filename cache-toosmall.fig
 	lyxscale 50
-	width 80col%
+	width 75col%
 
 \end_inset
 
@@ -5358,16 +5365,16 @@ tree-replay.sh
 \end_layout
 
 \begin_layout Standard
-You may skip any leaf directory by creating a file 
+You may skip any directory by creating a file 
 \family typewriter
 skip
 \family default
  inside it.
- For example, 
+ 
 \family typewriter
 touch ./short/model1/skip
 \family default
- will disable that leaf.
+ will disable that directory.
  Later, you can remove that file in order to fire off that benchmark.
 \end_layout
 
@@ -5744,7 +5751,18 @@ All files
 Hint: If you want to view only a single particular device (or zoom into
  it), just call 
 \family typewriter
+
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
 /path/to/graph.sh
+\end_layout
+
+\end_inset
+
+
 \family default
  with a single argument.
 \end_layout
@@ -6939,11 +6957,11 @@ blkreplay
 \family typewriter
 pipe_repeat
 \family default
- Repeat the same input files forever (or until the parameter 
+ Repeat the same input files forever, or until 
 \family typewriter
 $replay_duration
 \family default
- is reached).
+ is reached.
  This is useful if your 
 \family typewriter
 *.load.gz
@@ -7641,8 +7659,7 @@ yourname
 .load.gz
 \family default
  in your working directory.
- In order to describe your load in an intuitive way, you should seriously
- consider it renaming to 
+ You should seriously consider it renaming to 
 \family typewriter
 \emph on
 some_better_name
