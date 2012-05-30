@@ -56,6 +56,10 @@
 # include <unistd.h>
 #endif
 
+#ifdef HAVE_LIMITS_H
+# include <limits.h>
+#endif
+
 #include <fcntl.h>
 
 #ifdef HAVE_STRING_H
@@ -106,7 +110,7 @@
 #define MAX_THREADS         32768
 #define FILL_FACTOR             8
 #define DEFAULT_THREADS      1024
-#define DEFAULT_FAN_OUT         8
+#define DEFAULT_FAN_OUT         4
 #define DEFAULT_SPEEDUP       1.0
 
 #ifndef TMP_DIR
@@ -155,6 +159,7 @@ int final_verify_mode = 0;
 int total_max = DEFAULT_THREADS; // parallelism
 int sub_max = 0;
 int fan_out = DEFAULT_FAN_OUT;
+int verbose = 0;
 int bottleneck = 0;
 
 int count_completion = 0;  // number of requests on the fly
@@ -1097,6 +1102,7 @@ void verify_open(int again)
 static
 void do_worker(int in_fd, int back_fd)
 {
+	int count = 0;
 	/* Each worker needs his own filehandle instance to avoid races
 	 * between seek() and read()/write().
 	 * So open it again.
@@ -1111,6 +1117,7 @@ void do_worker(int in_fd, int back_fd)
 			break;
 
 		do_action(&rq);
+		count++;
 
 		if (rq.old_version) {
 			free(rq.old_version);
@@ -1122,6 +1129,10 @@ void do_worker(int in_fd, int back_fd)
 	}
 	close(in_fd);
 	close(back_fd);
+	if (verbose) {
+		printf("worker %d count = %d\n", getpid(), count);
+		fflush(stdout);
+	}
 }
 
 /* Intermediate copy thread.
@@ -1131,16 +1142,33 @@ void do_worker(int in_fd, int back_fd)
  * In order to limit the fan-in / fan-out, we create intermediate
  * "distributor threads" limiting the maximum competition.
  */
+#ifdef PIPE_BUF
+# define CP_FACTOR  (PIPE_BUF / RQ_SIZE)
+#else
+# define CP_FACTOR  (1024 / RQ_SIZE)
+#endif
+
+#define CP_SIZE    (RQ_SIZE * CP_FACTOR)
+
 static
 void do_dispatcher_copy(int in_fd, int out_fd)
 {
+	if (verbose) {
+		printf("dispatcher %d fan_out = %d cp_factor = %d\n", getpid(), fan_out, CP_FACTOR);
+		fflush(stdout);
+	}
 	for (;;) {
-		struct request rq = {};
-		int status = get_request(in_fd, &rq);
-		if (!status)
+		char buf[CP_SIZE];
+		int status = pipe_read(in_fd, buf, CP_SIZE);
+		if (status <= 0)
 			break;
+		if ((status % RQ_SIZE) != 0) {
+			printf("FATAL ERROR: bad record len %d from pipe fd=%d status=%d\n", status % RQ_SIZE, in_fd, status);
+			fflush(stdout);
+			exit(-1);
+		}
 
-		submit_request(out_fd, &rq);
+		pipe_write(out_fd, buf, status);
 	}
 }
 
@@ -1269,13 +1297,17 @@ void fork_childs()
 		exit(-1);
 	}
 
-	printf("forking %d child processes in total\n", total_max);
-	fflush(stdout);
+	if (verbose) {
+		printf("forking %d child processes in total\n", total_max);
+		fflush(stdout);
+	}
 
 	_fork_childs(-1, total_max);
 
-	printf("done forking (fan_out=%d)\n\n", sub_max);
-	fflush(stdout);
+	if (verbose) {
+		printf("done forking (fan_out=%d)\n\n", sub_max);
+		fflush(stdout);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -1292,8 +1324,12 @@ int execute(struct request *rq)
 		// get start time, but only after opening everything, since open() may produce delays
 		memcpy(&first_stamp, &rq->orig_stamp, sizeof(first_stamp));
 		clock_gettime(CLOCK_REALTIME, &start_stamp);
-		printf("tag_start = %ld\n", start_stamp.tv_sec);
-		fflush(stdout);
+
+		if (verbose) {
+			printf("tag_start = %ld\n", start_stamp.tv_sec);
+			fflush(stdout);
+		}
+
 		// effective only opon first call
 		fork_childs();
 	}
@@ -1609,6 +1645,17 @@ const struct arg arg_table[] = {
 	},
 
 
+
+	{
+		.arg_name  = "|",
+		.arg_descr = "Convenience:",
+	},
+	{
+		.arg_name  = "verbose",
+		.arg_descr = "show some additional debug output",
+		.arg_const = 1,
+		.arg_val_int = &verbose,
+	},
 
 	{
 		.arg_name  = "|",

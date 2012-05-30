@@ -24,6 +24,7 @@ AC_SEARCH_LIBS([log10], [m], , IS_REQUIRED)
 AC_SEARCH_LIBS([clock_gettime], [rt], , IS_REQUIRED)
 
 AC_CHECK_HEADERS([malloc.h])
+AC_CHECK_HEADERS([limits.h])
 
 # required functions
 AC_CHECK_DECLS([strlen, malloc, free], , IS_REQUIRED)

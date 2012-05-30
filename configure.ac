@@ -10,6 +10,7 @@ AC_SEARCH_LIBS([log10], [m], , IS_REQUIRED)
 AC_SEARCH_LIBS([clock_gettime], [rt], , IS_REQUIRED)
 
 AC_CHECK_HEADERS([malloc.h])
+AC_CHECK_HEADERS([limits.h])
 
 # required functions
 AC_CHECK_DECLS([strlen, malloc, free], , IS_REQUIRED)
@@ -28,7 +29,7 @@ AC_CHECK_DECLS([posix_memalign], ,
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_CONFIG_SRCDIR([src/bins.c])
+AC_CONFIG_SRCDIR([src/blkreplay.c])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
@@ -41,7 +42,7 @@ AC_PROG_MAKE_SET
 # Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h memory.h stddef.h stdlib.h string.h strings.h unistd.h])
+AC_CHECK_HEADERS([fcntl.h limits.h memory.h stddef.h stdlib.h string.h strings.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_PID_T

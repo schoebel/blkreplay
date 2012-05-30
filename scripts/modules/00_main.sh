@@ -123,7 +123,7 @@ function main_run
     buffer_cmd="(buffer -m 16m || cat)"
     for i in $(eval echo {0..$replay_max}); do
 	options=""
-	optlist="dry_run fake_io no_dispatcher"
+	optlist="verbose dry_run fake_io no_dispatcher"
 	for opt in $optlist; do
 	    if eval "(( $opt ))"; then
 		options="$options --$(echo $opt | sed 's/_/-/g')"

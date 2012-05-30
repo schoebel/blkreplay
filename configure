@@ -600,7 +600,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_unique_file="src/bins.c"
+ac_unique_file="src/blkreplay.c"
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
@@ -4226,6 +4226,18 @@ fi
 
 done
 
+for ac_header in limits.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "limits.h" "ac_cv_header_limits_h" "$ac_includes_default"
+if test "x$ac_cv_header_limits_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIMITS_H 1
+_ACEOF
+
+fi
+
+done
+
 
 # required functions
 ac_fn_c_check_decl "$LINENO" "strlen" "ac_cv_have_decl_strlen" "$ac_includes_default"
@@ -5096,7 +5108,7 @@ fi
 # Checks for libraries.
 
 # Checks for header files.
-for ac_header in fcntl.h memory.h stddef.h stdlib.h string.h strings.h unistd.h
+for ac_header in fcntl.h limits.h memory.h stddef.h stdlib.h string.h strings.h unistd.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
