@@ -196,28 +196,28 @@ function main
     ok=1
     for script in $prepare_list; do
 	if (( ok )); then
-	    echo "calling $script"
+	    (( verbose_script )) && echo "calling $script"
 	    $script || ok=0
 	fi
     done
     for script in $setup_list; do
 	if (( ok )); then
-	    echo "calling $script"
+	    (( verbose_script )) && echo "calling $script"
 	    $script || ok=0
 	fi
     done
     for script in $run_list; do
 	if (( ok )); then
-	    echo "calling $script"
+	    (( verbose_script )) && echo "calling $script"
 	    $script || ok=0
 	fi
     done
     for script in $cleanup_list; do
-	echo "calling $script"
+	(( verbose_script )) && echo "calling $script"
 	$script
     done
     for script in $finish_list; do
-	echo "calling $script"
+	(( verbose_script )) && echo "calling $script"
 	$script
     done
     return $(( !ok ))

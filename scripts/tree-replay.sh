@@ -28,6 +28,7 @@ base_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
 source "$base_dir/modules/lib.sh" || exit $?
 
 dry_run_script=0
+verbose_script=0
 
 # check some preconditions
 
