@@ -57,6 +57,7 @@ function main_prepare
 	exit -1
     fi
     replay_hosts_unique="$(for i in $(eval echo {0..$replay_max}); do echo "${replay_host[$i]}"; done | sort -u)"
+    all_hosts_unique="$replay_hosts_uniqe" # may by later extended by iSCSI&co
     j=0
     for i in $input_file_list; do
 	input_file[$j]=$i
@@ -177,7 +178,8 @@ function main_finish
     echo $FUNCNAME
     if (( !omit_tmp_cleanup )); then
 	echo "Cleaning all remote /tmp/ directories..."
-	remote_all_noreturn "$replay_hosts_unique" "rm -rf /tmp/blkreplay.* || rm -rf \$TMPDIR/blkreplay.* || exit 0"
+	cmd="rm -rf /tmp/blkreplay.* || rm -rf \$TMPDIR/blkreplay.* || exit 0"
+	remote_all_noreturn "$all_hosts_unique" "$cmd"
     fi
 }
 

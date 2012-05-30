@@ -6888,9 +6888,22 @@ iscsi_target
 \labelwidthstring 00.00.0000
 
 \family typewriter
+scheduler
+\family default
+ By default (when enabled), the IO scheduler will be set to 
+\family typewriter
+noop
+\family default
+ (or another value) on all relevant target machines.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
 graph
 \family default
- When enabled, the script 
+ By default (when enabled), the script 
 \family typewriter
 graph.sh
 \family default
@@ -7640,6 +7653,32 @@ status open
 
 \backslash
 lstinputlisting[language=bash]{default-iscsi_initiator.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-scheduler.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-scheduler.conf}
 \end_layout
 
 \end_inset
