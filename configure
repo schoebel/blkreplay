@@ -600,7 +600,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_unique_file="src/blkreplay.c"
+ac_unique_file="src/bins.c"
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
@@ -4276,6 +4276,7 @@ fi
 
 
 # optional functions
+#AC_CHECK_DECLS([O_LARGEFILE]) # does not work, use direct test instead
 ac_fn_c_check_decl "$LINENO" "exp10" "ac_cv_have_decl_exp10" "$ac_includes_default"
 if test "x$ac_cv_have_decl_exp10" = xyes; then :
   ac_have_decl=1

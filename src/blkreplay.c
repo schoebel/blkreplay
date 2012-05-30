@@ -1014,8 +1014,8 @@ void main_open(int again)
 	if (again || dry_run) {
 		flags = O_RDONLY | O_DIRECT;
 	}
-#if 0
-	flags |= | O_LARGEFILE;
+#ifdef O_LARGEFILE
+	flags |= O_LARGEFILE;
 #endif
 	main_fd = open(main_name, flags);
 	if (main_fd < 0) {
@@ -1063,8 +1063,8 @@ void verify_open(int again)
 	if (again) {
 		flags = O_RDONLY;
 	}
-#if 0
-	flags |= | O_LARGEFILE;
+#ifdef O_LARGEFILE
+	flags |= O_LARGEFILE;
 #endif
 	if (verify_fd < 0) {
 		char *file = getenv("VERIFY_TABLE");

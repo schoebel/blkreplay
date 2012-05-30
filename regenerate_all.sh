@@ -29,6 +29,7 @@ AC_CHECK_HEADERS([malloc.h])
 AC_CHECK_DECLS([strlen, malloc, free], , IS_REQUIRED)
 
 # optional functions
+#AC_CHECK_DECLS([O_LARGEFILE]) # does not work, use direct test instead
 AC_CHECK_DECLS([exp10])
 AC_CHECK_DECLS([lseek64])
 AC_CHECK_DECLS([memalign])
