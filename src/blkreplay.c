@@ -35,6 +35,7 @@
  * elder kernel interfaces when necessary.
  */
 
+#define _FILE_OFFSET_BITS 64
 #define _LARGEFILE64_SOURCE
 #define _GNU_SOURCE
 #include <config.h>

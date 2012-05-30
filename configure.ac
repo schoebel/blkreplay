@@ -10,6 +10,7 @@ AC_SEARCH_LIBS([log10], [m], , IS_REQUIRED)
 AC_SEARCH_LIBS([clock_gettime], [rt], , IS_REQUIRED)
 
 AC_CHECK_HEADERS([malloc.h])
+AC_CHECK_HEADERS([unistd.h])
 AC_CHECK_HEADERS([limits.h])
 
 # required functions
@@ -19,6 +20,8 @@ AC_CHECK_DECLS([strlen, malloc, free], , IS_REQUIRED)
 #AC_CHECK_DECLS([O_LARGEFILE]) # does not work, use direct test instead
 AC_CHECK_DECLS([exp10])
 AC_CHECK_DECLS([lseek64])
+AC_CHECK_DECLS([llseek])
+AC_CHECK_DECLS([lseek])
 AC_CHECK_DECLS([memalign])
 AC_CHECK_DECLS([posix_memalign], ,
 [AC_MSG_WARN([posix_memalign() not available, substituting by malloc()
@@ -29,7 +32,7 @@ AC_CHECK_DECLS([posix_memalign], ,
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_CONFIG_SRCDIR([src/blkreplay.c])
+AC_CONFIG_SRCDIR([src/bins.c])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.

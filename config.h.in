@@ -11,6 +11,14 @@
    */
 #undef HAVE_DECL_FREE
 
+/* Define to 1 if you have the declaration of `llseek', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LLSEEK
+
+/* Define to 1 if you have the declaration of `lseek', and to 0 if you don't.
+   */
+#undef HAVE_DECL_LSEEK
+
 /* Define to 1 if you have the declaration of `lseek64', and to 0 if you
    don't. */
 #undef HAVE_DECL_LSEEK64

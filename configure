@@ -600,7 +600,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_unique_file="src/blkreplay.c"
+ac_unique_file="src/bins.c"
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
@@ -4226,6 +4226,18 @@ fi
 
 done
 
+for ac_header in unistd.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "unistd.h" "ac_cv_header_unistd_h" "$ac_includes_default"
+if test "x$ac_cv_header_unistd_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_UNISTD_H 1
+_ACEOF
+
+fi
+
+done
+
 for ac_header in limits.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "limits.h" "ac_cv_header_limits_h" "$ac_includes_default"
@@ -4309,6 +4321,28 @@ fi
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_LSEEK64 $ac_have_decl
+_ACEOF
+
+ac_fn_c_check_decl "$LINENO" "llseek" "ac_cv_have_decl_llseek" "$ac_includes_default"
+if test "x$ac_cv_have_decl_llseek" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_LLSEEK $ac_have_decl
+_ACEOF
+
+ac_fn_c_check_decl "$LINENO" "lseek" "ac_cv_have_decl_lseek" "$ac_includes_default"
+if test "x$ac_cv_have_decl_lseek" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_LSEEK $ac_have_decl
 _ACEOF
 
 ac_fn_c_check_decl "$LINENO" "memalign" "ac_cv_have_decl_memalign" "$ac_includes_default"
