@@ -5099,13 +5099,17 @@ xxx
 .conf
 \family default
  in the current working directory or in one of its parents.
- In the whole subdirectory structure, and directory ending with 
+ In the whole subdirectory structure, any directory ending with 
 \family typewriter
 .old
 \family default
- or including the substring 
+, or including the substring 
 \family typewriter
 ignore
+\family default
+, or containg a file 
+\family typewriter
+skip
 \family default
  will be ignored.
 \end_layout
