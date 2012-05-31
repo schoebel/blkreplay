@@ -24,8 +24,8 @@
 # TST Jan 2010
 
 # check some preconditions
-base_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
-source "$base_dir/modules/lib.sh" || exit $?
+script_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
+source "$script_dir/modules/lib.sh" || exit $?
 
 check_list="grep sed cut gzip gawk"
 check_installed "$check_list"

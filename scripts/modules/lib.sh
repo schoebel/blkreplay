@@ -21,6 +21,17 @@ if (( !noecho )); then
     echo "Sourcing lib.sh"
 fi
 
+# this may be later overrided by distros / install scripts / etc
+
+# $sript_dir is assumed to be already set by the caller
+base_dir="$(cd "$script_dir/.."; pwd)"
+bin_dir="$base_dir/src"
+module_dir="$script_dir/modules"
+
+[ -x $bin_dir/bins.exe ] || \
+    (cd $base_dir && ./configure && make) ||\
+    { echo "Could not make binaries. Sorry." ; exit -1; }
+
 #####################################################################
 
 # helper for prevention of script failures due to missing tools
@@ -47,7 +58,7 @@ function source_config
     limit=0
     until [ -r $setup_dir/$name.conf ]; do
 	setup_dir="$(cd $setup_dir/..; pwd)"
-	(( limit++ > 20 )) && { echo "No base dir found for config file $name.conf."; return 1; }
+	(( limit++ > 20 )) && { echo "No parent dir found for (potential) config file $name.conf."; return 1; }
     done
     setup=$setup_dir/$name.conf
     echo "Sourcing config file $setup"

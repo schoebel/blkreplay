@@ -31,14 +31,11 @@ ws_list="${ws_list:-000 001 006 060 600}"
 
 # check some preconditions
 
-base_dir="${base_dir:-$(cd "$(dirname "$(which "$0")")"; pwd)}"
-source "$base_dir/modules/lib.sh" || exit $?
+script_dir="${script_dir:-$(cd "$(dirname "$(which "$0")")"; pwd)}"
+source "$script_dir/modules/lib.sh" || exit $?
 
 check_list="grep sed gawk head tail cat cut tee sort mkfifo nice date pwd find gzip gunzip zcat gcc gnuplot"
 check_installed "$check_list"
-
-[ -x $base_dir/../src/bins.exe ] || \
-    gcc -O2 -Wall -lm $base_dir/../src/bins.c -o $base_dir/../src/bins.exe
 
 tmp="${TMPDIR:-/tmp}/graph.$$"
 rm -rf "$tmp"
@@ -190,14 +187,10 @@ for mode in reads writes; do
 	    $out.g04.delay.$i.setpoint &
 	cat $inp.sort0.3 | cut -d ';' -f 1,6 | sed 's/;/ /' >\
 	    $out.g05.delay.$i.points &
-	if [ -x $base_dir/../src/bins.exe ]; then
-	    cat $inp.sort0.4 | cut -d ';' -f 7 | $base_dir/../src/bins.exe >\
-		$out.g06.latency.$i.bins &
-	    cat $inp.sort0.5 | cut -d ';' -f 6 | $base_dir/../src/bins.exe >\
-		$out.g07.delay.$i.bins &
-	else
-	    cat $inp.sort0.4 > /dev/null &
-	fi
+	cat $inp.sort0.4 | cut -d ';' -f 7 | $bin_dir/bins.exe >\
+	    $out.g06.latency.$i.bins &
+	cat $inp.sort0.5 | cut -d ';' -f 6 | $bin_dir/bins.exe >\
+	    $out.g07.delay.$i.bins &
     else
 	for i in $inp.sort?.*; do
 	    cat $i > /dev/null &

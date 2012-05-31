@@ -24,8 +24,8 @@
 # Make many measurements in subtrees of current working directory.
 # Use directory names as basis for configuration variants
 
-base_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
-source "$base_dir/modules/lib.sh" || exit $?
+script_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
+source "$script_dir/modules/lib.sh" || exit $?
 
 dry_run_script=0
 verbose_script=0
@@ -41,8 +41,10 @@ setup_list=""
 run_list=""
 cleanup_list=""
 finish_list=""
-shopt -s nullglob
-for module in $base_dir/modules/[0-9]*.sh; do
+
+function source_module
+{
+    module="$1"
     modname="$(basename $module | sed 's/^[0-9]*_\([^.]*\)\..*/\1/')"
     if source_config default-$modname; then
 	echo "Sourcing module $modname"
@@ -51,6 +53,11 @@ for module in $base_dir/modules/[0-9]*.sh; do
 	echo "Cannot use main module. Please provide some config file 'default-$modname.conf' in $(pwd) or in some parent directory."
 	exit -1
     fi
+}
+
+shopt -s nullglob
+for module in $module_dir/[0-9]*.sh; do
+    source_module "$module"
 done
 
 # parse options.
@@ -100,6 +107,14 @@ while (( resume )); do
 	echo "==============================================================="
 	echo "======== $test_dir"
 	(
+	    # source additional user modules (if available)
+	    source_config "user_modules" || echo "(ignored)"
+	    shopt -s nullglob
+	    for module in $user_module_dir/[0-9]*.sh; do
+		source_module "$module"
+	    done
+
+	    # source all individual config files (for overrides)
 	    shopt -s nullglob
 	    for i in $(echo $test_dir | sed 's/\// /g'); do
 		[ "$i" = "." ] && continue
@@ -108,6 +123,7 @@ while (( resume )); do
 		    exit -1
 		fi
 	    done
+
 	    export sub_prefix=$(echo $test_dir | sed 's/\//./g' | sed 's/\.\././g')
 	    cd $test_dir
 	    if (( dry_run_script )); then

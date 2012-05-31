@@ -33,7 +33,7 @@ function graph_finish
     fi
     # use a subshell for undoing all inside definitions / side effects
     (
-	source $base_dir/graph.sh $graph_options *.replay.gz
+	source $script_dir/graph.sh $graph_options *.replay.gz
     )
 }
 
