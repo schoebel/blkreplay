@@ -27,6 +27,8 @@ fi
 base_dir="$(cd "$script_dir/.."; pwd)"
 bin_dir="$base_dir/src"
 module_dir="$script_dir/modules"
+download_dir="$base_dir/downloads"
+mkdir -p "$download_dir" || exit -1
 
 [ -x $bin_dir/bins.exe ] || \
     (cd $base_dir && ./configure && make) ||\
@@ -62,6 +64,7 @@ function source_config
     done
     setup=$setup_dir/$name.conf
     echo "Sourcing config file $setup"
+    shopt -u nullglob
     source $setup || exit $?
     return 0
 }

@@ -24,6 +24,14 @@ function main_prepare
     replay_count=0
     replay_host_list="$(eval echo "$replay_host_list")"
     replay_device_list="$(eval echo "$replay_device_list")"
+    if echo "$input_file_list" | grep -q '^\(http\|ftp\)s\?:'; then
+	echo "Downloading $input_file_list"
+	(
+	    cd "$download_dir" || exit -1
+	    wget --recursive --level=1 --accept "$(basename "$input_file_list")" --continue --no-verbose "$(dirname "$input_file_list")" || exit -1
+	) || exit $?
+	input_file_list="$download_dir/$(echo "$input_file_list" | cut -d: -f2- )"
+    fi
     input_file_list="$(eval echo "$input_file_list")"
     if [ -z "$replay_host_list" ]; then
 	echo "variable replay_host_list is undefined"

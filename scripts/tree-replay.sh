@@ -124,6 +124,7 @@ while (( resume )); do
 		    exit -1
 		fi
 	    done
+	    shopt -u nullglob
 
 	    export sub_prefix=$(echo $test_dir | sed 's/\//./g' | sed 's/\.\././g')
 	    if (( dry_run_script )); then
