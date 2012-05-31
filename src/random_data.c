@@ -20,6 +20,8 @@
 #define _GNU_SOURCE
 #include <config.h>
 
+#include <stdio.h>
+
 #ifdef STDC_HEADERS
 # include <stdlib.h>
 # include <stddef.h>
@@ -50,6 +52,7 @@ int main(int argc, char *argv[])
 	static char buf[SIZE];
 	int i;
 	int status;
+	long long count = 0;
 	
 	do {
 		for (i = 0; i < SIZE / sizeof(TYPE); i++) {
@@ -58,8 +61,18 @@ int main(int argc, char *argv[])
 		}
 
 		status = write(1, buf, sizeof(buf));
+		if (status > 0)
+			count += status;
 
 	} while (status == sizeof(buf));
+
+	fprintf(stderr,
+		"%s wrote %lld KiBytes (%lld MiBytes, %lld GiBytes)\n",
+		argv[0],
+		count / 1024,
+		count / (1024 * 1024),
+		count / (1024 * 1024 * 1024));
+	fflush(stderr);
 
 	return 0;
 }
