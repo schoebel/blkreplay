@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.23
+Version 0.24
 \end_layout
 
 \begin_layout Standard
@@ -7714,8 +7714,261 @@ www.blkreplay.org
 Experiences with some Setups and some Loads
 \end_layout
 
+\begin_layout Section
+Overload Tests
+\end_layout
+
 \begin_layout Standard
-TBD
+Overload tests try to reveal the behaviour of a system under exceptionary
+ conditions, similar to a worst-case scenario.
+\end_layout
+
+\begin_layout Standard
+Overload tests can (and should) be done with natural loads (such as 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://www.blkreplay.org/loads/natural/1and1/natural-derived/
+\end_layout
+
+\end_inset
+
+).
+ In addition, it is one of the rare places where 
+\emph on
+artificial
+\emph default
+ loads can reach 
+\emph on
+some
+\emph default
+ justification.
+\end_layout
+
+\begin_layout Subsection
+Overload with Artificial Bursts
+\end_layout
+
+\begin_layout Standard
+The following examples are using the artificial loads from 
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+http://www.blkreplay.org/loads/artificial/random.bursts/
+\end_layout
+
+\end_inset
+
+, which are rather 
+\begin_inset Quotes eld
+\end_inset
+
+anal
+\begin_inset Quotes erd
+\end_inset
+
+ ones (see file 
+\family typewriter
+00README
+\family default
+ there).
+ The load is linearly increasing over time, until the test candidate will
+ 
+\begin_inset Quotes eld
+\end_inset
+
+collapse
+\begin_inset Quotes erd
+\end_inset
+
+ under the overload.
+\end_layout
+
+\begin_layout Standard
+We use a single 
+\family typewriter
+blkreplay
+\family default
+ instance, and compare between an old SATA RAID-6 and a newer RAID-6 with
+ faster SAS disks (15k RPM).
+ All results can be found in the directory 
+\family typewriter
+blkreplay.git/example-run/
+\family default
+ and subdirs.
+\end_layout
+
+\begin_layout Standard
+Here is the sonar diagram for the SATA system.
+ It 
+\emph on
+should
+\emph default
+ have run 300s, but it actually run much longer in realtime:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/random.bursts/test-sata/EXAMPLE.example-overload.random.bursts.test-sata.g01.latency.realtime.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+At the beginning, the load is rather low, and the system can catch up.
+ Soon, it reaches a kind of 
+\begin_inset Quotes eld
+\end_inset
+
+maximum throughput
+\begin_inset Quotes erd
+\end_inset
+
+ where the latencies got up to about 1 second.
+ You can already see on the realtime x axis that the replay is delayed as
+ a whole.
+ This can be better seen by the delay diagram:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/random.bursts/test-sata/EXAMPLE.example-overload.random.bursts.test-sata.g04.delay.setpoint.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Here the x axis shows the 
+\emph on
+intended
+\emph default
+ starting time of each request, which is deliberately concentrated to whole
+ seconds (with gaps inbetween), a property of of the 
+\family typewriter
+*bursts*
+\family default
+ loads.
+ The 
+\begin_inset Quotes eld
+\end_inset
+
+collapsing point
+\begin_inset Quotes erd
+\end_inset
+
+ is about 80s, which means that it roughly can deliver 800 random IOPS.
+ This can be even better seen at the 
+\family typewriter
+thrp
+\family default
+ diagram:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/random.bursts/test-sata/EXAMPLE.example-overload.random.bursts.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Now we turn to better hardware: the SAS system uses smaller disks with 15k
+ RPM, and thus needs more spindles to reach the same capacity.
+ If we would run the same test for 300s (as in the SATA case), we would
+ not notice any collapsing.
+ Thus we need to double 
+\family typewriter
+replay_duration
+\family default
+ to 600s in order to be able to see the collapsing point at all.
+ Please take this into account when looking at the following graphics:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/random.bursts/test-sas/EXAMPLE.example-overload.random.bursts.test-sas.g01.latency.realtime.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Notice that the system is even able to reproduce the bursting behaviour
+ of the requests, much better than the SATA system.
+ Only at higher request rates, some 
+\begin_inset Quotes eld
+\end_inset
+
+blurring clouds
+\begin_inset Quotes erd
+\end_inset
+
+ appear on the x axis, until it finally collapses under too high load.
+ It is amazing to see the 
+\begin_inset Quotes eld
+\end_inset
+
+binary
+\begin_inset Quotes erd
+\end_inset
+
+ behaviour at the collapsing point: as soon as the actual throughput rate
+ cannot catch up with the request rate, the internal queues will suddenly
+ grow up to some internal maximum, and thus lead to latencies around 0.1
+ seconds, which is better than SATA by an order of magnitude.
+ Of course, the same effect can be observed at the delay diagram and the
+ throughput diagram:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/random.bursts/test-sas/EXAMPLE.example-overload.random.bursts.test-sas.g04.delay.setpoint.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/random.bursts/test-sas/EXAMPLE.example-overload.random.bursts.test-sas.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Chapter
