@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.22
+Version 0.23
 \end_layout
 
 \begin_layout Standard
@@ -2007,6 +2007,13 @@ simple
 
 \begin_layout Subsection
 Pitfalls from Storage Virtualization
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Pitfalls-from-Storage"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -6923,6 +6930,24 @@ noop
 \labelwidthstring 00.00.0000
 
 \family typewriter
+wipe
+\family default
+ When enabled, all your devices will be filled with random data before the
+ benchmark starts.
+ Always use this when benchmarking virtualized storage; see section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Storage"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
 graph
 \family default
  By default (when enabled), the script 
@@ -7845,6 +7870,32 @@ status open
 
 \backslash
 lstinputlisting[language=bash]{default-scheduler.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-wipe.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-wipe.conf}
 \end_layout
 
 \end_inset

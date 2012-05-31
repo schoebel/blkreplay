@@ -1,6 +1,8 @@
-bin_PROGRAMS = bins.exe blkreplay.exe
+bin_PROGRAMS = bins.exe random_data.exe blkreplay.exe
 
 bins_exe_SOURCES = bins.c
+
+random_data_exe_SOURCES = random_data.c
 
 blkreplay_exe_SOURCES = blkreplay.c
 

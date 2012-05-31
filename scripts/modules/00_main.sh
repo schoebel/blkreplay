@@ -92,8 +92,8 @@ function main_setup
 	fi
 	arch="$(remote "$host" "uname -m || arch")" ||\
 	    { echo "cannot determine architecture of $host"; return 1; }
-	exe="$bin_dir/arch.$arch/blkreplay.exe"
-	if ! [ -x "$exe" ]; then # try generic architectures
+	exe="$bin_dir/arch.$arch"
+	if ! [ -x "$exe/blkreplay.exe" ]; then # try generic architectures
 	    case "$arch" in
 		*_64)
                 arch="m64"
@@ -102,20 +102,20 @@ function main_setup
                 arch="m32"
 		;;
 	    esac
-	    exe="$bin_dir/arch.$arch/blkreplay.exe"
+	    exe="$bin_dir/arch.$arch"
 	fi
-	if ! [ -x "$exe" ]; then
+	if ! [ -x "$exe/blkreplay.exe" ]; then
 	    echo "Sorry, no blkreplay executable for architecture $arch available."
 	    echo "Please re-make blkreplay with appropriate architecture (e.g. install cross compiler / cross libraries)."
-	    exe="$bin_dir/blkreplay.exe"
-	    if [ -x "$exe" ]; then
+	    exe="$bin_dir"
+	    if [ -x "$exe/blkreplay.exe" ]; then
 		echo "Trying to resort to generic $exe, but this is likely to fail."
 	    else
 		return 1
 	    fi
 	fi
 	echo "Host $host has architecture $arch"
-	scp -p "$exe" root@$host:
+	scp -p "$exe"/*.exe root@$host: || return 1
     done
 }
 

@@ -32,7 +32,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = blkreplay.exe$(EXEEXT)
+bin_PROGRAMS = random_data.exe$(EXEEXT) blkreplay.exe$(EXEEXT)
 subdir = src/arch.m32
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -52,6 +52,11 @@ blkreplay_exe_OBJECTS = $(am_blkreplay_exe_OBJECTS)
 blkreplay_exe_LDADD = $(LDADD)
 blkreplay_exe_LINK = $(CCLD) $(blkreplay_exe_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+am_random_data_exe_OBJECTS = random_data_exe-random_data.$(OBJEXT)
+random_data_exe_OBJECTS = $(am_random_data_exe_OBJECTS)
+random_data_exe_LDADD = $(LDADD)
+random_data_exe_LINK = $(CCLD) $(random_data_exe_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -60,8 +65,8 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(blkreplay_exe_SOURCES)
-DIST_SOURCES = $(blkreplay_exe_SOURCES)
+SOURCES = $(blkreplay_exe_SOURCES) $(random_data_exe_SOURCES)
+DIST_SOURCES = $(blkreplay_exe_SOURCES) $(random_data_exe_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -156,6 +161,8 @@ top_srcdir = @top_srcdir@
 # try to build this target, ignore any errors
 #
 MAKEFLAGS = -i
+random_data_exe_SOURCES = ../random_data.c
+random_data_exe_CFLAGS = -m32
 blkreplay_exe_SOURCES = ../blkreplay.c
 blkreplay_exe_CFLAGS = -m32
 all: all-am
@@ -232,6 +239,9 @@ clean-binPROGRAMS:
 blkreplay.exe$(EXEEXT): $(blkreplay_exe_OBJECTS) $(blkreplay_exe_DEPENDENCIES) 
 	@rm -f blkreplay.exe$(EXEEXT)
 	$(blkreplay_exe_LINK) $(blkreplay_exe_OBJECTS) $(blkreplay_exe_LDADD) $(LIBS)
+random_data.exe$(EXEEXT): $(random_data_exe_OBJECTS) $(random_data_exe_DEPENDENCIES) 
+	@rm -f random_data.exe$(EXEEXT)
+	$(random_data_exe_LINK) $(random_data_exe_OBJECTS) $(random_data_exe_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -240,6 +250,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blkreplay_exe-blkreplay.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random_data_exe-random_data.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -268,6 +279,20 @@ blkreplay_exe-blkreplay.obj: ../blkreplay.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../blkreplay.c' object='blkreplay_exe-blkreplay.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(blkreplay_exe_CFLAGS) $(CFLAGS) -c -o blkreplay_exe-blkreplay.obj `if test -f '../blkreplay.c'; then $(CYGPATH_W) '../blkreplay.c'; else $(CYGPATH_W) '$(srcdir)/../blkreplay.c'; fi`
+
+random_data_exe-random_data.o: ../random_data.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(random_data_exe_CFLAGS) $(CFLAGS) -MT random_data_exe-random_data.o -MD -MP -MF $(DEPDIR)/random_data_exe-random_data.Tpo -c -o random_data_exe-random_data.o `test -f '../random_data.c' || echo '$(srcdir)/'`../random_data.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/random_data_exe-random_data.Tpo $(DEPDIR)/random_data_exe-random_data.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../random_data.c' object='random_data_exe-random_data.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(random_data_exe_CFLAGS) $(CFLAGS) -c -o random_data_exe-random_data.o `test -f '../random_data.c' || echo '$(srcdir)/'`../random_data.c
+
+random_data_exe-random_data.obj: ../random_data.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(random_data_exe_CFLAGS) $(CFLAGS) -MT random_data_exe-random_data.obj -MD -MP -MF $(DEPDIR)/random_data_exe-random_data.Tpo -c -o random_data_exe-random_data.obj `if test -f '../random_data.c'; then $(CYGPATH_W) '../random_data.c'; else $(CYGPATH_W) '$(srcdir)/../random_data.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/random_data_exe-random_data.Tpo $(DEPDIR)/random_data_exe-random_data.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='../random_data.c' object='random_data_exe-random_data.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(random_data_exe_CFLAGS) $(CFLAGS) -c -o random_data_exe-random_data.obj `if test -f '../random_data.c'; then $(CYGPATH_W) '../random_data.c'; else $(CYGPATH_W) '$(srcdir)/../random_data.c'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \

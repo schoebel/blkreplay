@@ -2,7 +2,10 @@
 #
 MAKEFLAGS = -i
 
-bin_PROGRAMS = blkreplay.exe
+bin_PROGRAMS = random_data.exe blkreplay.exe
+
+random_data_exe_SOURCES = ../random_data.c
+random_data_exe_CFLAGS = -m64
 
 blkreplay_exe_SOURCES = ../blkreplay.c
 blkreplay_exe_CFLAGS = -m64

@@ -32,7 +32,8 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = bins.exe$(EXEEXT) blkreplay.exe$(EXEEXT)
+bin_PROGRAMS = bins.exe$(EXEEXT) random_data.exe$(EXEEXT) \
+	blkreplay.exe$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -53,6 +54,9 @@ bins_exe_LDADD = $(LDADD)
 am_blkreplay_exe_OBJECTS = blkreplay.$(OBJEXT)
 blkreplay_exe_OBJECTS = $(am_blkreplay_exe_OBJECTS)
 blkreplay_exe_LDADD = $(LDADD)
+am_random_data_exe_OBJECTS = random_data.$(OBJEXT)
+random_data_exe_OBJECTS = $(am_random_data_exe_OBJECTS)
+random_data_exe_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -61,8 +65,10 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(bins_exe_SOURCES) $(blkreplay_exe_SOURCES)
-DIST_SOURCES = $(bins_exe_SOURCES) $(blkreplay_exe_SOURCES)
+SOURCES = $(bins_exe_SOURCES) $(blkreplay_exe_SOURCES) \
+	$(random_data_exe_SOURCES)
+DIST_SOURCES = $(bins_exe_SOURCES) $(blkreplay_exe_SOURCES) \
+	$(random_data_exe_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -192,6 +198,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 bins_exe_SOURCES = bins.c
+random_data_exe_SOURCES = random_data.c
 blkreplay_exe_SOURCES = blkreplay.c
 
 # errors in these subdirectories are (mostly) ignored.
@@ -275,6 +282,9 @@ bins.exe$(EXEEXT): $(bins_exe_OBJECTS) $(bins_exe_DEPENDENCIES)
 blkreplay.exe$(EXEEXT): $(blkreplay_exe_OBJECTS) $(blkreplay_exe_DEPENDENCIES) 
 	@rm -f blkreplay.exe$(EXEEXT)
 	$(LINK) $(blkreplay_exe_OBJECTS) $(blkreplay_exe_LDADD) $(LIBS)
+random_data.exe$(EXEEXT): $(random_data_exe_OBJECTS) $(random_data_exe_DEPENDENCIES) 
+	@rm -f random_data.exe$(EXEEXT)
+	$(LINK) $(random_data_exe_OBJECTS) $(random_data_exe_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -284,6 +294,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bins.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blkreplay.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/random_data.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

@@ -18,6 +18,7 @@ AC_CHECK_DECLS([strlen, malloc, free], , IS_REQUIRED)
 
 # optional functions
 #AC_CHECK_DECLS([O_LARGEFILE]) # does not work, use direct test instead
+AC_CHECK_DECLS([random])
 AC_CHECK_DECLS([exp10])
 AC_CHECK_DECLS([lseek64])
 AC_CHECK_DECLS([llseek])
@@ -32,12 +33,12 @@ AC_CHECK_DECLS([posix_memalign], ,
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_CONFIG_SRCDIR([src/bins.c])
+AC_CONFIG_SRCDIR([src/blkreplay.c])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
-AC_PROG_AWK
 AC_PROG_CC
+AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET

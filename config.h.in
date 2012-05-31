@@ -35,6 +35,10 @@
    you don't. */
 #undef HAVE_DECL_POSIX_MEMALIGN
 
+/* Define to 1 if you have the declaration of `random', and to 0 if you don't.
+   */
+#undef HAVE_DECL_RANDOM
+
 /* Define to 1 if you have the declaration of `strlen', and to 0 if you don't.
    */
 #undef HAVE_DECL_STRLEN
