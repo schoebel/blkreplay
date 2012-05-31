@@ -201,9 +201,9 @@ done
 # worker pipelines for all requests
 if (( static_mode )); then
     cat $myfifo.all.sort2.1 | cut -d ';' -f 2 | gawk "$gawk_thrp" >\
-	$out.g20.demand.thrp.total.bins &
+	$out.g20.demand.thrp &
     cat $myfifo.all.sort0.1 | gawk -F ";" '{ printf("%d\n", $2+$6+$7); }' | $sort -n | gawk "$gawk_thrp" >\
-	$out.g20.actual.thrp.total.bins &
+	$out.g20.actual.thrp &
 else
     cat $myfifo.all.sort2.1 > /dev/null &
     cat $myfifo.all.sort0.1 > /dev/null &
@@ -381,7 +381,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist; do
     outname=""
     lines="lines"
     [ $mode = latency ] && lines="linespoints"
-    for i in $tmp/*.$mode.total.bins $tmp/*.$mode.*.extra; do
+    for i in $tmp/*.$mode $tmp/*.$mode.*.extra; do
 	[ -s $i ] || continue
 	case $mode in
 	    sum_dist | avg_dist)
