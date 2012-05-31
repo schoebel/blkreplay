@@ -107,6 +107,7 @@ while (( resume )); do
 	echo "==============================================================="
 	echo "======== $test_dir"
 	(
+	    cd $test_dir
 	    # source additional user modules (if available)
 	    source_config "user_modules" || echo "(ignored)"
 	    shopt -s nullglob
@@ -125,7 +126,6 @@ while (( resume )); do
 	    done
 
 	    export sub_prefix=$(echo $test_dir | sed 's/\//./g' | sed 's/\.\././g')
-	    cd $test_dir
 	    if (( dry_run_script )); then
 		echo "==> Dry Run ..."
 		touch dry-run.replay.gz
