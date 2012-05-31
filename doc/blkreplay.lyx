@@ -6930,11 +6930,41 @@ noop
 \labelwidthstring 00.00.0000
 
 \family typewriter
+create_lv
+\family default
+ Here you can put in your code for re-creating logical volumes on an arbitrary
+ storage manager.
+ You 
+\series bold
+need
+\series default
+ this 
+\series bold
+absolutely
+\series default
+ whenever you are benchmarking virtualized storage; see section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Storage"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
 wipe
 \family default
  When enabled, all your devices will be filled with random data before the
  benchmark starts.
- Always use this when benchmarking virtualized storage; see section 
+ 
+\series bold
+Always
+\series default
+ use this when benchmarking virtualized storage; see section 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "sub:Pitfalls-from-Storage"
@@ -8020,6 +8050,36 @@ Module Parameters
 \begin_inset CommandInset label
 LatexCommand label
 name "sec:Module-Parameters"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The following list is in the order of activation.
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-create_lv.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-create_lv.conf}
+\end_layout
 
 \end_inset
 
