@@ -1159,7 +1159,7 @@ static
 void do_dispatcher_copy(int in_fd, int out_fd)
 {
 	if (verbose) {
-		printf("dispatcher %d fan_out = %d cp_factor = %d\n", getpid(), fan_out, CP_FACTOR);
+		printf("dispatcher %d fan_out = %d cp_factor = %lu\n", getpid(), fan_out, CP_FACTOR);
 		fflush(stdout);
 	}
 	for (;;) {
@@ -1168,7 +1168,7 @@ void do_dispatcher_copy(int in_fd, int out_fd)
 		if (status <= 0)
 			break;
 		if ((status % RQ_SIZE) != 0) {
-			printf("FATAL ERROR: bad record len %d from pipe fd=%d status=%d\n", status % RQ_SIZE, in_fd, status);
+			printf("FATAL ERROR: bad record len %lu from pipe fd=%d status=%d\n", status % RQ_SIZE, in_fd, status);
 			fflush(stdout);
 			exit(-1);
 		}
