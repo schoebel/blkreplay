@@ -303,11 +303,13 @@ struct fly {
 	int         fl_len;
 };
 
-static struct fly *fly_hash_table[FLY_HASH];
-static int fly_count = 0;
+struct fly_hash {
+	struct fly *fly_hash_table[FLY_HASH];
+	int         fly_count;
+};
 
 static
-void fly_add(long long sector, int len)
+void fly_add(struct fly_hash *hash, long long sector, int len)
 {
 	while (len > 0) {
 		struct fly *new = malloc(sizeof(struct fly));
@@ -324,9 +326,9 @@ void fly_add(long long sector, int len)
 		}
 		new->fl_sector = sector;
 		new->fl_len = this_len;
-		new->fl_next = fly_hash_table[index];
-		fly_hash_table[index] = new;
-		fly_count++;
+		new->fl_next = hash->fly_hash_table[index];
+		hash->fly_hash_table[index] = new;
+		hash->fly_count++;
 
 		sector += this_len;
 		len -= this_len;
@@ -334,10 +336,10 @@ void fly_add(long long sector, int len)
 }
 
 static
-int fly_check(long long sector, int len)
+int fly_check(struct fly_hash *hash, long long sector, int len)
 {
 	while (len > 0) {
-		struct fly *tmp = fly_hash_table[FLY_HASH_FN(sector)];
+		struct fly *tmp = hash->fly_hash_table[FLY_HASH_FN(sector)];
 		int max_len = FLY_NEXT_ZONE(sector) - sector;
 		int this_len = len;
 		if (this_len > max_len)
@@ -356,10 +358,10 @@ int fly_check(long long sector, int len)
 }
 
 static
-void fly_delete(long long sector, int len)
+void fly_delete(struct fly_hash *hash, long long sector, int len)
 {
 	while (len > 0) {
-		struct fly **res = &fly_hash_table[FLY_HASH_FN(sector)];
+		struct fly **res = &hash->fly_hash_table[FLY_HASH_FN(sector)];
 		struct fly *tmp;
 		int max_len = FLY_NEXT_ZONE(sector) - sector;
 		int this_len = len;
@@ -369,7 +371,7 @@ void fly_delete(long long sector, int len)
 		for (tmp = *res; tmp != NULL; res = &tmp->fl_next, tmp = *res) {
 			if (tmp->fl_sector == sector && tmp->fl_len == this_len) {
 				*res = tmp->fl_next;
-				fly_count--;
+				hash->fly_count--;
 				free(tmp);
 				break;
 			}
@@ -379,6 +381,8 @@ void fly_delete(long long sector, int len)
 		len -= this_len;
 	}
 }
+
+static struct fly_hash fly_hash = {};
 
 ///////////////////////////////////////////////////////////////////////
 
@@ -930,7 +934,7 @@ int get_answer(void)
 		}
 		if (rq.rwbs == 'W') {
 			if (conflict_mode) {
-				fly_delete(rq.sector, rq.length);
+				fly_delete(&fly_hash, rq.sector, rq.length);
 			}
 			if (verify_mode) {
 				unsigned int *data = get_blockversion(complete_fd, rq.sector, rq.length);
@@ -1353,7 +1357,7 @@ int execute(struct request *rq)
 	for (;;) {
 		int status = 0;
 		if (conflict_mode) {
-			status = fly_check(rq->sector, rq->length);
+			status = fly_check(&fly_hash, rq->sector, rq->length);
 		} else if (verify_mode) {
 			unsigned int *now_version = get_blockversion(complete_fd, rq->sector, rq->length);
 			status = compare_blockversion(rq->old_version, now_version, rq->length);
@@ -1379,7 +1383,7 @@ int execute(struct request *rq)
 	}
 	if (rq->rwbs == 'W') {
 		if (conflict_mode)
-			fly_add(rq->sector, rq->length);
+			fly_add(&fly_hash, rq->sector, rq->length);
 		write_seqnr++;
 		force_blockversion(verify_fd, write_seqnr, rq->sector, rq->length);
 	}
@@ -1525,8 +1529,8 @@ void parse(FILE *inp)
 	printf("# verify errors during replay : %6lld\n", verify_errors);
 	printf("conflict_mode                 : %6d\n", conflict_mode);
 	printf("verify_mode                   : %6d\n", verify_mode);
-	if (fly_count)
-		printf("fly_count                     : %6d\n", fly_count);
+	if (fly_hash.fly_count)
+		printf("fly_count                     : %6d\n", fly_hash.fly_count);
 	printf("size of device:      %12lld blocks (%lld kB)\n", main_size, main_size/2);
 	printf("max block# occurred: %12lld blocks (%lld kB)\n", max_size, max_size/2);
 	printf("wraparound factor:   %6.3f\n", (double)max_size / (double)main_size);
