@@ -147,7 +147,8 @@ int mmap_mode = 0;
 int conflict_mode = 0; 
 /* 0 = allow arbitrary permutations in ordering
  * 1 = drop conflicting requests
- * 2 = enforce ordering by waiting for conflicts
+ * 2 = partial order by pushing back conflicting requests
+ * 3 = enforce ordering by waiting for conflicts
  */
 int verify_mode = 0; 
 /* 0 = no verify
@@ -164,11 +165,17 @@ int verbose = 0;
 int bottleneck = 0;
 
 int count_completion = 0;  // number of requests on the fly
+int count_pushback = 0;    // number of requests on pushback list
+
+int max_completion = 0;
+int max_pushback = 0;
+
 int statist_lines = 0;     // total number of input lines
 int statist_total = 0;     // total number of requests
 int statist_writes = 0;    // total number of write requests
 int statist_completed = 0; // number of completed requests
 int statist_dropped = 0;   // number of dropped requests (verify_mode == 1)
+int statist_pushback = 0;  // number of pushed back requests (verify_mode == 2)
 long long verify_errors = 0;
 long long verify_errors_after = 0;
 long long verify_mismatches = 0;
@@ -238,7 +245,8 @@ struct request {
 	long long sector;
 	int length;
 	int verify_errors;
-	int q_nr;
+	short q_nr;
+	short q_index;
 	char rwbs;
 	char has_version;
 	// starting from here, the rest is _not_ transferred over the pipelines
@@ -346,7 +354,7 @@ int fly_check(struct fly_hash *hash, long long sector, int len)
 			this_len = max_len;
 
 		for (; tmp != NULL; tmp = tmp->fl_next) {
-			if (sector + this_len > tmp->fl_sector && sector <= tmp->fl_sector + tmp->fl_len) {
+			if (sector + this_len > tmp->fl_sector && sector < tmp->fl_sector + tmp->fl_len) {
 				return 1;
 			}
 		}
@@ -872,6 +880,178 @@ void close_all_queues(int q[][2], int max, int i2, int except)
 
 ///////////////////////////////////////////////////////////////////////
 
+// positions: which queue to take?
+
+static char *pos_table = NULL;
+int pos_last = 0;
+
+static
+int pos_get(int max_filled)
+{
+	int max;
+	int i;
+
+	if (!pos_table) {
+		pos_table = malloc(total_max);
+		if (!pos_table) {
+			printf("FATAL ERROR: out of memory for pos_table\n");
+			fflush(stdout);
+			exit(-1);
+		}
+		memset(pos_table, 0, total_max);
+	}
+
+	for (max = total_max, i = (pos_last + 1) % total_max; --max >= 0; i = (i + 1) % total_max) {
+		if (pos_table[i] < max_filled)
+			goto ok;
+	}
+
+	printf("ERROR: cannot allocate position, count_completion = %d, pos_last = %d\n", count_completion, pos_last);
+	fflush(stdout);
+
+ ok:
+	count_completion++;
+	if (count_completion > max_completion)
+		max_completion = count_completion;
+
+	pos_last = i;
+	pos_table[pos_last]++;
+	return pos_last;
+}
+
+static
+void pos_put(int pos)
+{
+	count_completion--;
+	pos_table[pos]--;
+	if (pos_table[pos] < 0) {
+		printf("ERROR: imbalanced pos_table at %d (%d), count_completion = %d\n", pos,  pos_table[pos], count_completion);
+		fflush(stdout);
+	}
+}
+
+///////////////////////////////////////////////////////////////////////
+
+// submission to the right queue
+
+static
+void submit_to_queues(struct request *rq)
+{
+	static long long seqnr = 0;
+	static long long write_seqnr = 0;
+	int index;
+
+	rq->q_nr = pos_get(conflict_mode == 2 ? 1 : 127);
+
+	index = rq->q_nr % sub_max;
+	rq->q_index = rq->q_nr / sub_max;
+
+	// generate write tag
+	rq->tag.tag_start = start_stamp.tv_sec;
+	rq->tag.tag_seqnr = ++seqnr;
+	if (rq->rwbs == 'W') {
+		if (conflict_mode)
+			fly_add(&fly_hash, rq->sector, rq->length);
+		write_seqnr++;
+		force_blockversion(verify_fd, write_seqnr, rq->sector, rq->length);
+	}
+	rq->tag.tag_write_seqnr = write_seqnr;
+	rq->has_version = !!rq->old_version;
+
+	if (verbose) {
+		printf("INFO: submitting %d q_nr=%d index=%d time=%ld.%09ld block=%lld len=%d mode=%c\n",
+		       count_completion,
+		       rq->q_nr,
+		       index,
+		       rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec,
+		       rq->sector,
+		       rq->length,
+		       rq->rwbs);
+		fflush(stdout);
+	}
+	
+	submit_request(queue[index][1], rq);
+}
+
+///////////////////////////////////////////////////////////////////////
+
+// pushback handling (used for partial ordering)
+
+static struct request *pushback_head = NULL;
+static struct request *pushback_tail = NULL;
+
+static
+void add_pushback(struct request *rq)
+{
+	if (pushback_tail) {
+		pushback_tail->next = rq;
+	} else {
+		pushback_head = rq;
+	}
+	pushback_tail = rq;
+	rq->next = NULL;
+
+	statist_pushback++;
+	count_pushback++;
+	if (count_pushback > max_pushback)
+		max_pushback = count_pushback;
+
+	printf("INFO: pushback %d time=%ld.%09ld block=%lld len=%d mode=%c\n",
+	       count_pushback,
+	       rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec,
+	       rq->sector,
+	       rq->length,
+	       rq->rwbs);
+	fflush(stdout);
+}
+
+static
+void check_pushback(void)
+{
+	struct request **ptr = &pushback_head;
+	struct request *tmp = *ptr;
+	struct request *prev = NULL;
+	
+	while (tmp && (conflict_mode !=2 || count_completion < total_max - 1)) {
+		int has_conflict = fly_check(&fly_hash, tmp->sector, tmp->length);
+		if (has_conflict) {
+			prev = tmp;
+			ptr = &tmp->next;
+			tmp = *ptr;
+			continue;
+		}
+
+		// remove from list
+		*ptr = tmp->next;
+		tmp->next = NULL;
+		count_pushback--;
+
+		// inform...
+		printf("INFO: revival %d time=%ld.%09ld block=%lld len=%d mode=%c\n",
+		       count_pushback,
+		       tmp->orig_stamp.tv_sec, tmp->orig_stamp.tv_nsec, 
+		       tmp->sector,
+		       tmp->length,
+		       tmp->rwbs);
+		fflush(stdout);
+
+		// delayed submit
+		submit_to_queues(tmp);
+		add_request(tmp);
+
+		// special conditions
+		if (tmp == pushback_tail) {
+			pushback_tail = prev;
+			if (!pushback_tail)
+				pushback_head = NULL;
+		} else if (!pushback_head)
+			pushback_tail = NULL;
+		tmp = *ptr;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////
+
 static
 void dump_request(struct request *rq)
 {
@@ -902,13 +1082,6 @@ void dump_request(struct request *rq)
 }
 
 static
-void do_done(struct request *old)
-{
-	dump_request(old);
-	del_request(old->sector, old->seqnr);
-}
-
-static
 int get_answer(void)
 {
 	struct request rq = {};
@@ -923,15 +1096,23 @@ int get_answer(void)
 
 	status = get_request(answer[0], &rq);
 	if (status == RQ_SIZE) {
-		struct request *old = find_request_seq(rq.sector, rq.seqnr);
+		struct request *old;
+
+		pos_put(rq.q_nr);
+		verify_errors += rq.verify_errors;
+		res = 1;
+
+		old = find_request_seq(rq.sector, rq.seqnr);
 		if (old) {
 			memcpy(&old->replay_stamp, &rq.replay_stamp, sizeof(old->replay_stamp));
 			memcpy(&old->replay_duration, &rq.replay_duration, sizeof(old->replay_duration));
 			memcpy(&old->orig_factor_stamp, &rq.orig_factor_stamp, sizeof(old->orig_factor_stamp));
-			do_done(old);
+			dump_request(old);
+			del_request(old->sector, old->seqnr);
 		} else {
 			printf("ERROR: request %lld vanished\n", rq.sector);
 		}
+
 		if (rq.rwbs == 'W') {
 			if (conflict_mode) {
 				fly_delete(&fly_hash, rq.sector, rq.length);
@@ -942,10 +1123,12 @@ int get_answer(void)
       
 				put_blockversion(complete_fd, data, rq.sector, rq.length);
 			}
+			if (conflict_mode == 2) {
+				/* Handle pushback requests.
+				 */
+				check_pushback();
+			}
 		}
-		verify_errors += rq.verify_errors;
-		count_completion--;
-		res = 1;
 	}
 
 done:
@@ -1158,13 +1341,25 @@ void do_worker(int in_fd, int back_fd)
 static
 void do_dispatcher_copy(int in_fd, int out_fd)
 {
+	int packet_len = CP_SIZE;
+#if 0 // is this necessary in general? Linux pipe semantics seems to deliver short reads whenever possible, but do other kernels also?
+	if (conflict_mode >= 2) {
+		/* Ensure that replies are delivered as fast as possible.
+		 */
+		packet_len = RQ_SIZE;
+	}
+#endif
+
 	if (verbose) {
-		printf("dispatcher %d fan_out = %d cp_factor = %lu\n", getpid(), fan_out, CP_FACTOR);
+		printf("dispatcher %d fan_out = %d cp_factor = %lu packet_len = %d\n", getpid(), fan_out, CP_FACTOR, packet_len);
 		fflush(stdout);
 	}
+
 	for (;;) {
 		char buf[CP_SIZE];
-		int status = pipe_read(in_fd, buf, CP_SIZE);
+		int status;
+
+		status = pipe_read(in_fd, buf, packet_len);
 		if (status <= 0)
 			break;
 		if ((status % RQ_SIZE) != 0) {
@@ -1190,6 +1385,7 @@ void _fork_answer_dispatcher()
 		exit(-1);
 	}
 	
+	fflush(stdout);
 	pid = fork();
 	if (pid < 0) {
 		printf("FATAL ERROR: cannot fork\n");
@@ -1234,6 +1430,7 @@ void _fork_childs(int in_fd, int this_max)
 	}
 
 	make_all_queues(queue, sub_max);
+	fflush(stdout);
 
 	for (i = 0; i < sub_max; i++) {
 		pid_t pid;
@@ -1274,8 +1471,8 @@ void _fork_childs(int in_fd, int this_max)
 		if (!status)
 			break;
 
-		index = rq.q_nr % sub_max;
-		rq.q_nr /= sub_max;
+		index = rq.q_index % sub_max;
+		rq.q_index /= sub_max;
 		submit_request(queue[index][1], &rq);
 
 		if (rq.old_version) {
@@ -1318,13 +1515,8 @@ void fork_childs()
 ///////////////////////////////////////////////////////////////////////
 
 static
-int execute(struct request *rq)
+void execute(struct request *rq)
 {
-	static long long seqnr = 0;
-	static long long write_seqnr = 0;
-	int index;
-
-	rq->q_nr = ++seqnr % total_max;
 	if (!start_stamp.tv_sec) { // only upon first call
 		// get start time, but only after opening everything, since open() may produce delays
 		memcpy(&first_stamp, &rq->orig_stamp, sizeof(first_stamp));
@@ -1343,9 +1535,6 @@ int execute(struct request *rq)
 	timespec_diff(&rq->orig_factor_stamp, &first_stamp, &rq->orig_stamp);
 	timespec_multiply(&rq->orig_factor_stamp, time_stretch);
 
-	// generate write tag
-	rq->tag.tag_start = start_stamp.tv_sec;
-	rq->tag.tag_seqnr = seqnr;
 	if (rq->old_version) {
 		free(rq->old_version);
 		rq->old_version = NULL;
@@ -1371,7 +1560,11 @@ int execute(struct request *rq)
 			printf("INFO: dropping block=%lld len=%d mode=%c\n", rq->sector, rq->length, rq->rwbs);
 			fflush(stdout);
 			statist_dropped++;
-			return 0;
+			return;
+		}
+		if (conflict_mode == 2) { // pushback request
+			add_pushback(rq);
+			return;
 		}
 		// wait until conflict has gone...
 		if (count_completion) {
@@ -1381,21 +1574,10 @@ int execute(struct request *rq)
 		printf("FATAL ERROR: block %lld waiting for up-to-date version\n", rq->sector);
 		exit(-1);
 	}
-	if (rq->rwbs == 'W') {
-		if (conflict_mode)
-			fly_add(&fly_hash, rq->sector, rq->length);
-		write_seqnr++;
-		force_blockversion(verify_fd, write_seqnr, rq->sector, rq->length);
-	}
-	rq->tag.tag_write_seqnr = write_seqnr;
-	rq->has_version = !!rq->old_version;
 
 	// submit request to worker threads
-	count_completion++;
-	index = rq->q_nr % sub_max;
-	rq->q_nr /= sub_max;
-	submit_request(queue[index][1], rq);
-	return 1;
+	submit_to_queues(rq);
+	add_request(rq);
 }
 
 static
@@ -1436,6 +1618,7 @@ void parse(FILE *inp)
 
 		// avoid flooding the pipelines too much
 		while (count_completion > bottleneck ||
+		       (conflict_mode == 2 && count_completion >= total_max - 1) ||
 		       (count_completion > 1 && delay_distance(&old_stamp))) {
 			get_answer();
 		}
@@ -1498,9 +1681,14 @@ void parse(FILE *inp)
 		}
 
 		// add new element
-		if (execute(rq))
-			add_request(rq);
+		execute(rq);
 		rq = NULL;
+	}
+
+	printf("--------------------------------------\n");
+	fflush(stdout);
+
+	while (count_completion > 0 && get_answer()) {
 	}
 
 	printf("--------------------------------------\n");
@@ -1508,12 +1696,6 @@ void parse(FILE *inp)
 
 	// close all pipes => leads to EOF at childs
 	close_all_queues(queue, sub_max, 1, -1);
-
-	printf("--------------------------------------\n");
-	fflush(stdout);
-
-	while (get_answer()) {
-	}
 
 	printf("=======================================\n\n");
 	printf("meta_ops=%lld, total meta_delay=%lu.%09ld, avg=%lf\n",
@@ -1526,11 +1708,20 @@ void parse(FILE *inp)
 	printf("# write     requests          : %6d\n", statist_writes);
 	printf("# completed requests          : %6d\n", statist_completed);
 	printf("# dropped   requests          : %6d\n", statist_dropped);
+	printf("# pushback  requests          : %6d\n", statist_pushback);
 	printf("# verify errors during replay : %6lld\n", verify_errors);
 	printf("conflict_mode                 : %6d\n", conflict_mode);
 	printf("verify_mode                   : %6d\n", verify_mode);
 	if (fly_hash.fly_count)
 		printf("fly_count                     : %6d\n", fly_hash.fly_count);
+	if (count_completion)
+		printf("count_completion              : %6d\n", count_completion);
+	if (count_pushback)
+		printf("count_pushback                : %6d\n", count_pushback);
+
+	printf("max_completion                : %6d\n", max_completion);
+	printf("max_pushback                  : %6d\n", max_pushback);
+
 	printf("size of device:      %12lld blocks (%lld kB)\n", main_size, main_size/2);
 	printf("max block# occurred: %12lld blocks (%lld kB)\n", max_size, max_size/2);
 	printf("wraparound factor:   %6.3f\n", (double)max_size / (double)main_size);
@@ -1599,9 +1790,15 @@ const struct arg arg_table[] = {
 		.arg_val_int = &conflict_mode,
 	},
 	{
+		.arg_name  = "with-partial",
+		.arg_descr = "partial ordering by pushing back conflicts",
+		.arg_const = 2,
+		.arg_val_int = &conflict_mode,
+	},
+	{
 		.arg_name  = "with-ordering",
 		.arg_descr = "enforce total order in case of conflicts",
-		.arg_const = 2,
+		.arg_const = 3,
 		.arg_val_int = &conflict_mode,
 	},
 
@@ -1860,6 +2057,7 @@ int main(int argc, char *argv[])
 			"\n",
 			main_name,
 			ctime(&now));
+		fflush(stdout);
 
 		parse(stdin);
 

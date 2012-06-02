@@ -146,7 +146,7 @@ function main_run
 	    fi
 	done
 	case "$cmode" in
-	    with-conflicts | with-drop | with-ordering)
+	    with-conflicts | with-drop | with-partial | with-ordering)
 	    options="$options --$cmode"
 	    ;;
 	    *)

@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.24
+Version 0.25
 \end_layout
 
 \begin_layout Standard
@@ -1350,16 +1350,84 @@ blkreplay
 \labelwidthstring 00.00.0000
 
 \family typewriter
+with-conflicts
+\family default
+ No countermeasures against damaged IO are taken.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
 with-drop
 \family default
  Whenever a new write request is conflicting with an old (already issued)
  request, it is simply dropped.
  This has no side effects, other than that some writes may be missing.
+ This has the lowest overhead of all conflict-avoiding methods.
  Depending on properties of the load, the number of dropped writes may be
  rather high.
  Please check the tail of the result file.
  In the statistics section, you will find the number of dropped requests.
- If this number is higher than, say, 5%, you should consider the next option.
+ If that number is higher than, say, 5%, you should consider one of the
+ following options.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+with-partial
+\family default
+ (EXPERIMENTAL!) Any conflicting requests (in the sense of damaged IO) are
+ pushed back to a pushback list and kept there until the conflict is gone.
+ Pushed back requests are immediately submitted as soon as the conflict
+ has gone away.
+ This results in a reordering of the 
+\emph on
+affected
+\emph default
+ requests, while 
+\emph on
+trying
+\emph default
+ to replay unaffected ones at original timestamps.
+ This leads to a partial ordering of requests, which may be 
+\emph on
+very different
+\emph default
+ from the original ordering, and thus may 
+\begin_inset Quotes eld
+\end_inset
+
+violate
+\begin_inset Quotes erd
+\end_inset
+
+ the 
+\begin_inset Quotes eld
+\end_inset
+
+original storage semantics
+\begin_inset Quotes erd
+\end_inset
+
+ if it would make a difference on the replay system.
+\begin_inset Newline newline
+\end_inset
+
+Attention! this is experimental, and causes some unintuitive behaviour at
+ least with some loads (in particular loads from Windows servers where a
+ lot of writes seem to be 
+\begin_inset Quotes eld
+\end_inset
+
+repeated
+\begin_inset Quotes erd
+\end_inset
+
+).
+ Use with care!
 \end_layout
 
 \begin_layout Labeling
@@ -1368,30 +1436,37 @@ with-drop
 \family typewriter
 with-ordering
 \family default
- Notice that the main process spreads its IO requests to the worker processes
- in a round-robin fashion over their anonymous pipes.
- Whenever conflicting IO requests (in the sense of damaged IO) are detected,
- this spreading process will stop until the conflict has gone away.
- As a side effect, all following IO requests are also delayed, even if they
- don't conflict with anything else.
-\end_layout
-
-\begin_layout Standard
-The latter can lead to 
+ The main process spreads its IO requests to the worker processes in a round-rob
+in fashion over their anonymous pipes.
+ Whenever conflicting IO requests are detected, this spreading process will
+ stop until the conflict has gone away.
+ In consequence, the original ordering of requests will be preserved as
+ much as possible.
+ As a side effect, 
+\emph on
+all following
+\emph default
+ IO requests are also delayed, even if they don't conflict with anything
+ else.
+ This can lead to 
 \emph on
 artificial delays
 \emph default
 .
- Future versions of 
-\family typewriter
-blkreplay
-\family default
- are planned to optionally act smarter in such situations.
 \end_layout
 
 \begin_layout Standard
-However, practical experience from many hardware tests shows that artificial
- delays seem to be even an 
+In many cases, you will prefer 
+\family typewriter
+with-ordering
+\family default
+.
+ Practical experience from many hardware tests shows that the artificial
+ delays caused by 
+\family typewriter
+with-ordering
+\family default
+ seem to be an 
 \emph on
 advantage
 \emph default
@@ -1401,7 +1476,6 @@ advantage
 indicator
 \series default
  for massive IO problems of the test candidate.
- Thus we feel that this behaviour is more a feature than a bug.
 \end_layout
 
 \begin_layout Section
