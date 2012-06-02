@@ -176,6 +176,7 @@ int statist_writes = 0;    // total number of write requests
 int statist_completed = 0; // number of completed requests
 int statist_dropped = 0;   // number of dropped requests (verify_mode == 1)
 int statist_pushback = 0;  // number of pushed back requests (verify_mode == 2)
+int statist_ordered = 0;   // number of waits (verify_mode == 3)
 long long verify_errors = 0;
 long long verify_errors_after = 0;
 long long verify_mismatches = 0;
@@ -1517,6 +1518,8 @@ void fork_childs()
 static
 void execute(struct request *rq)
 {
+	int first_time;
+
 	if (!start_stamp.tv_sec) { // only upon first call
 		// get start time, but only after opening everything, since open() may produce delays
 		memcpy(&first_stamp, &rq->orig_stamp, sizeof(first_stamp));
@@ -1543,6 +1546,8 @@ void execute(struct request *rq)
 	if (verify_mode) {
 		rq->old_version = get_blockversion(verify_fd, rq->sector, rq->length);
 	}
+
+	first_time = 0;
 	for (;;) {
 		int status = 0;
 		if (conflict_mode) {
@@ -1569,6 +1574,8 @@ void execute(struct request *rq)
 		// wait until conflict has gone...
 		if (count_completion) {
 			get_answer();
+			if (!first_time++)
+				statist_ordered++;
 			continue;
 		}
 		printf("FATAL ERROR: block %lld waiting for up-to-date version\n", rq->sector);
@@ -1705,10 +1712,11 @@ void parse(FILE *inp)
 	       meta_delay_count ? (meta_delays.tv_nsec * ((double)1.0/NANO) + (double)meta_delays.tv_sec) / meta_delay_count : 0);
 	printf("# total input lines           : %6d\n", statist_lines);
 	printf("# total     requests          : %6d\n", statist_total);
-	printf("# write     requests          : %6d\n", statist_writes);
 	printf("# completed requests          : %6d\n", statist_completed);
+	printf("# write     requests          : %6d\n", statist_writes);
 	printf("# dropped   requests          : %6d\n", statist_dropped);
 	printf("# pushback  requests          : %6d\n", statist_pushback);
+	printf("# ordered   requests (waits)  : %6d\n", statist_ordered);
 	printf("# verify errors during replay : %6lld\n", verify_errors);
 	printf("conflict_mode                 : %6d\n", conflict_mode);
 	printf("verify_mode                   : %6d\n", verify_mode);
