@@ -51,7 +51,7 @@ function from_start
     gawk -F";" 'BEGIN{ offset = -1; } { if (offset < 0) offset = $1; printf("%17.9f ;%s;%s;%s;%s;%s\n", $1 - offset, $2, $3, $4, $5, $6); }'
 }
 
-tmp="/tmp/snippets.$$"
+tmp="${TMPDIR:-/tmp}/snippets.$$"
 mkdir -p $tmp/s || exit $?
 
 echo "List of output files:"
