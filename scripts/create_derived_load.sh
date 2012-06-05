@@ -23,7 +23,7 @@
 #
 # The original loads "$@" are split into snippets having length $window each.
 # The snippets are sorted according to IOPS and distributed to
-# 0..$max output files in a round-robin fashion.
+# 0..($max-1) output files in a round-robin fashion.
 #
 # The rationale is explained at
 # http://www.blkreplay.org/loads/natural/1and1/natural-derived/00README
@@ -39,7 +39,7 @@ check_list="cat gunzip grep sed gawk cut gzip"
 check_installed "$check_list"
 
 window=${window:-600}
-max=${max:-63}
+max=${max:-32}
 
 function paste_together
 {
@@ -55,7 +55,7 @@ tmp="/tmp/snippets.$$"
 mkdir -p $tmp/s || exit $?
 
 echo "List of output files:"
-for i in $(eval "echo {0..$max}"); do
+for i in $(eval "echo {0..$(($max-1))}"); do
     base="$(basename $1 | sed 's/\.\(load\|gz\|[0-9]\+\)//g')"
     out[i]="$(printf "$base.derived.%03d.load.gz" $i)"
     list[i]=""
@@ -92,11 +92,11 @@ j=0
 for i in $( (cd $tmp/s && ls) | sort -n -r ); do
     echo "$i => $j"
     list[j]="${list[j]} $i"
-    (( j = (j+1) % (max+1) ))
+    (( j = (j+1) % max ))
 done
 
 echo "Assignment of snippets to output files:"
-for i in $(eval "echo {0..$max}"); do
+for i in $(eval "echo {0..$(($max-1))}"); do
     [ -z "${list[i]}" ] && continue
     echo "${out[i]} ${list[i]}"
     (
