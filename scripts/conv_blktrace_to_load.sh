@@ -31,7 +31,7 @@
 # TST 2010-01-26
 
 filename="$1"
-output=${2:-$filename.load.gz}
+output="${2:-$(basename "$filename").load.gz}"
 action_char="${action_char:-}" # allow override from extern
 
 if ! [ -f "$filename.blktrace.0" ]; then
@@ -81,7 +81,7 @@ echo "Starting main conversion to '$output'..." > /dev/stderr
     echo "start ; sector; length ; op ;  replay_delay=0 ; replay_duration=0"
     
     blkparse -v -i "$filename" -f '%a; %6T.%9t ; %12S ; %4n ; %3d ; 0.0 ; 0.0\n' |\
-	grep "^$action_char;" |\
+	grep "^${action_char}[A-Z]\?;" |\
 	sed 's/; *\([RW]\)[A-Z]* *;/; \1 ;/' |\
 	grep '; [RW] ;' |\
 	cut -d';' -f2-
