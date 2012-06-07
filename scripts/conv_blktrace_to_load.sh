@@ -81,9 +81,7 @@ echo "Starting main conversion to '$output'..." > /dev/stderr
     
     blkparse -v -i "$filename" -f '%a; %6T.%9t ; %12S ; %4n ; %3d ; 0.0 ; 0.0\n' |\
 	grep "^$action_char;" |\
-	sed 's/ WB/  W/' |\
-	sed 's/ WS /  W /' |\
-	sed 's/  \([RW]\)/\1/' |\
+	sed 's/; *\([RW]\)[A-Z]* *;/; \1 ;/' |\
 	grep '; [RW] ;' |\
 	cut -d';' -f2-
 } |\
