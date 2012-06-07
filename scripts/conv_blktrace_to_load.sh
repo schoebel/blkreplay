@@ -52,7 +52,8 @@ if [ -z "$action_char" ]; then
     tmp="${TMPDIR:-/tmp}/blkparse.$$"
     mkdir -p $tmp || exit $?
     blkparse -v -i "$filename" -f '%a:\n' |\
-	grep "^[QGID]:$" >\
+	grep "^[QGID][A-Z]\?:$" |\
+	sed 's/^\([A-Z]\).\?:/\1:/' >\
 	$tmp/actions || exit $?
     char_list="$(sort -u < $tmp/actions)" || exit $?
     echo "Statistics:" > /dev/stderr
