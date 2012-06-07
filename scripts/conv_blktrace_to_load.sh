@@ -35,7 +35,7 @@ output=${2:-$filename.load.gz}
 action_char="${action_char:-}" # allow override from extern
 
 if ! [ -f "$filename.blktrace.0" ]; then
-    echo "Input file $filename.blktrace.0 does not exist"
+    echo "Input file '$filename.blktrace.0' does not exist"
     exit -1
 fi
 
@@ -44,7 +44,7 @@ script_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
 noecho=1
 source "$script_dir/modules/lib.sh" || exit $?
 
-check_list="grep sed cut gzip blkparse"
+check_list="grep sed cut cat mkdir rm head gzip blkparse"
 check_installed "$check_list"
 
 if [ -z "$action_char" ]; then
@@ -65,7 +65,7 @@ if [ -z "$action_char" ]; then
     if [ -z "$action_char" ]; then
 	echo "Sorry, cannot determine the right action character for blkparse."
 	echo "In case absolutely nothing else is available for determining"
-	echo "the stating points, try the completion points by setting"
+	echo "the starting points, try the completion points by setting"
 	echo "action_char='C' as a last resort. But check the output"
 	echo "for plausibility then..."
 	exit -1
