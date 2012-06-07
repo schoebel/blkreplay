@@ -31,6 +31,7 @@
 # TST 2010-01-26
 
 filename="$1"
+output=${2:-$filename.load.gz}
 action_char="${action_char:-}" # allow override from extern
 
 if ! [ -f "$filename.blktrace.0" ]; then
@@ -40,23 +41,24 @@ fi
 
 # check some preconditions
 script_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
+noecho=1
 source "$script_dir/modules/lib.sh" || exit $?
 
 check_list="grep sed cut gzip blkparse"
 check_installed "$check_list"
 
 if [ -z "$action_char" ]; then
-    echo "Computing \$action_char ..."
+    echo "Computing \$action_char ..." > /dev/stderr
     tmp="${TMPDIR:-/tmp}/blkparse.$$"
     mkdir -p $tmp || exit $?
     blkparse -v -i "$filename" -f '%a:\n' |\
 	grep "^[QGID]:$" >\
 	$tmp/actions || exit $?
     char_list="$(sort -u < $tmp/actions)" || exit $?
-    echo "Statistics:"
+    echo "Statistics:" > /dev/stderr
     for i in $char_list; do
 	echo "$i$(grep "$i" < $tmp/actions | wc -l)"
-    done | sort -t: -k2 -n -r | tee $tmp/list
+    done | sort -t: -k2 -n -r | tee $tmp/list > /dev/stderr
     action_char="$(head -n1 < $tmp/list | cut -d: -f1)"
     rm -rf $tmp
     if [ -z "$action_char" ]; then
@@ -66,12 +68,12 @@ if [ -z "$action_char" ]; then
 	echo "action_char='C' as a last resort. But check the output"
 	echo "for plausibility then..."
 	exit -1
-    fi
+    fi > /dev/stderr
 fi
 
-echo "Using action_char='$action_char'"
+echo "Using action_char='$action_char'" > /dev/stderr
 
-echo "Starting main conversion to '$filename.load.gz'..."
+echo "Starting main conversion to '$output'..." > /dev/stderr
 
 {
     echo_copyright "$filename.blktrace.*"
@@ -84,7 +86,15 @@ echo "Starting main conversion to '$filename.load.gz'..."
 	sed 's/  \([RW]\)/\1/' |\
 	grep '; [RW] ;' |\
 	cut -d';' -f2-
-} | gzip -9 > "$filename.load.gz"
+} |\
+if [ "$output" = "-" ]; then
+    cat
+elif [[ "$output:" =~ ".gz:" ]]; then
+    gzip -9 > "$output"
+    ls -l "$output" > /dev/stderr
+else
+    cat > "$output"
+    ls -l "$output" > /dev/stderr
+fi
 
-ls -l "$filename.load.gz"
-echo "Done. Please consider renaming the output file to something better."
+echo "Done. Please consider renaming the output file to something better." > /dev/stderr
