@@ -44,7 +44,7 @@ script_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
 noecho=1
 source "$script_dir/modules/lib.sh" || exit $?
 
-check_list="grep sed cut cat mkdir rm head gzip blkparse"
+check_list="grep sed cut head gzip blkparse"
 check_installed "$check_list"
 
 if [ -z "$action_char" ]; then

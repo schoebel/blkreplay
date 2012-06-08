@@ -35,7 +35,7 @@ noecho=1
 script_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
 source "$script_dir/modules/lib.sh" || exit $?
 
-check_list="cat gunzip grep sed gawk cut gzip"
+check_list="gzip gunzip grep sed gawk cut"
 check_installed "$check_list"
 
 window=${window:-600}

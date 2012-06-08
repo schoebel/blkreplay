@@ -22,6 +22,8 @@
 function graph_finish
 {
     (( !enable_graph )) && return 0
+    check_list="zgrep"
+    check_installed "$check_list"
     echo "$FUNCNAME running graph.sh"
     if ! ls *.replay.gz > /dev/null; then
 	echo "no results exist => skip graph.sh"

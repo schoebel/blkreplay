@@ -33,6 +33,8 @@ function iscsi_initiator_prepare
 {
     (( !enable_iscsi_initiator )) && return 0
     iscsi_ip="${iscsi_ip:-$iscsi_target}"
+    check_list="iscsiadm killall diff"
+    check_installed "$check_list"
     echo "$FUNCNAME preparing iSCSI connections to $iscsi_ip"
     iscsi_initiator_finish >/dev/null 2>&1 # in case a previous run was interrupted
 

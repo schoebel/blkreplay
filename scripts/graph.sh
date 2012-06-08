@@ -34,7 +34,7 @@ ws_list="${ws_list:-000 001 006 060 600}"
 script_dir="${script_dir:-$(cd "$(dirname "$(which "$0")")"; pwd)}"
 source "$script_dir/modules/lib.sh" || exit $?
 
-check_list="grep sed gawk head tail cat cut tee sort mkfifo nice date pwd find gzip gunzip zcat gcc gnuplot"
+check_list="grep sed gawk head tail cut tee mkfifo nice date find gzip gunzip zcat gnuplot"
 check_installed "$check_list"
 
 tmp="${TMPDIR:-/tmp}/graph.$$"

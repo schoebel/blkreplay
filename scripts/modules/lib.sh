@@ -21,7 +21,7 @@ if (( !noecho )); then
     echo "Sourcing lib.sh"
 fi
 
-# this may be later overrided by distros / install scripts / etc
+# this may be later overridden by distros / install scripts / etc
 
 # $sript_dir is assumed to be already set by the caller
 base_dir="$(cd "$script_dir/.."; pwd)"
@@ -48,6 +48,9 @@ function check_installed
 	fi
     done
 }
+
+check_always_list="basename dirname which pwd mkdir rmdir rm cat ls sort ssh scp nice"
+check_installed "$check_always_list"
 
 #####################################################################
 

@@ -19,6 +19,9 @@
 
 #####################################################################
 
+check_list="wget buffer"
+check_installed "$check_list"
+
 function main_prepare
 {
     replay_count=0

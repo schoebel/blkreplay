@@ -32,7 +32,7 @@ verbose_script=0
 
 # check some preconditions
 
-check_list="grep sed gawk head tail cat cut nice date gzip gunzip zcat ssh rsync buffer"
+check_list="grep sed gawk head tail cut nice date gzip gunzip zcat buffer"
 check_installed "$check_list"
 
 # include modules

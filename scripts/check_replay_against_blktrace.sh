@@ -50,7 +50,7 @@ script_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
 noecho=1
 source "$script_dir/modules/lib.sh" || exit $?
 
-check_list="mkfifo grep sed cut sort gunzip diff blkparse"
+check_list="mkfifo grep sed cut gunzip diff blkparse"
 check_installed "$check_list"
 
 ######################################################################

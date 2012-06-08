@@ -27,7 +27,7 @@
 script_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
 source "$script_dir/modules/lib.sh" || exit $?
 
-check_list="grep sed cut gzip gawk"
+check_list="grep sed cut gzip zcat gawk"
 check_installed "$check_list"
 
 filename="$1"
