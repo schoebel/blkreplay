@@ -48,6 +48,7 @@ function main_prepare
 	    replay_device[$replay_count]=$device
 	    replay_max=$replay_count
 	    (( replay_count++ ))
+	    (( replay_max_parallelism > 0 && replay_count >= replay_max_parallelism )) && break
 	done
     else
 	if [ -z "$replay_device_list" ]; then
@@ -60,7 +61,9 @@ function main_prepare
 		replay_device[$replay_count]=$device
 		replay_max=$replay_count
 		(( replay_count++ ))
+		(( replay_max_parallelism > 0 && replay_count >= replay_max_parallelism )) && break
 	    done
+	    (( replay_max_parallelism > 0 && replay_count >= replay_max_parallelism )) && break
 	done
     fi
     if [ -z "$input_file_list" ]; then
