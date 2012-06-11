@@ -1379,8 +1379,8 @@ with-drop
 \family typewriter
 with-partial
 \family default
- (EXPERIMENTAL!) Any conflicting requests (in the sense of damaged IO) are
- pushed back to a pushback list and kept there until the conflict is gone.
+ Any conflicting requests (in the sense of damaged IO) are pushed back to
+ a pushback list and kept there until the conflict is gone.
  Pushed back requests are immediately submitted as soon as the conflict
  has gone away.
  This results in a reordering of the 
@@ -1416,18 +1416,20 @@ original storage semantics
 \begin_inset Newline newline
 \end_inset
 
-Attention! this is experimental, and causes some unintuitive behaviour at
- least with some loads (in particular loads from Windows servers where a
- lot of writes seem to be 
+Attention! this may reduce the overall IO parallelism, because some request
+ slots must be reserved for pushed-back requests, in order to allow some
+ fairness between ordinary and pushed-packed requests when the latter ones
+ try to 
 \begin_inset Quotes eld
 \end_inset
 
-repeated
+catch up
 \begin_inset Quotes erd
 \end_inset
 
-).
- Use with care!
+.
+ This can happen in particular with some Windows loads, where a lot of writes
+ seem to be repeated.
 \end_layout
 
 \begin_layout Labeling
@@ -1453,6 +1455,18 @@ all following
 artificial delays
 \emph default
 .
+\begin_inset Newline newline
+\end_inset
+
+In general, this mode is the 
+\begin_inset Quotes eld
+\end_inset
+
+most robust
+\begin_inset Quotes erd
+\end_inset
+
+ one.
 \end_layout
 
 \begin_layout Standard

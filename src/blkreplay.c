@@ -1587,6 +1587,15 @@ void execute(struct request *rq)
 	add_request(rq);
 }
 
+///////////////////////////////////////////////////////////////////////
+
+// predicates for strategic decisions
+
+/* Ensure that the submit queues cannot be filled to much,
+ * measured in real time.
+ * Too much filling could result in unnecessary drops, for example.
+ * Too much filling will not result in any advantage.
+ */
 static
 int delay_distance(struct timespec *check)
 {
@@ -1604,6 +1613,34 @@ int delay_distance(struct timespec *check)
 	return 0;
 }
 
+/* Only used in --partial mode:
+ * Check how much space must be reserved in the table of submit queues
+ * for pushback requests.
+ * If this number is too low, the pushback requests can easily form an
+ * independent logical queue amoung each other, leading to 2 classes
+ * delays: independet ones / dependent ones (mostly depending on each other).
+ * When the reserved space would get too high, the ordinary (independet)
+ * requests would be hindered too much.
+ * Experience indicates that the most "fair" solution seems to be reserving
+ * at most _half_ of available slots to pushback requests, but not to
+ * _all_ of the pushback requests, because that would keep too much
+ * space unnecessarily open and hinder total IO parallelism (deviating
+ * from the intended --threads= goal). Thus we divide count_pushback
+ * by 2. Maybe this could be tuned better, but this requires lots of
+ * experiments and experience.
+ */
+static
+int is_partial_full()
+{
+	if (count_completion <= total_max / 2)
+		return 0;
+	return count_completion >= total_max - (count_pushback + 1) / 2;
+}
+
+///////////////////////////////////////////////////////////////////////
+
+/* Main dispatcher routine.
+*/
 static
 void parse(FILE *inp)
 {
@@ -1625,7 +1662,7 @@ void parse(FILE *inp)
 
 		// avoid flooding the pipelines too much
 		while (count_completion > bottleneck ||
-		       (conflict_mode == 2 && count_completion >= total_max - 1) ||
+		       (conflict_mode == 2 && is_partial_full()) ||
 		       (count_completion > 1 && delay_distance(&old_stamp))) {
 			get_answer();
 		}
