@@ -37,28 +37,38 @@ int bin_count[MAX_BINS];
 
 void put_bin(double val)
 {
-	int bin = log10(val) * bin_size;
-	bin += MAX_BINS/2;
-	if (val <= 0 || bin < 0 || bin >= MAX_BINS)
+	int bin;
+
+	if (val <= 0)
 		return;
+
+	bin = log10(val) * bin_size;
+	bin += MAX_BINS/2;
+	if (bin < 0 || bin >= MAX_BINS)
+		return;
+
+	bin_count[bin]++;
+
 	if (bin < bin_min)
 		bin_min = bin;
 	if (bin >= bin_max)
 		bin_max = bin + 1;
-	bin_count[bin]++;
 }
 
 int main()
 {
 	int i;
 	char buf[4096];
+
 	while (fgets(buf, sizeof(buf), stdin)) {
 		double val = 0;
 		sscanf(buf, " %lf", &val);
 		put_bin(val);
 	}
+
 	for (i = bin_min; i < bin_max; i++) {
 		printf("%le %6d\n", exp10((double)(i - MAX_BINS/2) / bin_size), bin_count[i]);
 	}
+
 	return 0;
 }

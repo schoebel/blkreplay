@@ -143,7 +143,7 @@ for window in $ws_list; do
     mkfifo $myfifo.all.dist2.$window
 done
 for mode in reads writes; do
-    for k in {0..7}; do
+    for k in {0..9}; do
 	mkfifo $myfifo.$mode.sort0.$k
     done
     for k in {0..2}; do
@@ -185,6 +185,16 @@ out="$tmp/$name"
 for mode in reads writes; do
     inp=$myfifo.$mode
     i="$mode.tmp"
+    if (( static_mode )); then
+	cat $inp.sort0.8 | cut -d ';' -f 4 | $bin_dir/bins.exe >\
+	    $out.g40.rqsize.$i.bins &
+	cat $inp.sort0.9 | cut -d ';' -f 3 |\
+	    gawk '{ i = int($1 / 2097152); table[i]++; if (i > max) max = i;} END{for (i = 0; i <= max + 1; i++) printf("%5d %5d\n", i, table[i]); }' >\
+	    $out.g41.rqpos.$i.bins &
+    else
+	cat $inp.sort0.8 > /dev/null &
+	cat $inp.sort0.9 > /dev/null &
+    fi
     if (( dynamic_mode )); then
 	cat $inp.sort0.1 | gawk -F ";" '{ printf("%f %f\n", $2+$6, $7); }' >\
 	    $out.g01.latency.$i.realtime &
@@ -249,8 +259,8 @@ for mode in reads writes; do
     regex=" R "
     [ $mode = "writes" ] && regex=" W "
     grep "$regex" < $myfifo.$mode.sort0.0 |\
-	tee  $myfifo.$mode.sort0.{1..6} >\
-	     $myfifo.$mode.sort0.7 &
+	tee  $myfifo.$mode.sort0.{1..8} >\
+	     $myfifo.$mode.sort0.9 &
     grep "$regex" < $myfifo.$mode.sort2.0 |\
 	tee  $myfifo.$mode.sort2.1 >\
 	     $myfifo.$mode.sort2.2 &
@@ -308,6 +318,9 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	*.delay.*)
 	eval $(cat $tmp/delays)
 	;;
+	*)
+	max=$(cat $reads_file $writes_file | wc -l)
+	;;
     esac
     if [ "$min" = "$max" ]; then
 	echo "Skipping $reads_file, no data present"
@@ -335,13 +348,19 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	esac
 	with="with points ps 0.1"
 	xlabel="Duration [sec]"
-	ylabel="Latency [sec]"
+	ylabel="Latency [sec]  (Avg=$avg)"
 	dlabel="Flying Requests [count]"
 	xlogscale=""
 	case $reads_file in
 	    *.delay.*)
-	    ylabel="Delay [sec]"
+	    ylabel="Delay [sec]  (Avg=$avg)"
 	    dlabel="Delayed Requests [count]"
+	    ;;
+	    *.rqsize.*)
+	    ylabel="Request Size [blocks]"
+	    ;;
+	    *.rqpos.*)
+	    ylabel="Request Position in Device [GiB]"
 	    ;;
 	esac
 	case $reads_file in
@@ -359,10 +378,14 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    xlogscale="set logscale x;"
 	    ;;
 	esac
+	case $reads_file in
+	    *.rqpos.*)
+	    xlogscale=""
+	    ;;
+	esac
 	
 	echo "---> plot on $title.$picturetype ($color)"
     
-	ylabel="$ylabel  (Avg=$avg)"
 	plot=""
 	if [ -s "$reads_file" ]; then
 	    plot="plot '$reads_file' title 'Reads' $with lt 3"
