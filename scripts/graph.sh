@@ -143,7 +143,7 @@ for window in $ws_list; do
     mkfifo $myfifo.all.dist2.$window
 done
 for mode in reads writes; do
-    for k in {0..5}; do
+    for k in {0..7}; do
 	mkfifo $myfifo.$mode.sort0.$k
     done
     for k in {0..2}; do
@@ -163,6 +163,15 @@ function compute_ws
     advance=$1
     (( advance <= 0 )) && advance=1
     gawk -F ";" "BEGIN{ start = 0.0; count = 0; } { if (!start) start = \$1; while (\$1 >= start + $advance) { delta = 0.0; if ($window) { c = asorti(table); delta = table[c-1] - table[0]; } printf(\"%f %d %f %f\n\", start+$advance, count, delta, (c > 0 ? delta/c : 0)); if ($window) { count = 0; delete table; } start += $advance; } if (!table[\$2]) { table[\$2] = \$2; count++; } }"
+}
+
+function compute_flying
+{
+    add="$1"
+    diff="$2"
+    gawk -F ";" "{ printf(\"%17.9f;1\n\", \$2 $add); printf(\"%17.9f;-1\n\", \$2 $add + \$$diff); }" |\
+	sort -n |\
+	gawk -F ";" '{ count += $2; printf("%s %5d\n", $1, count); }'
 }
 
 [[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
@@ -191,6 +200,10 @@ for mode in reads writes; do
 	    $out.g06.latency.$i.bins &
 	cat $inp.sort0.5 | cut -d ';' -f 6 | $bin_dir/bins.exe >\
 	    $out.g07.delay.$i.bins &
+	cat $inp.sort0.6 | compute_flying "+\$6" 7 >\
+	    $out.g08.latency.$i.flying &
+	cat $inp.sort0.7 | compute_flying "" 6 >\
+	    $out.g09.delay.$i.flying &
     else
 	for i in $inp.sort?.*; do
 	    cat $i > /dev/null &
@@ -236,11 +249,8 @@ for mode in reads writes; do
     regex=" R "
     [ $mode = "writes" ] && regex=" W "
     grep "$regex" < $myfifo.$mode.sort0.0 |\
-	tee  $myfifo.$mode.sort0.1 |\
-	tee  $myfifo.$mode.sort0.2 |\
-	tee  $myfifo.$mode.sort0.3 |\
-	tee  $myfifo.$mode.sort0.4 >\
-	     $myfifo.$mode.sort0.5 &
+	tee  $myfifo.$mode.sort0.{1..6} >\
+	     $myfifo.$mode.sort0.7 &
     grep "$regex" < $myfifo.$mode.sort2.0 |\
 	tee  $myfifo.$mode.sort2.1 >\
 	     $myfifo.$mode.sort2.2 &
@@ -307,7 +317,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	color="green"
 	lt_color=2
 	case $reads_file in
-	    *.bins)
+	    *.bins | *.flying)
 	    ;;
 	    *.latency.* | *.delay.*)
 	    test_title="Test"
@@ -326,15 +336,21 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	with="with points ps 0.1"
 	xlabel="Duration [sec]"
 	ylabel="Latency [sec]"
+	dlabel="Flying Requests [count]"
 	xlogscale=""
 	case $reads_file in
 	    *.delay.*)
 	    ylabel="Delay [sec]"
+	    dlabel="Delayed Requests [count]"
 	    ;;
 	esac
 	case $reads_file in
 	    *.points)
 	    xlabel="Requests [count]"
+	    ;;
+	    *.flying)
+	    with="with lines"
+	    ylabel="$dlabel"
 	    ;;
 	    *.bins)
 	    with="with linespoints"
