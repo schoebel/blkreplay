@@ -1053,7 +1053,7 @@ void check_pushback(void)
 	struct request *tmp = *ptr;
 	struct request *prev = NULL;
 	
-	while (tmp && (conflict_mode !=2 || count_submitted < total_max - 1)) {
+	while (tmp && count_submitted < total_max) {
 		int has_conflict = fly_check(&fly_hash, tmp->sector, tmp->length);
 		if (has_conflict) {
 			prev = tmp;
@@ -1168,11 +1168,11 @@ int get_answer(void)
       
 				put_blockversion(complete_fd, data, rq.sector, rq.length);
 			}
-			if (conflict_mode == 2) {
-				/* Handle pushback requests.
-				 */
-				check_pushback();
-			}
+		}
+		if (conflict_mode == 2) {
+			/* Handle pushback requests.
+			 */
+			check_pushback();
 		}
 	}
 
