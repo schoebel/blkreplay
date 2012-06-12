@@ -139,13 +139,15 @@ function main_run
     buffer_cmd="(buffer -m 16m || cat)"
     for i in $(eval echo {0..$replay_max}); do
 	options=""
+	# list of parameterless options
 	optlist="verbose dry_run fake_io no_dispatcher"
 	for opt in $optlist; do
 	    if eval "(( $opt ))"; then
 		options="$options --$(echo $opt | sed 's/_/-/g')"
 	    fi
 	done
-	optlist="replay_start replay_duration replay_out threads speedup fan_out bottleneck"
+	# list of options with parameters
+	optlist="replay_start replay_duration replay_out threads speedup fan_out bottleneck simulate_io"
 	for opt in $optlist; do
 	    if eval "[ -n \"\$$opt\" ]"; then
 		options="$options --$(echo $opt | sed 's/_/-/g')=$(eval echo \$${opt})"

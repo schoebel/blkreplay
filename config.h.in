@@ -31,6 +31,10 @@
    don't. */
 #undef HAVE_DECL_MEMALIGN
 
+/* Define to 1 if you have the declaration of `nanosleep', and to 0 if you
+   don't. */
+#undef HAVE_DECL_NANOSLEEP
+
 /* Define to 1 if you have the declaration of `posix_memalign', and to 0 if
    you don't. */
 #undef HAVE_DECL_POSIX_MEMALIGN
@@ -98,6 +102,9 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
+/* Define to 1 if you have the <time.h> header file. */
+#undef HAVE_TIME_H
+
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
@@ -142,6 +149,11 @@
 
 /* Version number of package */
 #undef VERSION
+
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE
+#endif
 
 /* Define to rpl_malloc if the replacement function should be used. */
 #undef malloc

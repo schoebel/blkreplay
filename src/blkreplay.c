@@ -186,6 +186,7 @@ struct timespec first_stamp = {};
 struct timespec timeshift = {};
 struct timespec meta_delays = {};
 long long meta_delay_count;
+struct timespec simulate_io = {};
 
 #define _STRINGIFY(x) #x
 #define STRINGIFY(x) _STRINGIFY(x)
@@ -400,6 +401,10 @@ static struct fly_hash fly_hash = {};
 static
 int do_read(void *buffer, int len)
 {
+#ifdef HAVE_DECL_NANOSLEEP
+	if (simulate_io.tv_sec || simulate_io.tv_nsec)
+		nanosleep(&simulate_io, NULL);
+#endif
 	if (dry_run)
 		return len;
 	if (mmap_ptr) {
@@ -410,6 +415,10 @@ int do_read(void *buffer, int len)
 static
 int do_write(void *buffer, int len)
 {
+#ifdef HAVE_DECL_NANOSLEEP
+	if (simulate_io.tv_sec || simulate_io.tv_nsec)
+		nanosleep(&simulate_io, NULL);
+#endif
 	if (dry_run)
 		return len;
 	if (mmap_ptr) {
@@ -1778,12 +1787,15 @@ void parse(FILE *inp)
 // arg parsing
 // don't use GNU getopt, it's not available everywhere
 
+#define ARG_INT		-1
+#define ARG_FLOAT	-2
+#define ARG_TIMESPEC	-3
+
 struct arg {
 	char *arg_name;
 	char *arg_descr;
 	int   arg_const;
-	int  *arg_val_int;
-	FLOAT*arg_val_float;
+	void *arg_val;
 };
 
 static
@@ -1795,26 +1807,26 @@ const struct arg arg_table[] = {
 	{
 		.arg_name  = "replay-start",
 		.arg_descr = "start offset (in seconds, 0=from_start)",
-		.arg_const = -1,
-		.arg_val_int = &replay_start,
+		.arg_const = ARG_INT,
+		.arg_val   = &replay_start,
 	},
 	{
 		.arg_name  = "replay-end",
 		.arg_descr = "end offset (in seconds, 0=unlimited)",
-		.arg_const = -1,
-		.arg_val_int = &replay_end,
+		.arg_const = ARG_INT,
+		.arg_val   = &replay_end,
 	},
 	{
 		.arg_name  = "replay-duration",
 		.arg_descr = "alternatively specify the end offset as delta",
-		.arg_const = -1,
-		.arg_val_int = &replay_duration,
+		.arg_const = ARG_INT,
+		.arg_val   = &replay_duration,
 	},
 	{
 		.arg_name  = "replay-out",
 		.arg_descr = "start offset, used for output (in seconds)",
-		.arg_const = -1,
-		.arg_val_int = &replay_out,
+		.arg_const = ARG_INT,
+		.arg_val   = &replay_out,
 	},
 
 
@@ -1826,25 +1838,25 @@ const struct arg arg_table[] = {
 		.arg_name  = "with-conflicts",
 		.arg_descr = "conflicting writes are ALLOWED (damaged IO)",
 		.arg_const = 0,
-		.arg_val_int = &conflict_mode,
+		.arg_val   = &conflict_mode,
 	},
 	{
 		.arg_name  = "with-drop",
 		.arg_descr = "conflicting writes are simply dropped",
 		.arg_const = 1,
-		.arg_val_int = &conflict_mode,
+		.arg_val   = &conflict_mode,
 	},
 	{
 		.arg_name  = "with-partial",
 		.arg_descr = "partial ordering by pushing back conflicts",
 		.arg_const = 2,
-		.arg_val_int = &conflict_mode,
+		.arg_val   = &conflict_mode,
 	},
 	{
 		.arg_name  = "with-ordering",
 		.arg_descr = "enforce total order in case of conflicts",
 		.arg_const = 3,
-		.arg_val_int = &conflict_mode,
+		.arg_val   = &conflict_mode,
 	},
 
 
@@ -1856,8 +1868,8 @@ const struct arg arg_table[] = {
 	{
 		.arg_name  = "threads",
 		.arg_descr = "parallelism (default=" STRINGIFY(DEFAULT_THREADS) ")",
-		.arg_const = -1,
-		.arg_val_int = &total_max,
+		.arg_const = ARG_INT,
+		.arg_val   = &total_max,
 	},
 
 
@@ -1870,25 +1882,25 @@ const struct arg arg_table[] = {
 		.arg_name  = "no-overhead",
 		.arg_descr = "verify is OFF (default)",
 		.arg_const = 0,
-		.arg_val_int = &verify_mode,
+		.arg_val   = &verify_mode,
 	},
 	{
 		.arg_name  = "with-verify",
 		.arg_descr = "verify on reads",
 		.arg_const = 1,
-		.arg_val_int = &verify_mode,
+		.arg_val   = &verify_mode,
 	},
 	{
 		.arg_name  = "with-final-verify",
 		.arg_descr = "additional verify pass at the end",
 		.arg_const = 2,
-		.arg_val_int = &verify_mode,
+		.arg_val   = &verify_mode,
 	},
 	{
 		.arg_name  = "with-paranoia",
 		.arg_descr = "re-read after each write (destroys performance)",
 		.arg_const = 3,
-		.arg_val_int = &verify_mode,
+		.arg_val   = &verify_mode,
 	},
 
 
@@ -1901,7 +1913,7 @@ const struct arg arg_table[] = {
 		.arg_name  = "verbose",
 		.arg_descr = "show some additional debug output",
 		.arg_const = 1,
-		.arg_val_int = &verbose,
+		.arg_val   = &verbose,
 	},
 
 	{
@@ -1912,43 +1924,51 @@ const struct arg arg_table[] = {
 		.arg_name  = "dry-run",
 		.arg_descr = "don't actually do IO, measure internal overhead",
 		.arg_const = 1,
-		.arg_val_int = &dry_run,
+		.arg_val   = &dry_run,
 	},
 	{
 		.arg_name  = "fake-io",
 		.arg_descr = "omit lseek() and tags, even less internal overhead",
 		.arg_const = 1,
-		.arg_val_int = &fake_io,
+		.arg_val   = &fake_io,
 	},
+#ifdef HAVE_DECL_NANOSLEEP
+	{
+		.arg_name  = "simulate-io",
+		.arg_descr = "delay value for IO simulation (timespec <sec>.<nsec>)",
+		.arg_const = ARG_TIMESPEC,
+		.arg_val   = &simulate_io,
+	},
+#endif
 	{
 		.arg_name  = "fan-out",
 		.arg_descr = "only for kernel hackers (default=" STRINGIFY(DEFAULT_FAN_OUT) ")",
-		.arg_const = -1,
-		.arg_val_int = &fan_out,
+		.arg_const = ARG_INT,
+		.arg_val   = &fan_out,
 	},
 	{
 		.arg_name  = "no-dispatcher",
 		.arg_descr = "only for kernel hackers",
 		.arg_const = 0,
-		.arg_val_int = &fork_dispatcher,
+		.arg_val   = &fork_dispatcher,
 	},
 	{
 		.arg_name  = "bottleneck",
 		.arg_descr = "max #requests on dispatch",
-		.arg_const = -1,
-		.arg_val_int = &bottleneck,
+		.arg_const = ARG_INT,
+		.arg_val   = &bottleneck,
 	},
 	{
 		.arg_name  = "speedup",
 		.arg_descr = "speedup / slowdown by REAL factor (default=" STRINGIFY(DEFAULT_SPEEDUP) ")",
-		.arg_const = -1,
-		.arg_val_float = &time_factor,
+		.arg_const = ARG_FLOAT,
+		.arg_val   = &time_factor,
 	},
 	{
 		.arg_name  = "mmap-mode",
 		.arg_descr = "use mmap() instead of read() / write() [NYI]",
 		.arg_const = 1,
-		.arg_val_int = &mmap_mode,
+		.arg_val = &mmap_mode,
 	},
 	{}
 };
@@ -2020,7 +2040,7 @@ void parse_args(int argc, char *argv[])
 		}
 
 		if (tmp->arg_const >= 0) {
-			*tmp->arg_val_int = tmp->arg_const;
+			*(int*)tmp->arg_val = tmp->arg_const;
 			continue;
 		}
 
@@ -2029,10 +2049,22 @@ void parse_args(int argc, char *argv[])
 		if (*this == '=')
 			this++;
 
-		if (tmp->arg_val_int)
-			count = sscanf(this, "%d", tmp->arg_val_int);
-		else
-			*tmp->arg_val_float = atof(this);
+		switch (tmp->arg_const) {
+		case ARG_INT:
+			count = sscanf(this, "%d", (int*)tmp->arg_val);
+			break;
+		case ARG_FLOAT:
+			*(FLOAT*)tmp->arg_val = atof(this);
+			break;
+		case ARG_TIMESPEC:
+			count = sscanf(this, "%lu.%lu",
+				       &((struct timespec*)tmp->arg_val)->tv_sec,
+				       &((struct timespec*)tmp->arg_val)->tv_nsec);
+			if (count == 2)
+				count = 1;
+			break;
+		default: ;
+		}
 		if (count != 1) {
 			printf("cannot parse <val> '%s'\n", this);
 			usage();
@@ -2071,6 +2103,8 @@ int main(int argc, char *argv[])
 		replay_end = replay_start + replay_duration;
 
 	if (fake_io)
+		dry_run = 1;
+	if (simulate_io.tv_sec || simulate_io.tv_nsec)
 		dry_run = 1;
 	if (dry_run) {
 		printf("INFO: this is a DRY_RUN!!!!!!!!!\n"
