@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.25
+Version 0.26
 \end_layout
 
 \begin_layout Standard
@@ -8087,6 +8087,689 @@ binary
 \end_inset
 
 
+\end_layout
+
+\begin_layout Subsection
+Overload with (Derived) Natural Loads
+\end_layout
+
+\begin_layout Standard
+Overload tests with natural loads are probably the most interesting ones.
+ They can tell you a lot over both the test candidate, as well as your applicati
+on.
+\end_layout
+
+\begin_layout Standard
+In many cases, natural loads are varying very much over time.
+ Frequently, the variance in the IOPS rate can span an order of magnitude,
+ or even more.
+ Typical reasons are cron jobs or nightly backups on an otherwise (almost)
+ idle server.
+\end_layout
+
+\begin_layout Standard
+In order to find the peaks in the load, you have to draw 
+\family typewriter
+blktrace
+\family default
+s from production servers for at least 24h.
+ After conversion to 
+\family typewriter
+*.load.gz
+\family default
+, it is rather cumbersome to find the load peaks by hand in order to get
+ suitable input data for 
+\emph on
+overload
+\emph default
+ tests.
+ Thus, we have developed the script 
+\family typewriter
+create_derived_load.sh
+\family default
+ which will do the following for you:
+\end_layout
+
+\begin_layout Enumerate
+It splits the input file(s) into snippets of equal length in realtime (by
+ default, 5min length each).
+\end_layout
+
+\begin_layout Enumerate
+It sorts the snippets according to IOPS in reverse order, i.e.
+ the 
+\begin_inset Quotes eld
+\end_inset
+
+heaviest
+\begin_inset Quotes erd
+\end_inset
+
+ snippet will come first.
+\end_layout
+
+\begin_layout Enumerate
+It distributes the snippets to a number of output files in a round-robin
+ fashion (while adjusting the timestamps to the new order).
+\end_layout
+
+\begin_layout Standard
+As a result, the output files will start with the heaviest IOPS load first,
+ and later declining.
+ This methodology has a number of advantages:
+\end_layout
+
+\begin_layout Itemize
+The overload part is easily accessible at the beginning of each output file
+ (interesting part first).
+\end_layout
+
+\begin_layout Itemize
+Thanks to the distribution to many output files, higher replay parallelism
+ is possible in an uncorrolated way.
+\end_layout
+
+\begin_layout Itemize
+In case your test candidate should get overloaded: you can easily see its
+ 
+\emph on
+recovery behaviour
+\emph default
+ from overload, thanks to the declination of the load over time.
+ Will it recover at all, and how fast?
+\end_layout
+
+\begin_layout Standard
+The latter is an important property of any enterprise-grade storage system.
+\end_layout
+
+\begin_layout Standard
+Here are some example comparisons between an old SATA system and a newer
+ SAS system, both equipped with hardware RAID-6, and loaded with a replay
+ parallelism of only 2 (just for demonstration; you can find the complete
+ results with additional graphics in the directory 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://github.com/schoebel/blkreplay/tree/master/example-run/example-overload/na
+tural-derived/
+\end_layout
+
+\end_inset
+
+ and its subdirs):
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/long/2-parallel/with-ordering/test-sata/EXAMPLE.example-overload.natural-derived.long.2-parallel.with-ordering.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/long/2-parallel/with-ordering/test-sas/EXAMPLE.example-overload.natural-derived.long.2-parallel.with-ordering.test-sas.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+It is interesting to see the behaviour of the SATA system in contrast to
+ the high-performance SAS: at first, the real IOPS rate (red) cannot catch
+ up with the demanded rate (green).
+ However, when the demanded rate decreases under the green line after some
+ time, the red line becomes higher than the green one until the backlog
+ has been worked up.
+ Finally, the system can (almost) run in sync with the lower demands.
+\end_layout
+
+\begin_layout Standard
+The same effects can also be seen in the corresponding delay diagrams, where
+ you can even notice the two lines stemming from the overlay of two replays
+ in parallel, and even watch their different fallback points:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/long/2-parallel/with-ordering/test-sata/EXAMPLE.example-overload.natural-derived.long.2-parallel.with-ordering.test-sata.g04.delay.setpoint.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/long/2-parallel/with-ordering/test-sas/EXAMPLE.example-overload.natural-derived.long.2-parallel.with-ordering.test-sas.g04.delay.setpoint.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Influence of Replay Parameters
+\end_layout
+
+\begin_layout Standard
+The following examples are run on the rather slow SATA system, with a replay
+ parallelism of only 1, just to show the effects in isolation.
+\end_layout
+
+\begin_layout Subsection
+Influence of Request Ordering
+\end_layout
+
+\begin_layout Standard
+We start with the simplest case: mode 
+\family typewriter
+--with-conflicts
+\family default
+ fires up all requests without guaratenning any order, which may lead to
+ damaged IO.
+ Here is the sonar diagram as well as the throughput diagram:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.512-threads.test-sata.g01.latency.realtime.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.512-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+It is clear that the SATA cannot catch up with the high demands here.
+ But why? A first hint is the rather 
+\begin_inset Quotes eld
+\end_inset
+
+thick
+\begin_inset Quotes erd
+\end_inset
+
+ red 
+\begin_inset Quotes eld
+\end_inset
+
+cloud carpet
+\begin_inset Quotes erd
+\end_inset
+
+ near 1s, indicating some queueing behaviour.
+\end_layout
+
+\begin_layout Standard
+Now we turn to 
+\family typewriter
+--with-drop
+\family default
+.
+ Surprisingly, there is only a small difference, although damaged IO is
+ avoided at the cost of some lost requests:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-drop/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-drop.512-threads.test-sata.g01.latency.realtime.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-drop/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-drop.512-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+More prominent differences can be found when we turn to 
+\family typewriter
+--with-partial
+\family default
+.
+ Now the system can catch up 
+\emph on
+in average
+\emph default
+ (but not in general at load peaks), and the sonar diagram shows that the
+ 
+\begin_inset Quotes eld
+\end_inset
+
+think clouds
+\begin_inset Quotes erd
+\end_inset
+
+ at about 1s have become smaller:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-partial/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-partial.512-threads.test-sata.g01.latency.realtime.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-partial/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-partial.512-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+This rises the question for reasons.
+ Why should 
+\family typewriter
+--with-partial
+\family default
+ be better than 
+\family typewriter
+--with-drop
+\family default
+? The full answer is in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Influence-of-Number"
+
+\end_inset
+
+, but for now you can take the small 
+\begin_inset Quotes eld
+\end_inset
+
+gaps
+\begin_inset Quotes erd
+\end_inset
+
+ on the x axis as a hint that there must be something related to small micro-sta
+lls, which seem to 
+\emph on
+accelerate
+\emph default
+ overall throughput in some counter-intuitive way.
+ The micro-stalls are easily explainable by the pushback mechanism of 
+\family typewriter
+--with-partial
+\family default
+ which reduces the IO parallelism in case of conflicts, but why does that
+ 
+\emph on
+accelerate
+\emph default
+ the overall throughput?
+\end_layout
+
+\begin_layout Standard
+Stay tuned.
+ Before closing this section, we have to look at the last ordering option:
+ 
+\family typewriter
+--with-ordering
+\family default
+ for the sake of completeness:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.test-sata.g01.latency.realtime.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Here we have a similar effect, also showing the micro-stall behaviour reducing
+ IO parallelism for a short time, which can allow some queues to drain more
+ often, but only for a short time.
+\end_layout
+
+\begin_layout Standard
+Before proceeding, we take a closer look at the micro-stall effect.
+ It is better visible in 
+\family typewriter
+*.latency.flying.*
+\family default
+ showing the 
+\emph on
+actually achieved IO parallelism
+\emph default
+ during the replay.
+ Here is the result for 
+\family typewriter
+--with-conflicts
+\family default
+ and 
+\family typewriter
+--with-drop
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.512-threads.test-sata.g08.latency.flying.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-drop/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-drop.512-threads.test-sata.g08.latency.flying.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+The sum of both reads and writes (khaki line) indicates that the RAID controller
+ is almost always filled with a maximum of 512 requests (caused by 
+\family typewriter
+threads=512
+\family default
+), practically almost always without interruptions.
+ In contrast, the picture is different when we turn to 
+\family typewriter
+--with-partial
+\family default
+ and 
+\family typewriter
+--with-ordering
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-partial/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-partial.512-threads.test-sata.g08.latency.flying.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.test-sata.g08.latency.flying.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+It is clear that by definition of 
+\family typewriter
+partial
+\family default
+ and 
+\family typewriter
+ordering
+\family default
+, some kind of stalls have to be introduced to guarantee some 
+\begin_inset Quotes eld
+\end_inset
+
+virtual storage semantics
+\begin_inset Quotes erd
+\end_inset
+
+.
+ It is also clear that these micro-stalls will sometimes reduce the actual
+ IO parallelism, which is clearly visible in the graphics.
+ However, can these micro-stalls be made 
+\emph on
+responsible
+\emph default
+ for an 
+\emph on
+increase
+\emph default
+ of overall throughput?
+\end_layout
+
+\begin_layout Standard
+In order to investigate that, we turn to the influence of the 
+\family typewriter
+threads=
+\family default
+ parameter.
+\end_layout
+
+\begin_layout Subsection
+Influence of Number of Threads
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Influence-of-Number"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The following throughput graphics are a direct comparison between 16, 32,
+ 64, 128, 256 and 512 threads on the SATA system using 
+\family typewriter
+--with-conflicts
+\family default
+, which guarantees the best possible IO parallelism:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/016-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.016-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/032-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.032-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/064-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.064-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/128-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.128-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/256-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.256-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.512-threads.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+It is clear that a too low number of threads, such as 16 or 32, can hinder
+ overall throughput.
+ It is also no wonder that 64 as well as 128 threads perform better.
+ But, why is there a counter-productive break-down when increasing the number
+ of threads thereafter?
+\end_layout
+
+\begin_layout Standard
+The answer can only be buried in the internals of the hardware and/or its
+ firmware and/or its driver.
+ Typically, some systems have problems when filled with too many requests
+ in parallel.
+ Here, we see a typical non-linear behaviour as explained in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Replay"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Consequences: the 
+\family typewriter
+threads=
+\family default
+ parameter can be very important.
+ And its 
+\begin_inset Quotes eld
+\end_inset
+
+optimum
+\begin_inset Quotes erd
+\end_inset
+
+ can non-linearly depend from the request ordering parameters.
+ Here, you see a proof for the warnings posed in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Replay"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Chapter
