@@ -130,7 +130,9 @@ sort="sort"
 
 myfifo="$tmp/myfifo"
 mkfifo $myfifo.pre
-mkfifo $myfifo.all.sort0.1
+for k in {1..3}; do
+    mkfifo $myfifo.all.sort0.$k
+done
 for k in {1..3}; do
     mkfifo $myfifo.all.sort2.$k
 done
@@ -170,8 +172,14 @@ function compute_flying
     add="$1"
     diff="$2"
     gawk -F ";" "{ printf(\"%17.9f;1\n\", \$2 $add); printf(\"%17.9f;-1\n\", \$2 $add + \$$diff); }" |\
-	sort -n |\
+	sort -n -s |\
 	gawk -F ";" '{ count += $2; printf("%s %5d\n", $1, count); }'
+}
+
+function compute_sum
+{
+    sort -g |\
+	gawk '{ if ($1 == oldx) { oldy += $2; } else { printf("%f %f\n", oldx, oldy); oldx = $1; oldy = $2; } } END{ printf("%f %f\n", oldx, oldy); }'
 }
 
 [[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
@@ -227,9 +235,15 @@ if (( static_mode )); then
 	$out.g20.demand.thrp &
     cat $myfifo.all.sort0.1 | gawk -F ";" '{ printf("%d\n", $2+$6+$7); }' | $sort -n | gawk "$gawk_thrp" >\
 	$out.g20.actual.thrp &
+    cat $myfifo.all.sort0.2 | compute_flying "+\$6" 7 >\
+	$out.g08.latency.sum.tmp.flying &
+    cat $myfifo.all.sort0.3 | compute_flying "" 6 >\
+	$out.g09.delay.sum.tmp.flying &
 else
     cat $myfifo.all.sort2.1 > /dev/null &
     cat $myfifo.all.sort0.1 > /dev/null &
+    cat $myfifo.all.sort0.2 > /dev/null &
+    cat $myfifo.all.sort0.3 > /dev/null &
 fi
 if (( dynamic_mode )); then
     cat $myfifo.all.sort2.2 | cut -d ';' -f 2,7 | make_statistics $bad_latency >\
@@ -271,13 +285,10 @@ zcat -f < "$tmp/master.fifo" |\
     grep ";" |\
     grep -v replay_ |\
     nl -s ';' |\
-    tee $myfifo.all.sort0.1 |\
-    tee $myfifo.reads.sort0.0 |\
-    tee $myfifo.writes.sort0.0 |\
+    tee $myfifo.all.sort0.{1..3} |\
+    tee $myfifo.{reads,writes}.sort0.0 |\
     $sort -t';' -k2 -n |\
-    tee $myfifo.all.sort2.1 |\
-    tee $myfifo.all.sort2.2 |\
-    tee $myfifo.all.sort2.3 |\
+    tee $myfifo.all.sort2.{1..3} |\
     tee $ws_fifos |\
     tee $myfifo.reads.sort2.0 >\
         $myfifo.writes.sort2.0 &
@@ -331,6 +342,11 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	lt_color=2
 	case $reads_file in
 	    *.bins | *.flying)
+            sum_file=$(echo $reads_file | sed 's/\.reads\./.sum./')
+	    if ! [ -e $sum_file ]; then
+		cat $reads_file $writes_file | compute_sum > $sum_file
+	    fi
+	    extra2=", '$sum_file' title 'Reads+Writes' with lines lt 7"
 	    ;;
 	    *.latency.* | *.delay.*)
 	    test_title="Test"
@@ -465,7 +481,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist; do
 	<<EOF gnuplot
 	set term $picturetype $pictureoptions;
 	set output "$outname";
-	set title '$mode TOTAL $start_time'
+	set title '$mode $start_time'
 	$scale
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
@@ -481,4 +497,3 @@ echo "Done all plots."
 
 rm -rf "$tmp"
 exit 0
-
