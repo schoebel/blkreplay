@@ -155,7 +155,7 @@ for window in $ws_list; do
     mkfifo $myfifo.all.dist2.$window
 done
 for mode in reads writes; do
-    for k in {0..9}; do
+    for k in {0..10}; do
 	mkfifo $myfifo.$mode.sort0.$k
     done
     for k in {0..2}; do
@@ -181,9 +181,9 @@ function compute_flying
 {
     add="$1"
     diff="$2"
-    gawk -F ";" "{ printf(\"%17.9f;1\n\", \$2 $add); printf(\"%17.9f;-1\n\", \$2 $add + \$$diff); }" |\
+    gawk -F ";" "{ printf(\"%17.9f;1;%s;%s\n\", \$2 $add, \$6, \$7); printf(\"%17.9f;-1;x;x\n\", \$2 $add + \$$diff); }" |\
 	sort -n -s |\
-	gawk -F ";" '{ count += $2; printf("%s %5d\n", $1, count); }'
+	gawk -F ";" '{ count += $2; printf("%s;%5d;%s;%s\n", $1, count, $3, $4); }'
 }
 
 function compute_sum
@@ -256,10 +256,30 @@ for mode in reads writes; do
 	    $out.g06.latency.$i.bins &
 	cat $inp.sort0.5 | cut -d ';' -f 6 | $bin_dir/bins.exe >\
 	    $out.g07.delay.$i.bins &
-	cat $inp.sort0.6 | compute_flying "+\$6" 7 >\
+	mkfifo $inp.side.{1..2}
+	cat $inp.sort0.6 |\
+	    compute_flying "+\$6" 7 |\
+	    tee $inp.side.{1..2} |\
+	    cut -d";" -f1,2 |\
+	    sed 's/;/ /' >\
 	    $out.g08.latency.$i.flying &
-	cat $inp.sort0.7 | compute_flying "" 6 >\
+	cat $inp.sort0.7 |\
+	    compute_flying "" 6 |\
+	    cut -d";" -f1,2 |\
+	    sed 's/;/ /' >\
 	    $out.g09.delay.$i.flying &
+	cat $inp.side.1 |\
+	    cut -d";" -f2,4 |\
+	    grep -v "x" |\
+	    sed 's/;/ /' >\
+	    $out.g10.latency.$i.xy &
+	cat $inp.side.2 |\
+	    cut -d";" -f2,3 |\
+	    grep -v "x" |\
+	    sed 's/;/ /' >\
+	    $out.g11.delay.$i.xy &
+	cat $inp.sort0.10 | cut -d ';' -f 6,7 | sed 's/;/ /' >\
+	    $out.g12.$i.latency.delay.xy &
     else
 	for i in $inp.sort?.*; do
 	    cat $i > /dev/null &
@@ -313,9 +333,15 @@ if (( static_mode )); then
 	$out.g20.demand.thrp &
     cat $myfifo.all.sort0.1 | gawk -F ";" '{ printf("%d\n", $2+$6+$7); }' | $sort -n | gawk "$gawk_thrp" >\
 	$out.g20.actual.thrp &
-    cat $myfifo.all.sort0.2 | compute_flying "+\$6" 7 >\
+    cat $myfifo.all.sort0.2 |\
+	compute_flying "+\$6" 7 |\
+	cut -d";" -f1,2 |\
+	sed 's/;/ /' >\
 	$out.g08.latency.sum.tmp.flying &
-    cat $myfifo.all.sort0.3 | compute_flying "" 6 >\
+    cat $myfifo.all.sort0.3 |\
+	compute_flying "" 6 |\
+	cut -d";" -f1,2 |\
+	sed 's/;/ /' >\
 	$out.g09.delay.sum.tmp.flying &
 else
     cat $myfifo.all.sort2.1 > /dev/null &
@@ -351,8 +377,7 @@ for mode in reads writes; do
     regex=" R "
     [ $mode = "writes" ] && regex=" W "
     grep "$regex" < $myfifo.$mode.sort0.0 |\
-	tee  $myfifo.$mode.sort0.{1..8} >\
-	     $myfifo.$mode.sort0.9 &
+	tee  $myfifo.$mode.sort0.{1..10} > /dev/null &
     grep "$regex" < $myfifo.$mode.sort2.0 |\
 	tee  $myfifo.$mode.sort2.1 >\
 	     $myfifo.$mode.sort2.2 &
@@ -419,6 +444,8 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	color="green"
 	lt_color=2
 	case $reads_file in
+	    *.xy)
+	    ;;
 	    *.bins | *.flying)
             sum_file=$(echo $reads_file | sed 's/\.reads\./.sum./')
 	    if ! [ -e $sum_file ]; then
@@ -441,11 +468,14 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    ;;
 	esac
 	with="with points ps 0.1"
-	xlabel="Duration [sec]"
-	ylabel="Latency [sec]  (Avg=$avg)"
+	xlabel="UNDEFINED"
+	ylabel="UNDEFINED"
 	dlabel="Flying Requests [count]"
 	xlogscale=""
 	case $reads_file in
+	    *.latency.*)
+	    ylabel="Latency [sec]  (Avg=$avg)"
+	    ;;
 	    *.delay.*)
 	    ylabel="Delay [sec]  (Avg=$avg)"
 	    dlabel="Delayed Requests [count]"
@@ -458,18 +488,32 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    ;;
 	esac
 	case $reads_file in
+	    *.realtime)
+	    xlabel="Real Duration [sec]"
+	    ;;
+	    *.setpoint)
+	    xlabel="Intended Duration [sec]"
+	    ;;
 	    *.points)
 	    xlabel="Requests [count]"
 	    ;;
 	    *.flying)
+	    xlabel="Duration [sec]"
 	    with="with lines"
 	    ylabel="$dlabel"
 	    ;;
 	    *.bins)
 	    with="with linespoints"
 	    xlabel="$ylabel"
-	    ylabel="Number in Bin"
+	    ylabel="Number in Bin [count]"
 	    xlogscale="set logscale x;"
+	    ;;
+	    *.delay.xy)
+	    xlabel="Delay [sec]"
+	    xlogscale="set logscale x;"
+	    ;;
+	    *.xy)
+	    xlabel="Flying Requests [count]"
 	    ;;
 	esac
 	case $reads_file in
@@ -554,6 +598,9 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	    sum_dist)
 	    ylabel="Total Distance [sectors]"
 	    scale="set logscale y;"
+	    ;;
+	    *_level | *_ahead | *_lag | *_wait | *_cumul)
+	    xlabel="Requests [count]"
 	    ;;
 	esac
 	<<EOF gnuplot
