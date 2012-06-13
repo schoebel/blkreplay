@@ -91,7 +91,7 @@ function main_prepare
 	echo " $i: ${replay_host[$i]} ${replay_device[$i]} $(basename ${input_file[$i]}) ${output_file[$i]}"
 	(( j++ ))
     done
-    pipe_list="nice gunzip -f < \"\${input_file[\$i]}\""
+    pipe_list="nice gunzip -f < \"\${input_file[\$i]}\" | grep '^ *[0-9.]* *;'"
     echo ""
 }
 
@@ -140,14 +140,14 @@ function main_run
     for i in $(eval echo {0..$replay_max}); do
 	options=""
 	# list of parameterless options
-	optlist="verbose dry_run fake_io no_dispatcher"
+	optlist="dry_run fake_io no_dispatcher"
 	for opt in $optlist; do
 	    if eval "(( $opt ))"; then
 		options="$options --$(echo $opt | sed 's/_/-/g')"
 	    fi
 	done
 	# list of options with parameters
-	optlist="replay_start replay_duration replay_out threads speedup fan_out bottleneck simulate_io"
+	optlist="replay_start replay_duration replay_out threads speedup fan_out bottleneck simulate_io verbose"
 	for opt in $optlist; do
 	    if eval "[ -n \"\$$opt\" ]"; then
 		options="$options --$(echo $opt | sed 's/_/-/g')=$(eval echo \$${opt})"

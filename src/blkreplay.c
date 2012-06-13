@@ -110,6 +110,7 @@
 #define QUEUES               4096
 #define MAX_THREADS         32768
 #define FILL_FACTOR             8
+#define START_GRACE            15
 #define DEFAULT_THREADS      1024
 #define DEFAULT_FAN_OUT         4
 #define DEFAULT_SPEEDUP       1.0
@@ -164,10 +165,10 @@ int fan_out = DEFAULT_FAN_OUT;
 int verbose = 0;
 int bottleneck = 0;
 
-int count_completion = 0;  // number of requests on the fly
+int count_submitted = 0;   // number of requests on the fly
 int count_pushback = 0;    // number of requests on pushback list
 
-int max_completion = 0;
+int max_submitted = 0;
 int max_pushback = 0;
 
 int statist_lines = 0;     // total number of input lines
@@ -916,13 +917,13 @@ int pos_get(int max_filled)
 			goto ok;
 	}
 
-	printf("ERROR: cannot allocate position, count_completion = %d, pos_last = %d\n", count_completion, pos_last);
+	printf("ERROR: cannot allocate position, count_submitted=%d, pos_last=%d\n", count_submitted, pos_last);
 	fflush(stdout);
 
  ok:
-	count_completion++;
-	if (count_completion > max_completion)
-		max_completion = count_completion;
+	count_submitted++;
+	if (count_submitted > max_submitted)
+		max_submitted = count_submitted;
 
 	pos_last = i;
 	pos_table[pos_last]++;
@@ -932,12 +933,54 @@ int pos_get(int max_filled)
 static
 void pos_put(int pos)
 {
-	count_completion--;
+	count_submitted--;
 	pos_table[pos]--;
 	if (pos_table[pos] < 0) {
-		printf("ERROR: imbalanced pos_table at %d (%d), count_completion = %d\n", pos,  pos_table[pos], count_completion);
+		printf("ERROR: imbalanced pos_table at %d (%d), count_submitted=%d\n", pos,  pos_table[pos], count_submitted);
 		fflush(stdout);
 	}
+}
+
+///////////////////////////////////////////////////////////////////////
+
+void verbose_status(struct request *rq, char *info)
+{
+	struct timespec now;
+	struct timespec diff;
+
+	clock_gettime(CLOCK_REALTIME, &now);
+	timespec_diff(&diff, &start_stamp, &now);
+	diff.tv_sec -= START_GRACE;
+
+	printf("INFO:"
+	       " action='%s'"
+	       " pid=%d"
+	       " count_submitted=%d"
+	       " count_pushback=%d"
+	       " real_time=%ld.%09ld",
+	       info,
+	       getpid(),
+	       count_submitted,
+	       count_pushback,
+	       diff.tv_sec, diff.tv_nsec);
+
+	if (rq) {
+		printf(" rq_time=%ld.%09ld"
+		       " seqnr=%lld"
+		       " q_nr=%d"
+		       " block=%lld"
+		       " len=%d"
+		       " mode='%c'",
+		       rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec,
+		       rq->seqnr,
+		       rq->q_nr,
+		       rq->sector,
+		       rq->length,
+		       rq->rwbs);
+	}
+
+	printf("\n");
+	fflush(stdout);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -968,19 +1011,11 @@ void submit_to_queues(struct request *rq)
 	rq->tag.tag_write_seqnr = write_seqnr;
 	rq->has_version = !!rq->old_version;
 
-	if (verbose) {
-		printf("INFO: submitting %d q_nr=%d index=%d time=%ld.%09ld block=%lld len=%d mode=%c\n",
-		       count_completion,
-		       rq->q_nr,
-		       index,
-		       rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec,
-		       rq->sector,
-		       rq->length,
-		       rq->rwbs);
-		fflush(stdout);
-	}
-	
 	submit_request(queue[index][1], rq);
+
+	if (verbose) {
+		verbose_status(rq, "submit");
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -1005,14 +1040,10 @@ void add_pushback(struct request *rq)
 	count_pushback++;
 	if (count_pushback > max_pushback)
 		max_pushback = count_pushback;
-
-	printf("INFO: pushback %d time=%ld.%09ld block=%lld len=%d mode=%c\n",
-	       count_pushback,
-	       rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec,
-	       rq->sector,
-	       rq->length,
-	       rq->rwbs);
-	fflush(stdout);
+	
+	if (verbose) {
+		verbose_status(rq, "pushback");
+	}
 }
 
 static
@@ -1022,7 +1053,7 @@ void check_pushback(void)
 	struct request *tmp = *ptr;
 	struct request *prev = NULL;
 	
-	while (tmp && (conflict_mode !=2 || count_completion < total_max - 1)) {
+	while (tmp && (conflict_mode !=2 || count_submitted < total_max - 1)) {
 		int has_conflict = fly_check(&fly_hash, tmp->sector, tmp->length);
 		if (has_conflict) {
 			prev = tmp;
@@ -1037,13 +1068,9 @@ void check_pushback(void)
 		count_pushback--;
 
 		// inform...
-		printf("INFO: revival %d time=%ld.%09ld block=%lld len=%d mode=%c\n",
-		       count_pushback,
-		       tmp->orig_stamp.tv_sec, tmp->orig_stamp.tv_nsec, 
-		       tmp->sector,
-		       tmp->length,
-		       tmp->rwbs);
-		fflush(stdout);
+		if (verbose) {
+			verbose_status(tmp, "revival");
+		}
 
 		// delayed submit
 		submit_to_queues(tmp);
@@ -1104,6 +1131,10 @@ int get_answer(void)
 	if (!already_forked)
 		goto done;
 
+	if (verbose > 3) {
+		verbose_status(NULL, "wait_for_answer");
+	}
+
 	status = get_request(answer[0], &rq);
 	if (status == RQ_SIZE) {
 		struct request *old;
@@ -1111,6 +1142,10 @@ int get_answer(void)
 		pos_put(rq.q_nr);
 		verify_errors += rq.verify_errors;
 		res = 1;
+
+		if (verbose) {
+			verbose_status(&rq, "got_answer");
+		}
 
 		old = find_request_seq(rq.sector, rq.seqnr);
 		if (old) {
@@ -1162,7 +1197,7 @@ void do_wait(struct request *rq, struct timespec *now, int less_wait)
 		struct timespec rest_wait = {};
 		clock_gettime(CLOCK_REALTIME, now);
 		timespec_diff(&rq->replay_stamp, &start_stamp, now);
-		rq->replay_stamp.tv_sec -= 15; // grace period
+		rq->replay_stamp.tv_sec -= START_GRACE; // grace period
 
 		timespec_diff(&rest_wait, &rq->replay_stamp, &rq->orig_factor_stamp);
 
@@ -1184,6 +1219,10 @@ void do_wait(struct request *rq, struct timespec *now, int less_wait)
 
 		if ((long long)rest_wait.tv_sec < 0) {
 			break;
+		}
+
+		if (verbose > 3) {
+			verbose_status(rq, "nanosleep");
 		}
 
 		nanosleep(&rest_wait, NULL);
@@ -1232,7 +1271,7 @@ void main_open(int again)
 	}
 	if (!main_size) {
 		main_size = size / 512;
-		printf("INFO: device %s has %lld blocks (%lld kB).\n", main_name, main_size, main_size/2);
+		printf("INFO: device=%s has blocks=%lld (%lld kB).\n", main_name, main_size, main_size/2);
 	}
 }
 
@@ -1314,6 +1353,10 @@ void do_worker(int in_fd, int back_fd)
 		if (!status)
 			break;
 
+		if (verbose > 1) {
+			verbose_status(&rq, "worker_got_rq");
+		}
+
 		do_action(&rq);
 		count++;
 
@@ -1323,11 +1366,15 @@ void do_worker(int in_fd, int back_fd)
 		}
 		rq.has_version = 0;
 
+		if (verbose > 1) {
+			verbose_status(&rq, "worker_send_answer");
+		}
+
 		submit_request(back_fd, &rq);
 	}
 	close(in_fd);
 	close(back_fd);
-	if (verbose) {
+	if (verbose > 2) {
 		printf("worker %d count = %d\n", getpid(), count);
 		fflush(stdout);
 	}
@@ -1360,8 +1407,8 @@ void do_dispatcher_copy(int in_fd, int out_fd)
 	}
 #endif
 
-	if (verbose) {
-		printf("dispatcher %d fan_out = %d cp_factor = %lu packet_len = %d\n", getpid(), fan_out, CP_FACTOR, packet_len);
+	if (verbose > 2) {
+		printf("dispatcher %d fan_out = %d cp_factor = %lu packet_len = %d\n", getpid(), fan_out, (unsigned long)CP_FACTOR, packet_len);
 		fflush(stdout);
 	}
 
@@ -1509,14 +1556,14 @@ void fork_childs()
 		exit(-1);
 	}
 
-	if (verbose) {
+	if (verbose > 2) {
 		printf("forking %d child processes in total\n", total_max);
 		fflush(stdout);
 	}
 
 	_fork_childs(-1, total_max);
 
-	if (verbose) {
+	if (verbose > 2) {
 		printf("done forking (fan_out=%d)\n\n", sub_max);
 		fflush(stdout);
 	}
@@ -1529,15 +1576,8 @@ void execute(struct request *rq)
 {
 	int first_time;
 
-	if (!start_stamp.tv_sec) { // only upon first call
-		// get start time, but only after opening everything, since open() may produce delays
+	if (!first_stamp.tv_sec) { // only upon first call
 		memcpy(&first_stamp, &rq->orig_stamp, sizeof(first_stamp));
-		clock_gettime(CLOCK_REALTIME, &start_stamp);
-
-		if (verbose) {
-			printf("tag_start = %ld\n", start_stamp.tv_sec);
-			fflush(stdout);
-		}
 
 		// effective only opon first call
 		fork_childs();
@@ -1559,6 +1599,11 @@ void execute(struct request *rq)
 	first_time = 0;
 	for (;;) {
 		int status = 0;
+
+		if (verbose > 3) {
+			verbose_status(rq, "check_for_conflicts");
+		}
+
 		if (conflict_mode) {
 			status = fly_check(&fly_hash, rq->sector, rq->length);
 		} else if (verify_mode) {
@@ -1581,7 +1626,7 @@ void execute(struct request *rq)
 			return;
 		}
 		// wait until conflict has gone...
-		if (count_completion) {
+		if (count_submitted) {
 			get_answer();
 			if (!first_time++)
 				statist_ordered++;
@@ -1600,7 +1645,7 @@ void execute(struct request *rq)
 
 // predicates for strategic decisions
 
-/* Ensure that the submit queues cannot be filled to much,
+/* Ensure that the submit queues cannot be filled too much,
  * measured in real time.
  * Too much filling could result in unnecessary drops, for example.
  * Too much filling will not result in any advantage.
@@ -1641,9 +1686,9 @@ int delay_distance(struct timespec *check)
 static
 int is_partial_full()
 {
-	if (count_completion <= total_max / 2)
+	if (count_submitted <= total_max / 2)
 		return 0;
-	return count_completion >= total_max - (count_pushback + 1) / 2;
+	return count_submitted >= total_max - (count_pushback + 1) / 2;
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -1664,17 +1709,25 @@ void parse(FILE *inp)
 	}
 	verify_open(0);
 
-	while (fgets(buffer, sizeof(buffer), inp)) {
+	// get start time, but only after opening everything, since open() may produce delays
+	clock_gettime(CLOCK_REALTIME, &start_stamp);
+	
+	if (verbose) {
+		printf("INFO: tag_start=%ld\n", start_stamp.tv_sec);
+		fflush(stdout);
+	}
+
+	for (;;) {
 		int count;
 
-		statist_lines++;
-
-		// avoid flooding the pipelines too much
-		while (count_completion > bottleneck ||
-		       (conflict_mode == 2 && is_partial_full()) ||
-		       (count_completion > 1 && delay_distance(&old_stamp))) {
-			get_answer();
+		if (verbose > 3) {
+			verbose_status(NULL, "wait_for_input");
 		}
+
+		if (!fgets(buffer, sizeof(buffer), inp))
+			break;
+		
+		statist_lines++;
 
 		if (!rq)
 			rq = malloc(sizeof(struct request));
@@ -1684,11 +1737,14 @@ void parse(FILE *inp)
 			exit(-1);
 		}
 		memset(rq, 0, sizeof(struct request));
-		//count = sscanf(buffer, ": %c%c%c%c%c %lld %ld.%ld %lld %d", &rq->code, &dummy, rq->rwbs+0, rq->rwbs+1, rq->rwbs+2, &rq->seqnr, &rq->orig_stamp.tv_sec, &rq->orig_stamp.tv_nsec, &rq->sector, &rq->length);
+
 		count = sscanf(buffer, "%ld.%ld ; %lld ; %d ; %c", &rq->orig_stamp.tv_sec, &rq->orig_stamp.tv_nsec, &rq->sector, &rq->length, &rq->rwbs);
 		if (count != 5) {
+			printf("ERROR: bad input count=%d, line='%s'\n", count, buffer);
+			fflush(stdout);
 			continue;
 		}
+
 		// treat backshifts in time (caused by repeated input files)
 		timespec_add(&rq->orig_stamp, &timeshift);
 		if (rq->orig_stamp.tv_sec < old_stamp.tv_sec) {
@@ -1696,10 +1752,25 @@ void parse(FILE *inp)
 			timespec_diff(&delta, &rq->orig_stamp, &old_stamp);
 			timespec_add(&timeshift, &delta);
 			timespec_add(&rq->orig_stamp, &delta);
-			printf("INFO: backshift in time at %ld.%09ld s detected (delta = %ld.%09ld s, total timeshift = %ld.%09ld s)\n", rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec, delta.tv_sec, delta.tv_nsec, timeshift.tv_sec, timeshift.tv_nsec);
+			printf("INFO: backshift at time=%ld.%09ld s detected (delta=%ld.%09ld s, total timeshift=%ld.%09ld s)\n",
+			       rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec,
+			       delta.tv_sec, delta.tv_nsec,
+			       timeshift.tv_sec, timeshift.tv_nsec);
 			fflush(stdout);
 		}
 		memcpy(&old_stamp, &rq->orig_stamp, sizeof(old_stamp));
+
+		if (verbose) {
+			verbose_status(rq, "got_input");
+		}
+
+		// avoid flooding the pipelines too much
+		while (count_submitted > bottleneck ||
+		       (conflict_mode == 2 && is_partial_full()) ||
+		       (count_submitted > 1 && delay_distance(&old_stamp))) {
+			get_answer();
+		}
+
 		// check replay time window
 		if (rq->orig_stamp.tv_sec < replay_start) {
 			continue;
@@ -1741,7 +1812,7 @@ void parse(FILE *inp)
 	printf("--------------------------------------\n");
 	fflush(stdout);
 
-	while (count_completion > 0 && get_answer()) {
+	while (count_submitted > 0 && get_answer()) {
 	}
 
 	printf("--------------------------------------\n");
@@ -1768,12 +1839,12 @@ void parse(FILE *inp)
 	printf("verify_mode                   : %6d\n", verify_mode);
 	if (fly_hash.fly_count)
 		printf("fly_count                     : %6d\n", fly_hash.fly_count);
-	if (count_completion)
-		printf("count_completion              : %6d\n", count_completion);
+	if (count_submitted)
+		printf("count_submitted               : %6d\n", count_submitted);
 	if (count_pushback)
 		printf("count_pushback                : %6d\n", count_pushback);
 
-	printf("max_completion                : %6d\n", max_completion);
+	printf("max_submitted                 : %6d\n", max_submitted);
 	printf("max_pushback                  : %6d\n", max_pushback);
 
 	printf("size of device:      %12lld blocks (%lld kB)\n", main_size, main_size/2);
@@ -1790,6 +1861,9 @@ void parse(FILE *inp)
 #define ARG_INT		-1
 #define ARG_FLOAT	-2
 #define ARG_TIMESPEC	-3
+
+#define ARG_ADD		-10
+#define ARG_SUB		-11
 
 struct arg {
 	char *arg_name;
@@ -1911,8 +1985,8 @@ const struct arg arg_table[] = {
 	},
 	{
 		.arg_name  = "verbose",
-		.arg_descr = "show some additional debug output",
-		.arg_const = 1,
+		.arg_descr = "increase verbosity, show additional INFO: output",
+		.arg_const = ARG_ADD,
 		.arg_val   = &verbose,
 	},
 
@@ -2062,6 +2136,17 @@ void parse_args(int argc, char *argv[])
 				       &((struct timespec*)tmp->arg_val)->tv_nsec);
 			if (count == 2)
 				count = 1;
+			break;
+		case ARG_ADD:
+		case ARG_SUB:
+			count = sscanf(this, "%d", (int*)tmp->arg_val);
+			if (!count) {
+				if (tmp->arg_const == ARG_ADD)
+					(*(int*)tmp->arg_val)++;
+				else
+					(*(int*)tmp->arg_val)--;
+			}
+			count = 1;
 			break;
 		default: ;
 		}

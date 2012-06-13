@@ -44,7 +44,8 @@ mkfifo "$tmp/master.fifo"
 
 static_mode=0
 dynamic_mode=0
-sequential_mode=0
+verbose_mode=0
+sequential_mode=1
 if echo "$@" | grep -q "\.load"; then
     static_mode=1
 fi
@@ -69,6 +70,14 @@ for file in $@; do
     fi
     if [ "$file" = "--no-dynamic" ]; then
 	dynamic_mode=0
+	continue
+    fi
+    if [ "$file" = "--verbose" ]; then
+	verbose_mode=1
+	continue
+    fi
+    if [ "$file" = "--no-verbose" ]; then
+	verbose_mode=0
 	continue
     fi
     if [ "$file" = "--sequential" ]; then
@@ -102,6 +111,7 @@ if (( !static_mode )); then
 fi
 echo " static_mode=$static_mode"
 echo "dynamic_mode=$dynamic_mode"
+echo "verbose_mode=$verbose_mode"
 
 i=1
 name=""
@@ -130,7 +140,7 @@ sort="sort"
 
 myfifo="$tmp/myfifo"
 mkfifo $myfifo.pre
-for k in {1..3}; do
+for k in {0..3}; do
     mkfifo $myfifo.all.sort0.$k
 done
 for k in {1..3}; do
@@ -182,6 +192,34 @@ function compute_sum
 	gawk '{ if ($1 == oldx) { oldy += $2; } else { printf("%f %f\n", oldx, oldy); oldx = $1; oldy = $2; } } END{ printf("%f %f\n", oldx, oldy); }'
 }
 
+function extract_fields
+{
+    spec="$1"
+    regex1="^.*"
+    regex2="$2"
+    for i in $spec; do
+	regex1="$regex1 $i=\([0-9.]*\|'[^']*'\).*"
+    done
+    sed "s/$regex1/$regex2/"
+}
+
+function _diff_timestamps
+{
+    gawk -F":" '{ if (count++ % 2) { printf("%f\n", $2 - old); } old = $2; }'
+}
+
+function diff_timestamps
+{
+    extract_fields "real_time seqnr" '\2:\1' |\
+	sort -n -s |\
+	_diff_timestamps
+}
+
+function cumul
+{
+    gawk '{ sum += $1; printf("%f\n", sum); }'
+}
+
 [[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
 thrp_window=${thrp_window:-3}
 
@@ -230,6 +268,46 @@ for mode in reads writes; do
 done
 
 # worker pipelines for all requests
+if (( verbose_mode )); then
+    extra_modes="submit_level pushback_level submit_ahead submit_lag answer_lag submit_lag_cumul answer_lag_cumul input_wait answer_wait input_wait_cumul answer_wait_cumul"
+    mkfifo $myfifo.verbose.{1..7}
+    grep "^INFO: action=" $myfifo.all.sort0.0 |\
+	tee $myfifo.verbose.{1..7} > /dev/null &
+    grep "'\(submit\|got_answer\)'" < $myfifo.verbose.1 |\
+	extract_fields "count_submitted" '\1' >\
+	$out.g50.submit_level &
+    grep "'\(submit\|got_answer\)'" < $myfifo.verbose.2 |\
+	extract_fields "count_pushback" '\1' >\
+	$out.g51.pushback_level &
+    grep "'submit'" < $myfifo.verbose.3 |\
+	extract_fields "real_time rq_time" '\1:\2' |\
+	gawk -F":" '{ printf("%f\n", $2 - $1); }' >\
+	$out.g52.submit_ahead &
+    grep "'\(submit\|worker_got_rq\)'" < $myfifo.verbose.4 |\
+	diff_timestamps |\
+	tee $out.g53.submit_lag |\
+	cumul >\
+	$out.g53.submit_lag_cumul &
+    grep "'\(worker_send_answer\|got_answer\)'" < $myfifo.verbose.5 |\
+	diff_timestamps |\
+	tee $out.g54.answer_lag |\
+	cumul >\
+	$out.g54.answer_lag_cumul &
+    grep "'\(wait_for_input\|got_input\)'" < $myfifo.verbose.6 |\
+	extract_fields "real_time" ':\1' |\
+	_diff_timestamps |\
+	tee $out.g55.input_wait |\
+	cumul >\
+	$out.g55.input_wait_cumul &
+    grep "'\(wait_for_answer\|got_answer\)'" < $myfifo.verbose.7 |\
+	extract_fields "real_time" ':\1' |\
+	_diff_timestamps |\
+	tee $out.g56.answer_wait |\
+	cumul >\
+	$out.g56.answer_wait_cumul &
+else
+    cat $myfifo.all.sort0.0 > /dev/null &
+fi
 if (( static_mode )); then
     cat $myfifo.all.sort2.1 | cut -d ';' -f 2 | gawk "$gawk_thrp" >\
 	$out.g20.demand.thrp &
@@ -281,7 +359,7 @@ for mode in reads writes; do
 done
 #  read FILE, add line numbers, and fill the main pipelines
 zcat -f < "$tmp/master.fifo" |\
-    tee $myfifo.pre |\
+    tee $myfifo.pre $myfifo.all.sort0.0 |\
     grep ";" |\
     grep -v replay_ |\
     nl -s ';' |\
@@ -429,7 +507,7 @@ EOF
     (( sequential_mode )) && wait
 done
 
-for mode in thrp ws_log ws_lin sum_dist avg_dist; do
+for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
     plot=""
     delim="plot"
     using=""
