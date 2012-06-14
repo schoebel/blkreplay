@@ -159,6 +159,7 @@ int verify_mode = 0;
  */
 int final_verify_mode = 0; 
 
+int table_max = 0;
 int total_max = DEFAULT_THREADS; // parallelism
 int sub_max = 0;
 int fan_out = DEFAULT_FAN_OUT;
@@ -897,27 +898,37 @@ static char *pos_table = NULL;
 int pos_last = 0;
 
 static
-int pos_get(int max_filled)
+int pos_get(int offset, int max_filled)
 {
+	int start;
 	int max;
 	int i;
 
 	if (!pos_table) {
-		pos_table = malloc(total_max);
+		pos_table = malloc(table_max);
 		if (!pos_table) {
 			printf("FATAL ERROR: out of memory for pos_table\n");
 			fflush(stdout);
 			exit(-1);
 		}
-		memset(pos_table, 0, total_max);
+		memset(pos_table, 0, table_max);
 	}
 
-	for (max = total_max, i = (pos_last + 1) % total_max; --max >= 0; i = (i + 1) % total_max) {
-		if (pos_table[i] < max_filled)
+	start = 0;
+	if (!offset)
+		start = (pos_last + 1) % total_max;
+
+	for (max = total_max, i = start; --max >= 0; i = (i + 1) % total_max) {
+		if (pos_table[i + offset] < max_filled)
 			goto ok;
 	}
 
-	printf("ERROR: cannot allocate position, count_submitted=%d, pos_last=%d\n", count_submitted, pos_last);
+	printf("ERROR: cannot allocate position, offset=%d, count_submitted=%d, pos_last=%d\n"
+	       "ERROR: this is no real harm, but your measurements may be DISTORTED by artificial delays\n"
+	       "HINT: increase --threads=\n",
+	       offset,
+	       count_submitted,
+	       pos_last);
 	fflush(stdout);
 
  ok:
@@ -925,9 +936,10 @@ int pos_get(int max_filled)
 	if (count_submitted > max_submitted)
 		max_submitted = count_submitted;
 
-	pos_last = i;
-	pos_table[pos_last]++;
-	return pos_last;
+	if (!offset)
+		pos_last = i;
+	pos_table[i + offset]++;
+	return i + offset;
 }
 
 static
@@ -988,13 +1000,17 @@ void verbose_status(struct request *rq, char *info)
 // submission to the right queue
 
 static
-void submit_to_queues(struct request *rq)
+void submit_to_queues(struct request *rq, int is_pushback)
 {
 	static long long seqnr = 0;
 	static long long write_seqnr = 0;
 	int index;
 
-	rq->q_nr = pos_get(conflict_mode == 2 ? 1 : 127);
+	if (is_pushback) {
+		rq->q_nr = pos_get(total_max, 1);
+	} else {
+		rq->q_nr = pos_get(0, 127);
+	}
 
 	index = rq->q_nr % sub_max;
 	rq->q_index = rq->q_nr / sub_max;
@@ -1053,7 +1069,7 @@ void check_pushback(void)
 	struct request *tmp = *ptr;
 	struct request *prev = NULL;
 	
-	while (tmp && count_submitted < total_max) {
+	while (tmp) {
 		int has_conflict = fly_check(&fly_hash, tmp->sector, tmp->length);
 		if (has_conflict) {
 			prev = tmp;
@@ -1073,7 +1089,7 @@ void check_pushback(void)
 		}
 
 		// delayed submit
-		submit_to_queues(tmp);
+		submit_to_queues(tmp, 1);
 		add_request(tmp);
 
 		// special conditions
@@ -1557,11 +1573,11 @@ void fork_childs()
 	}
 
 	if (verbose > 2) {
-		printf("forking %d child processes in total\n", total_max);
+		printf("forking %d child processes in total for parallelism=%d\n", table_max, total_max);
 		fflush(stdout);
 	}
 
-	_fork_childs(-1, total_max);
+	_fork_childs(-1, table_max);
 
 	if (verbose > 2) {
 		printf("done forking (fan_out=%d)\n\n", sub_max);
@@ -1637,7 +1653,7 @@ void execute(struct request *rq)
 	}
 
 	// submit request to worker threads
-	submit_to_queues(rq);
+	submit_to_queues(rq, 0);
 	add_request(rq);
 }
 
@@ -1665,30 +1681,6 @@ int delay_distance(struct timespec *check)
 		return 1;
 
 	return 0;
-}
-
-/* Only used in --partial mode:
- * Check how much space must be reserved in the table of submit queues
- * for pushback requests.
- * If this number is too low, the pushback requests can easily form an
- * independent logical queue amoung each other, leading to 2 classes
- * delays: independet ones / dependent ones (mostly depending on each other).
- * When the reserved space would get too high, the ordinary (independet)
- * requests would be hindered too much.
- * Experience indicates that the most "fair" solution seems to be reserving
- * at most _half_ of available slots to pushback requests, but not to
- * _all_ of the pushback requests, because that would keep too much
- * space unnecessarily open and hinder total IO parallelism (deviating
- * from the intended --threads= goal). Thus we divide count_pushback
- * by 2. Maybe this could be tuned better, but this requires lots of
- * experiments and experience.
- */
-static
-int is_partial_full()
-{
-	if (count_submitted <= total_max / 2)
-		return 0;
-	return count_submitted >= total_max - (count_pushback + 1) / 2;
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -1766,7 +1758,6 @@ void parse(FILE *inp)
 
 		// avoid flooding the pipelines too much
 		while (count_submitted > bottleneck ||
-		       (conflict_mode == 2 && is_partial_full()) ||
 		       (count_submitted > 1 && delay_distance(&old_stamp))) {
 			get_answer();
 		}
@@ -2164,6 +2155,7 @@ void parse_args(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+	int max_threads;
 	time_t now = time(NULL);
 	/* avoid zombies */
 	signal(SIGCHLD, SIG_IGN);
@@ -2174,16 +2166,25 @@ int main(int argc, char *argv[])
 	if (verify_mode >= 2)
 		final_verify_mode++;
 
-	if (total_max > MAX_THREADS)
-		total_max = MAX_THREADS;
+	max_threads = MAX_THREADS;
+	if (conflict_mode == 2)
+		max_threads /= 2;
+	if (total_max > max_threads)
+		total_max = max_threads;
 	if (total_max < 1)
 		total_max = 1;
+	table_max = total_max;
+	if (conflict_mode == 2)
+		table_max *= 2;
+
 	if (fan_out < 2)
 		fan_out = 2;
 	if (fan_out > QUEUES)
 		fan_out = QUEUES;
+
 	if (bottleneck <= 0)
 		bottleneck = total_max * FILL_FACTOR;
+
 	if (replay_duration > 0)
 		replay_end = replay_start + replay_duration;
 
