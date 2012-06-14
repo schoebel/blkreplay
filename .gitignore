@@ -11,7 +11,16 @@
 *.x86_64
 *.png
 !doc/images/*.png
+!example-run/example-*/*.png
+!example-run/example-*/*/*.png
 !example-run/example-*/*/*/*.png
+!example-run/example-*/*/*/*/*.png
+!example-run/example-*/*/*/*/*/*.png
+!example-run/example-*/*/*/*/*/*/*.png
+!example-run/example-*/*/*/*/*/*/*/*.png
+!example-run/example-*/*/*/*/*/*/*/*/*.png
+!example-run/example-*/*/*/*/*/*/*/*/*/*.png
+!example-run/example-*/*/*/*/*/*/*/*/*/*/*.png
 downloads
 
 # created by configure:

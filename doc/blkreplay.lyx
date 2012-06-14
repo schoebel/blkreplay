@@ -6171,12 +6171,12 @@ strut
 \end_inset
 
 The throughput is displayed on the y axis.
- The requested throughput is red, while the actual throughput (only occurring
+ The requested throughput is green, while the actual throughput (only occurring
  in 
 \family typewriter
 *.replay.gz
 \family default
-) is green, for comparison
+) is red, for comparison
 \begin_inset Foot
 status open
 
@@ -6194,7 +6194,7 @@ required
 \family typewriter
 *.thrp.*
 \family default
- is nevertheless called a 
+ is nevertheless treated as 
 \begin_inset Quotes eld
 \end_inset
 
@@ -6202,12 +6202,65 @@ static
 \begin_inset Quotes erd
 \end_inset
 
- graphics.
+.
 \end_layout
 
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.rqsize.*.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Displays a histogram of the request sizes (#sectors) occurring in the load,
+ in units of sectors.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.rqpos.*.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Displays a histogram of the request position (sector#) occurring in the
+ load, in coarse units of whole GiB.
+ The coarse units are necessary to avoid too much jitter in the y axis.
 \end_layout
 
 \begin_layout Subsubsection
@@ -6362,12 +6415,12 @@ intended
 \emph on
 should have
 \emph default
- started (excluding any delays).
+ started (ignoring any delays).
  As before, multiple 
 \family typewriter
 *.replay.gz
 \family default
- are usually merged.
+ are merged.
 \end_layout
 
 \begin_layout Description
@@ -6430,6 +6483,61 @@ not
 \begin_layout Description
 
 \family typewriter
+*.flying.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The y axis shows the total number of requests which are currently 
+\begin_inset Quotes eld
+\end_inset
+
+on the fly
+\begin_inset Quotes erd
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+Examples: 
+\family typewriter
+*.latency.flying.png
+\family default
+ is derived from the latency, and thus showing the number of requests currently
+ submitted to the device, while 
+\family typewriter
+*.delay.flying.png
+\family default
+ is derived from the delay, showing the number of requests currently waiting
+ in the logical 
+\begin_inset Quotes eld
+\end_inset
+
+delay queue
+\begin_inset Quotes erd
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
 *.bins.png
 \family default
  
@@ -6453,13 +6561,16 @@ The new y axis is now a
 \emph on
 histogram
 \emph default
- showing absolute frequency, while the x axis now carries the role of the
- former y axis.
- Example: 
+ showing absolute frequency occurring at the former y axis, while the new
+ x axis now carries the role of the former y axis.
+\begin_inset Newline newline
+\end_inset
+
+Examples: 
 \family typewriter
 *.latency.bins.png
 \family default
- shows the latencies on the x axis (while formerly 
+ shows the latencies on the x axis (while the former 
 \family typewriter
 *.latency.realtime.png
 \family default
@@ -6468,6 +6579,122 @@ histogram
  former replay timestamps).
 \end_layout
 
+\begin_layout Description
+
+\family typewriter
+*.xy.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The x axis as well as the y axis are displaying non-timely data.
+ This is useful for visualization of 
+\emph on
+corrolations
+\emph default
+.
+ The following variants exist:
+\end_layout
+
+\begin_deeper
+\begin_layout Description
+
+\family typewriter
+*.latency.xy.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+While latencies are displayed at the y axis, the x axis inidicates the number
+ of flying requests (request queue length).
+ Thus you can see the corrolation between request queue length and service
+ time.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.delay.xy.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Similarly, but shows the corrolation between request queue length and delays
+ (the time needed to 
+\emph on
+enter
+\emph default
+ the request queue at all).
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.latency.delay.xy.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Immediate corrolation between latency and delay.
+\end_layout
+
+\end_deeper
 \begin_layout Standard
 Hint: the internal data format of 
 \family typewriter
@@ -6749,7 +6976,9 @@ global
 \end_layout
 
 \begin_layout Standard
-The same latencies are now displayed as a histogram:
+The same latencies are now displayed as a histogram.
+ A histogram is a non-timely survey of the absolute frequencies occurring
+ in the previous graphics.
 \end_layout
 
 \begin_layout Standard
@@ -6892,6 +7121,28 @@ low
 \end_layout
 
 \begin_layout Standard
+As before, there is also a histogram variant of delays:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename images/example1.g07.delay.bins.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Throughput Diagrams
+\end_layout
+
+\begin_layout Standard
+\noindent
 In order to compare this with the actual throughput, look at the following
  picture, where demanded throughput is colored green, while actually delivered
  throughput is red:
@@ -6901,13 +7152,119 @@ In order to compare this with the actual throughput, look at the following
 \noindent
 \align center
 \begin_inset Graphics
-	filename images/example1.g20.thrp.total.bins.png
+	filename images/example1.g20.thrp.png
 	lyxscale 20
 	width 100col%
 
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+\noindent
+This picture is a strong indication that single IOPS numbers are not sufficient
+ for really describing the actual IO throughput behaviour of a system.
+ Our timely plot can tell you a lot more about the system.
+ More examples can be found in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Overload-with-(Derived)"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Flying Diagrams
+\end_layout
+
+\begin_layout Standard
+These are useful to inspect the actual request queue length over time.
+ The following graphics exhibits the typical 
+\begin_inset Quotes eld
+\end_inset
+
+jitter
+\begin_inset Quotes erd
+\end_inset
+
+ of the queue length during replay of natural loads having a lot of conflicts,
+ and using 
+\family typewriter
+--with-ordering
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename images/example1.g08.latency.flying.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Notice: this is only the view of 
+\family typewriter
+blkreplay
+\family default
+.
+ The physical device may be actually loaded with 
+\emph on
+less
+\emph default
+ requests in parallel, because intermediate layers (such as drivers, iSCSI,
+ etc) may 
+\series bold
+limit
+\series default
+ the IO parallelism.
+ When 
+\family typewriter
+blkreplay
+\family default
+ fires off a request, it need not hit the device immediately.
+ There are a lot of opportunities to be queued for some time in another
+ places.
+\end_layout
+
+\begin_layout Subsection
+Corrolation Diagrams
+\end_layout
+
+\begin_layout Standard
+Most of them are for advanced users and experts.
+ They can visualize internal relationships between interesting quantities,
+ such as observed request queue length versus observed latency:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename images/example1.g10.latency.xy.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Rough interpretation: under overload, write requests cannot be started in
+ time, and when they are started, they will take a long time.
+ Read requests are seemingly behaving better.
 \end_layout
 
 \begin_layout Section
@@ -8091,6 +8448,13 @@ binary
 
 \begin_layout Subsection
 Overload with (Derived) Natural Loads
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Overload-with-(Derived)"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -8285,8 +8649,8 @@ We start with the simplest case: mode
 \family typewriter
 --with-conflicts
 \family default
- fires up all requests without guaratenning any order, which may lead to
- damaged IO.
+ fires up all requests without guaranteeing any order (besides that requests
+ are never started too early), which may lead to damaged IO.
  Here is the sonar diagram as well as the throughput diagram:
 \end_layout
 
@@ -8317,7 +8681,7 @@ We start with the simplest case: mode
 \begin_layout Standard
 \noindent
 It is clear that the SATA cannot catch up with the high demands here.
- But why? A first hint is the rather 
+ But why? Is it the damaged IO? A first hint is the rather 
 \begin_inset Quotes eld
 \end_inset
 
@@ -8333,7 +8697,7 @@ cloud carpet
 \begin_inset Quotes erd
 \end_inset
 
- near 1s, indicating some queueing behaviour.
+ in the latency diagram near 1s, indicating some queueing behaviour.
 \end_layout
 
 \begin_layout Standard
@@ -8372,25 +8736,21 @@ Now we turn to
 
 \begin_layout Standard
 \noindent
-More prominent differences can be found when we turn to 
+This is a clear indication that damaged IO cannot be the reason for the
+ delays, since it is avoided by 
+\family typewriter
+--with-drop
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+Now we turn to 
 \family typewriter
 --with-partial
 \family default
 .
- Now the system can catch up 
-\emph on
-in average
-\emph default
- (but not in general at load peaks), and the sonar diagram shows that the
- 
-\begin_inset Quotes eld
-\end_inset
-
-think clouds
-\begin_inset Quotes erd
-\end_inset
-
- at about 1s have become smaller:
+ As expected, there is almost the same behaviour as before:
 \end_layout
 
 \begin_layout Standard
@@ -8419,56 +8779,25 @@ think clouds
 
 \begin_layout Standard
 \noindent
-This rises the question for reasons.
- Why should 
+More prominent differences can be found when we turn to 
 \family typewriter
---with-partial
+--with-
 \family default
- be better than 
-\family typewriter
---with-drop
-\family default
-? The full answer is in section 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "sub:Influence-of-Number"
-
-\end_inset
-
-, but for now you can take the small 
+ordering.
+ Now the system can catch up 
+\emph on
+in average
+\emph default
+ (but not in general at load peaks), and the sonar diagram shows that the
+ 
 \begin_inset Quotes eld
 \end_inset
 
-gaps
+thick clouds
 \begin_inset Quotes erd
 \end_inset
 
- on the x axis as a hint that there must be something related to small micro-sta
-lls, which seem to 
-\emph on
-accelerate
-\emph default
- overall throughput in some counter-intuitive way.
- The micro-stalls are easily explainable by the pushback mechanism of 
-\family typewriter
---with-partial
-\family default
- which reduces the IO parallelism in case of conflicts, but why does that
- 
-\emph on
-accelerate
-\emph default
- the overall throughput?
-\end_layout
-
-\begin_layout Standard
-Stay tuned.
- Before closing this section, we have to look at the last ordering option:
- 
-\family typewriter
---with-ordering
-\family default
- for the sake of completeness:
+ at about 1s have become smaller:
 \end_layout
 
 \begin_layout Standard
@@ -8485,21 +8814,63 @@ Stay tuned.
 
 \begin_layout Standard
 \noindent
-\begin_inset Graphics
-	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.test-sata.g20.thrp.png
-	lyxscale 50
-	width 100col%
+This rises the question for reasons.
+ Why should 
+\family typewriter
+--with-ordering
+\family default
+ be better than 
+\family typewriter
+--with-partial
+\family default
+? Full ordering will usually 
+\emph on
+reduce
+\emph default
+ the IO parallelism when compared to partial ordering.
+ The full answer is in sections 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Influence-of-Number"
 
 \end_inset
 
+ and 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Influence-of-Bottlenecks"
 
-\end_layout
+\end_inset
 
-\begin_layout Standard
-\noindent
-Here we have a similar effect, also showing the micro-stall behaviour reducing
- IO parallelism for a short time, which can allow some queues to drain more
- often, but only for a short time.
+, but for now you can take the small 
+\begin_inset Quotes eld
+\end_inset
+
+gaps
+\begin_inset Quotes erd
+\end_inset
+
+ on the x axis as a hint that there must be something related to small micro-sta
+lls, which seem to 
+\emph on
+accelerate
+\emph default
+ overall throughput in some 
+\series bold
+counter-intuitive
+\series default
+ way.
+ The micro-stalls are easily explainable by the submission delays caused
+ by 
+\family typewriter
+--with-ordering
+\family default
+ , reducing the IO parallelism in case of conflicts.
+ But why does that 
+\emph on
+accelerate
+\emph default
+ the overall throughput?
 \end_layout
 
 \begin_layout Standard
@@ -8517,11 +8888,15 @@ actually achieved IO parallelism
 \family typewriter
 --with-conflicts
 \family default
- and 
+, and 
 \family typewriter
 --with-drop
 \family default
-:
+, and 
+\family typewriter
+--with-
+\family default
+partial:
 \end_layout
 
 \begin_layout Standard
@@ -8550,25 +8925,6 @@ actually achieved IO parallelism
 
 \begin_layout Standard
 \noindent
-The sum of both reads and writes (khaki line) indicates that the RAID controller
- is almost always filled with a maximum of 512 requests (caused by 
-\family typewriter
-threads=512
-\family default
-), practically almost always without interruptions.
- In contrast, the picture is different when we turn to 
-\family typewriter
---with-partial
-\family default
- and 
-\family typewriter
---with-ordering
-\family default
-:
-\end_layout
-
-\begin_layout Standard
-\noindent
 \begin_inset Graphics
 	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-partial/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-partial.512-threads.test-sata.g08.latency.flying.png
 	lyxscale 50
@@ -8577,6 +8933,24 @@ threads=512
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+\noindent
+The sum of both reads and writes (khaki line) indicates that the RAID controller
+ is almost always filled with a maximum of 512 requests (caused by 
+\family typewriter
+threads=512
+\family default
+), practically almost always without interruptions.
+\end_layout
+
+\begin_layout Standard
+And now, compare it with 
+\family typewriter
+--with-ordering
+\family default
+:
 \end_layout
 
 \begin_layout Standard
@@ -8595,17 +8969,13 @@ threads=512
 \noindent
 It is clear that by definition of 
 \family typewriter
-partial
-\family default
- and 
-\family typewriter
 ordering
 \family default
-, some kind of stalls have to be introduced to guarantee some 
+, some kind of stalls have to be introduced to guarantee some virtual 
 \begin_inset Quotes eld
 \end_inset
 
-virtual storage semantics
+strict storage semantics
 \begin_inset Quotes erd
 \end_inset
 
@@ -8729,7 +9099,7 @@ It is clear that a too low number of threads, such as 16 or 32, can hinder
  overall throughput.
  It is also no wonder that 64 as well as 128 threads perform better.
  But, why is there a counter-productive break-down when increasing the number
- of threads thereafter?
+ of threads after that?
 \end_layout
 
 \begin_layout Standard
@@ -8737,7 +9107,11 @@ The answer can only be buried in the internals of the hardware and/or its
  firmware and/or its driver.
  Typically, some systems have problems when filled with too many requests
  in parallel.
- Here, we see a typical non-linear behaviour as explained in section 
+ Here, we see a typical 
+\series bold
+non-linear behaviour
+\series default
+ as explained in section 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "sub:Pitfalls-from-Replay"
@@ -8770,6 +9144,188 @@ reference "sub:Pitfalls-from-Replay"
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Subsection
+Influence of Bottlenecks
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Influence-of-Bottlenecks"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The expert option 
+\family typewriter
+--bottleneck=<number>
+\family default
+ can be used to limit the number of requests submitted to the worker threads,
+ which is usually higher than the number of threads.
+ In each individual pipeline connecting the main thread to each worker thread,
+ up to 8 requests may be queued in advance.
+\end_layout
+
+\begin_layout Standard
+In the following example using 
+\family typewriter
+--with-conflicts
+\family default
+ and 
+\family typewriter
+--threads=512
+\family default
+, we also limit the number of requests by 
+\family typewriter
+--bottleneck=512
+\family default
+, which leads to almost the same effect as the above discussion regarding
+ 
+\family typewriter
+--with-ordering
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/512-threads/bottleneck/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.512-threads.bottleneck.test-sata.g01.latency.realtime.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/512-threads/bottleneck/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.512-threads.bottleneck.test-sata.g20.thrp.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+This result is unexpected.
+ In theory, it should not make any difference whether there is 1 request
+ in between the main thread and a worker, or many.
+ However, in practice it makes a difference: the 
+\emph on
+communication latencies
+\emph default
+ over the pipelines are avoided when the pipeline remains always filled
+ with some requests in advance.
+\end_layout
+
+\begin_layout Standard
+When 
+\family typewriter
+--bottleneck
+\family default
+ has exactly the same value as 
+\family typewriter
+--threads
+\family default
+, a 
+\begin_inset Quotes eld
+\end_inset
+
+logical request
+\begin_inset Quotes erd
+\end_inset
+
+ can be either working in a worker thread, or being processed by the main
+ thread, or underway over the pipes.
+ It cannot be present at more than one of these places at the same time.
+\end_layout
+
+\begin_layout Standard
+An example, just for demonstration of the principle: Assume that the IO
+ system can catch up (at least at the beginning), and that the IO latencies
+ are 
+\emph on
+constant
+\emph default
+.
+ Assume that the communication latencies are exactly the same constant.
+ What will be the effect? One half of the requests will always reside in
+ the IO system, but the other half will reside in the pipe communication
+ infrastructure, in average.
+ Did you get the point?
+\end_layout
+
+\begin_layout Standard
+Now, assume that both the IO latencies as well as the communication latencies
+ are varying (e.g.
+ due to kernel scheduling etc).
+ Then the queue length might be staggering around, as observed in the following
+ graphics (first is 
+\family typewriter
+--bottleneck=$(( threads * 8 ))
+\family default
+, second is 
+\family typewriter
+--bottleneck=${threads}
+\family default
+):
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/512-threads/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.512-threads.test-sata.g08.latency.flying.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-conflicts/512-threads/bottleneck/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-conflicts.512-threads.bottleneck.test-sata.g08.latency.flying.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+As before, the SATA system shows its counter-productive behaviour when too
+ many IO requests are fired up in parallel.
+ Once the number of requests has reduced, it works better.
+ But somewhen it staggers to the other extreme, flipping around.
+ And to the opposite.
+\end_layout
+
+\begin_layout Standard
+Interesting side note: similar behaviour can be observed in real-life production
+ systems, because natural loads (as opposed to standard benchmark tests)
+ often vary by orders of magnitude.
+ When spuriously plagued by seemingly 
+\begin_inset Quotes eld
+\end_inset
+
+unmotivated
+\begin_inset Quotes erd
+\end_inset
+
+ incidents, look for places where non-linear and counter-productive behaviour
+ may cause unexpected effects!
 \end_layout
 
 \begin_layout Chapter
@@ -9314,6 +9870,749 @@ Feel free to filter your results, or create your own artifical loads.
 \begin_layout Standard
 \noindent
 Enjoy.
+\end_layout
+
+\begin_layout Chapter
+Validation of the 
+\family typewriter
+blkreplay
+\family default
+ Tool
+\end_layout
+
+\begin_layout Standard
+Some effort has been spent to check that 
+\family typewriter
+blkreplay
+\family default
+ really produces the intended kind of IO load on the target system, and
+ that its measurement results are likely to be valid.
+ However, there is no guarantee against hidden bugs, misconfigurations,
+ or other types of accidents.
+ See also the disclaimer of the GPL license.
+\end_layout
+
+\begin_layout Standard
+The following tools try the 
+\emph on
+help
+\emph default
+ you by making 
+\family typewriter
+blkreplay
+\family default
+ as transparent to the public as possible, but cannot form an absolute guarantee
+ against all possible sources of errors.
+\end_layout
+
+\begin_layout Standard
+Please report any bugs to the author, or, even better, send patches or git
+ pull requests.
+\end_layout
+
+\begin_layout Section
+Running 
+\family typewriter
+blktrace
+\family default
+ during 
+\family typewriter
+blkreplay
+\end_layout
+
+\begin_layout Standard
+The timeliness of IO requests is already measured and displayed by the 
+\family typewriter
+*.latency.*
+\family default
+ graphics.
+ The following steps will thus concentrate on 
+\emph on
+completeness
+\emph default
+.
+\end_layout
+
+\begin_layout Standard
+In order to check that all IO requests present in a 
+\family typewriter
+*.load.gz
+\family default
+ file are actually applied to the test candidate, you can (and should) re-record
+ the IO load during an execution of 
+\family typewriter
+blkreplay
+\family default
+ via 
+\family typewriter
+blktrace
+\family default
+.
+ The following steps are to be done manually:
+\end_layout
+
+\begin_layout Enumerate
+Start 
+\family typewriter
+blktrace
+\family default
+ manually, as described in chapter 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "chap:How-to-use"
+
+\end_inset
+
+, 
+\emph on
+before
+\emph default
+ you start 
+\family typewriter
+tree-replay.sh
+\family default
+.
+ Be sure to catch all involved devices on all involved hosts.
+\end_layout
+
+\begin_layout Enumerate
+Either kill 
+\family typewriter
+blktrace
+\family default
+ with Ctrl-C 
+\emph on
+after
+\emph default
+ tree-replay.sh is done, or use the 
+\family typewriter
+-w
+\family default
+ option to specify a 
+\emph on
+strictly longer
+\emph default
+ (plus some safety margin) recording time.
+\begin_inset Newline newline
+\end_inset
+
+Attention! some versions of 
+\family typewriter
+blktrace
+\family default
+ seem to loose some requests in some buffers, at least under some conditions.
+ Usually the number of lost events is rather low, about 10.
+ Keep that in mind if you later discover some purpoted discrepancies!
+\end_layout
+
+\begin_layout Enumerate
+Copy the resulting 
+\family typewriter
+*.blktrace.[0-9]+
+\family default
+ file to your workstation.
+\end_layout
+
+\begin_layout Enumerate
+Invoke 
+\family typewriter
+/path/to/blkreplay/scripts/check_replay_against_blktrace.sh 
+\emph on
+myresult
+\emph default
+.replay.gz 
+\emph on
+mytrace-prefix
+\family default
+\emph default
+ (exactly two parameters).
+\begin_inset Newline newline
+\end_inset
+
+Hint: the coincidence between 
+\family typewriter
+\emph on
+myresult
+\emph default
+.replay.gz
+\family default
+ and 
+\family typewriter
+\emph on
+myload
+\emph default
+.load.gz
+\family default
+ must be checked separately, using tools like 
+\family typewriter
+cut
+\family default
+ and 
+\family typewriter
+diff
+\family default
+.
+\end_layout
+
+\begin_layout Enumerate
+Enjoy the result in form of a wide side-by-side 
+\family typewriter
+diff
+\family default
+ output.
+\end_layout
+
+\begin_layout Standard
+Hint: no output means that no differences have been found.
+ The timeliness as well as the order of requests is 
+\emph on
+not
+\emph default
+ checked.
+ Any difference means that a request is missing somewhere, or has been altered
+ in some way.
+ Expect some minor differences (usully less than 1%, but sometimes more)
+ from request splitting by some device drivers.
+\end_layout
+
+\begin_layout Standard
+Keep in mind that sometimes 
+\family typewriter
+blktrace
+\family default
+ looses some events, leading to 
+\begin_inset Quotes eld
+\end_inset
+
+false positives
+\begin_inset Quotes erd
+\end_inset
+
+.
+ You should take this as a validation of the validation tool ;)
+\end_layout
+
+\begin_layout Section
+Verbosity Graphics
+\end_layout
+
+\begin_layout Standard
+Experts only.
+ It is easy to draw wrong conclusions from this.
+\end_layout
+
+\begin_layout Standard
+Enable the following parameters: 
+\family typewriter
+verbose=10;
+\family default
+ 
+\family typewriter
+graph_options="--static --verbose"
+\family default
+ in one of your 
+\family typewriter
+*.conf
+\family default
+ files.
+\end_layout
+
+\begin_layout Standard
+The resulting 
+\family typewriter
+*.replay.gz
+\family default
+ file will now contain 
+\emph on
+huge masses
+\emph default
+ of lines starting with 
+\family typewriter
+INFO:
+\family default
+ and carrying lots of internal variables, similar to debug / tracing output.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\noindent
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ The sheer masses of data written to 
+\family typewriter
+stdout
+\family default
+ (as such) my lead to distortions of your measurements, e.g.
+ artificial delays or even hangs.
+ Always compare to 
+\family typewriter
+--verbose=0
+\family default
+ under otherwise identical conditions, to be sure!
+\end_layout
+
+\begin_layout Standard
+\noindent
+In addition, the following types of internal visualizations will be produced:
+\end_layout
+
+\begin_layout Description
+\noindent
+
+\family typewriter
+*.submit_level.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Shows the actual filling level of the pipelines between the main thread
+ and the workers.
+ The x axis is in units of requests, and in 
+\emph on
+completion order
+\emph default
+ (different from the submission order).
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g50.submit_level.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+\noindent
+
+\family typewriter
+*.pushback_level.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Shows the current number of requests on the pushback list.
+ Only meaningful at 
+\family typewriter
+--with-partial
+\family default
+.
+\end_layout
+
+\begin_layout Description
+\noindent
+
+\family typewriter
+*.submit_ahead.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Shows the time difference between submission to the pipelines (which is
+ usually ahead of the execution time, but not always) and the intended execution
+ timestamp.
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g52.submit_ahead.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\noindent
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Don't draw wrong conclusions from negative values here! They 
+\emph on
+can
+\emph default
+ be a sign of 
+\begin_inset Quotes eld
+\end_inset
+
+too late
+\begin_inset Quotes erd
+\end_inset
+
+, but the 
+\emph on
+reason
+\emph default
+ is almost always in the test candidate, just when ordinary delays are produced.
+\end_layout
+
+\begin_layout Description
+\noindent
+
+\family typewriter
+*.submit_lag.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The time difference between submission to the pipelines, and reception by
+ the worker thread (aka communication latency).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g53.submit_lag.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+\noindent
+
+\family typewriter
+*.submit_lag_cumul.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The same, but cumulized over time.
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g53.submit_lag_cumul.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\noindent
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Notice than cumulation of time lags belonging to different threads is 
+\begin_inset Quotes eld
+\end_inset
+
+unfair
+\begin_inset Quotes erd
+\end_inset
+
+ by concept.
+ Large values can regularly occur because of queueing in the submit pipelines.
+ Complaints about high values make only sense in case of 
+\family typewriter
+$(( bottleneck <= threads )).
+\end_layout
+
+\begin_layout Description
+\noindent
+
+\family typewriter
+*.answer_lag.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The time difference between submission to the answer pipeline caused by
+ a worker thread, and reception by the main thread (aka communication latency).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g54.answer_lag.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+\noindent
+
+\family typewriter
+*.answer_lag_cumul.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Dito, cumulated over time.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g54.answer_lag_cumul.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\noindent
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Similar warning as before: high values occur regularly in 
+\family typewriter
+--with-ordering
+\family default
+ mode.
+ Only be startled in 
+\emph on
+some
+\emph default
+ other cases!
+\end_layout
+
+\begin_layout Description
+\noindent
+
+\family typewriter
+*.input_wait[_cumul].png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The time differences before and after 
+\family typewriter
+fgets()
+\family default
+ (aka stalls in 
+\family typewriter
+stdin
+\family default
+).
+ When these numbers get too high, this time you should be alerted quite
+ rightly.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g55.input_wait.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g55.input_wait_cumul.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+\noindent
+
+\family typewriter
+*.answer_wait[_cumul].png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The time difference of the main thread it is spending for answer wait.
+ Not to be confused with communication latencies! High number will occur
+ regularly.
+ It is even a sign of good performance when the cumulation almost reaches
+ the total processing time.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g56.answer_wait.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Graphics
+	filename ../example-run/example-overload/natural-derived/short/1-parallel/with-ordering/512-threads/verbose/test-sata/EXAMPLE.example-overload.natural-derived.short.1-parallel.with-ordering.512-threads.verbose.test-sata.g56.answer_wait_cumul.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Chapter
