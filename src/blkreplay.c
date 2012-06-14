@@ -1436,7 +1436,7 @@ void do_dispatcher_copy(int in_fd, int out_fd)
 		if (status <= 0)
 			break;
 		if ((status % RQ_SIZE) != 0) {
-			printf("FATAL ERROR: bad record len %lu from pipe fd=%d status=%d\n", status % RQ_SIZE, in_fd, status);
+			printf("FATAL ERROR: bad record len %d from pipe fd=%d status=%d\n", status % (int)RQ_SIZE, in_fd, status);
 			fflush(stdout);
 			exit(-1);
 		}
