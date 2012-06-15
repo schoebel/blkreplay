@@ -35,12 +35,6 @@ echo "input:  $filename"
 disks="$(zcat $filename | gawk '{ print $4; }' | sort -u)"
 echo "disks: " $disks
 
-#cat $filename | while read Nummer Time Dauer Disk Request Sector Len rest; do
-    #printf ": D   %c %10d %13s000 %12d %4d\n" "$Request" "$Nummer" "$Time" "$Sector" "$Len"
-    #echo ": $Nummer $Time $Dauer $Disk $Request $Sector $Len"
-    #:
-#done
-
 for disk in $disks; do
     outname="$(basename "$filename" | sed -e 's/\.log\|\.gz//gi').disk$disk.load.gz"
     echo "output: $outname"
