@@ -33,8 +33,12 @@ function graph_finish
 	echo "results have ERRORs => skip graph.sh"
 	return
     fi
-    # use a subshell for undoing all inside definitions / side effects
+
+    # use a subshell for
+    #   1) propagation of all (ordinary) shell variables defined previously
+    #   2) undoing all inside definitions / side effects
     (
+	renice -n 19 $BASHPID
 	source $script_dir/graph.sh $graph_options *.replay.gz
     )
 }
