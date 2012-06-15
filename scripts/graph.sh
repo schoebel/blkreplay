@@ -182,13 +182,13 @@ function compute_flying
     add="$1"
     diff="$2"
     gawk -F ";" "{ printf(\"%17.9f;1;%s;%s\n\", \$2 $add, \$6, \$7); printf(\"%17.9f;-1;x;x\n\", \$2 $add + \$$diff); }" |\
-	sort -n -s |\
+	$sort -n -s |\
 	gawk -F ";" '{ count += $2; printf("%s;%5d;%s;%s\n", $1, count, $3, $4); }'
 }
 
 function compute_sum
 {
-    sort -g |\
+    $sort -g |\
 	gawk '{ if ($1 == oldx) { oldy += $2; } else { printf("%f %f\n", oldx, oldy); oldx = $1; oldy = $2; } } END{ printf("%f %f\n", oldx, oldy); }'
 }
 
@@ -211,7 +211,7 @@ function _diff_timestamps
 function diff_timestamps
 {
     extract_fields "real_time seqnr" '\2:\1' |\
-	sort -n -s |\
+	$sort -n -s |\
 	_diff_timestamps
 }
 
@@ -576,8 +576,12 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i | sed 's/\.\(tmp\|extra\|000\|actual\)//g').$picturetype"
     done
 
-    if [ -n "$plot" ]; then
-	echo "---> plot on $mode"
+    if [ -z "$plot" ]; then
+	continue
+    fi
+
+    echo "---> plot on $mode"
+    (
 	xlabel="Duration [sec]"
 	scale=""
 	case $mode in
@@ -612,7 +616,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	set xlabel '$xlabel';
 	$plot;
 EOF
-    fi &
+    ) &
     (( sequential_mode )) && wait
 done
 
