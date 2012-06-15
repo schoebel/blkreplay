@@ -23,7 +23,7 @@ function pipe_subst_prepare
 {
     (( !enable_pipe_subst )) && return 0
     echo "$FUNCNAME substituting $pipe_subst_from by $pipe_subst_to"
-    pipe_list="$pipe_list | sed 's/ $pipe_subst_from / $pipe_subst_to /i'"
+    input_pipe_list="$input_pipe_list | sed 's/ $pipe_subst_from / $pipe_subst_to /i'"
     return 0
 }
 

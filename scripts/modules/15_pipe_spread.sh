@@ -23,7 +23,7 @@ function pipe_spread_prepare
 {
     (( !enable_pipe_spread )) && return 0
     echo "$FUNCNAME increasing sector range by factor $pipe_spread_factor, aligned to $pipe_spread_align, offset $pipe_spread_offset"
-    pipe_list="$pipe_list | gawk -F';' '!/[a-z]/ && /[0-9] ;/ { rest = \$2 % $pipe_spread_align; newpos = int(\$2 * $pipe_spread_factor / $pipe_spread_align) * $pipe_spread_align + rest + $pipe_spread_offset; printf(\"%s ; %10d ; %s ; %s ; %s ; %s\n\", \$1, newpos, \$3, \$4, \$5, \$6); }'"
+    input_pipe_list="$input_pipe_list | gawk -F';' '!/[a-z]/ && /[0-9] ;/ { rest = \$2 % $pipe_spread_align; newpos = int(\$2 * $pipe_spread_factor / $pipe_spread_align) * $pipe_spread_align + rest + $pipe_spread_offset; printf(\"%s ; %10d ; %s ; %s ; %s ; %s\n\", \$1, newpos, \$3, \$4, \$5, \$6); }'"
     return 0
 }
 

@@ -23,7 +23,7 @@ function pipe_cmd_prepare
 {
     (( !enable_pipe_cmd )) && return 0
     echo "$FUNCNAME executing pipe command '$pipe_cmd'"
-    pipe_list="$pipe_list | ($pipe_cmd)"
+    input_pipe_list="$input_pipe_list | ($pipe_cmd)"
     return 0
 }
 

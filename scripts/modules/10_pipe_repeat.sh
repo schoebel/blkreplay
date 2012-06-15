@@ -23,7 +23,7 @@ function pipe_repeat_prepare
 {
     (( !enable_pipe_repeat )) && return 0
     echo "$FUNCNAME (repeating the input until forever)"
-    pipe_list="while ($pipe_list); do :; done"
+    input_pipe_list="while ($input_pipe_list); do :; done"
     return 0
 }
 

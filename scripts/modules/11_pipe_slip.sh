@@ -23,7 +23,7 @@ function pipe_slip_prepare
 {
     (( !enable_pipe_slip )) && return 0
     echo "$FUNCNAME slipping each $pipe_slip_every requests by $pipe_slip_increase sectors"
-    pipe_list="$pipe_list | gawk -F';' 'BEGIN { offset = 0; step = 0; } !/[a-z]/ && /[0-9] ;/ { if (++step >= $pipe_slip_every) { offset += $pipe_slip_increase; step = 0; } printf(\"%s ; %10d ; %s ; %s ; %s ; %s\n\", \$1, \$2 + offset, \$3, \$4, \$5, \$6); }'"
+    input_pipe_list="$input_pipe_list | gawk -F';' 'BEGIN { offset = 0; step = 0; } !/[a-z]/ && /[0-9] ;/ { if (++step >= $pipe_slip_every) { offset += $pipe_slip_increase; step = 0; } printf(\"%s ; %10d ; %s ; %s ; %s ; %s\n\", \$1, \$2 + offset, \$3, \$4, \$5, \$6); }'"
     return 0
 }
 

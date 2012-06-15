@@ -23,7 +23,7 @@ function pipe_resize_prepare
 {
     (( !enable_pipe_resize )) && return 0
     echo "$FUNCNAME increasing request size by factor $pipe_resize_factor, bounded to min=$pipe_resize_min max=$pipe_resize_max"
-    pipe_list="$pipe_list | gawk -F';' '!/[a-z]/ && /[0-9] ;/ { newsize = int(\$3 * $pipe_resize_factor); if (newsize < $pipe_resize_min) newsize = $pipe_resize_min; if (newsize > $pipe_resize_max) newsize = $pipe_resize_max; printf(\"%s ; %10d ; %s ; %s ; %s ; %s\n\", \$1, \$2, newsize, \$4, \$5, \$6); }'"
+    input_pipe_list="$input_pipe_list | gawk -F';' '!/[a-z]/ && /[0-9] ;/ { newsize = int(\$3 * $pipe_resize_factor); if (newsize < $pipe_resize_min) newsize = $pipe_resize_min; if (newsize > $pipe_resize_max) newsize = $pipe_resize_max; printf(\"%s ; %10d ; %s ; %s ; %s ; %s\n\", \$1, \$2, newsize, \$4, \$5, \$6); }'"
     return 0
 }
 
