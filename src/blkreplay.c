@@ -1590,9 +1590,11 @@ void fork_childs()
 static
 void execute(struct request *rq)
 {
+	static int is_called = 0;
 	int first_time;
 
-	if (!first_stamp.tv_sec) { // only upon first call
+	if (!is_called) { // only upon first call
+		is_called++;
 		memcpy(&first_stamp, &rq->orig_stamp, sizeof(first_stamp));
 
 		// effective only opon first call
