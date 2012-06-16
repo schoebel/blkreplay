@@ -34,7 +34,7 @@ ws_list="${ws_list:-000 001 006 060 600}"
 script_dir="${script_dir:-$(cd "$(dirname "$(which "$0")")"; pwd)}"
 source "$script_dir/modules/lib.sh" || exit $?
 
-check_list="grep sed gawk head tail cut tee mkfifo nice date find gzip gunzip zcat gnuplot"
+check_list="grep sed gawk nl head tail cut tee mkfifo nice date find gzip gunzip zcat gnuplot"
 check_installed "$check_list"
 
 tmp="${TMPDIR:-/tmp}/graph.$$"
@@ -166,7 +166,7 @@ done
 function make_statistics
 {
     bad=$1
-    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if(\$2 > $bad) { if(!hit) start=\$1; hit++; } } END { printf (\"min=%f\nmax=%f\ncount=%d\navg=%f\nhit=%d\nstart=%f\n\", min, max, count, (count > 0 ? sum/count : 0), hit, start); }"
+    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if (\$2 > $bad) { if (!hit) start=\$1; hit++; } } END { printf (\"min=%f\nmax=%f\ncount=%d\navg=%f\nhit=%d\nstart=%f\n\", min, max, count, (count > 0 ? sum/count : 0), hit, start); }"
 }
 
 function compute_ws
@@ -223,7 +223,7 @@ function cumul
 [[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
 thrp_window=${thrp_window:-3}
 
-gawk_thrp="{ time=int(\$1); if(time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; while(time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); oldtime += $thrp_window; }; count=0; }; count++; }"
+gawk_thrp="{ time=int(\$1); if (time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; if (time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); factor = int((time - oldtime) / $thrp_window); oldtime += factor * $thrp_window; if (factor > 1) { printf(\"%d 0.0\\n\", oldtime); } }; count=0; }; count++; }"
 
 out="$tmp/$name"
 
@@ -387,6 +387,7 @@ zcat -f < "$tmp/master.fifo" |\
     tee $myfifo.pre $myfifo.all.sort0.0 |\
     grep ";" |\
     grep -v replay_ |\
+    gawk -F ";" '{ if ($1 < 100000000000000000 && $5 < 100000000000000000 && $6 < 100000000000000000) { print; } }' |\
     nl -s ';' |\
     tee $myfifo.all.sort0.{1..3} |\
     tee $myfifo.{reads,writes}.sort0.0 |\
