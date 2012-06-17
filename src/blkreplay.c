@@ -923,12 +923,18 @@ int pos_get(int offset, int max_filled)
 			goto ok;
 	}
 
-	printf("ERROR: cannot allocate position, offset=%d, count_submitted=%d, pos_last=%d\n"
-	       "ERROR: this is no real harm, but your measurements may be DISTORTED by artificial delays\n"
-	       "HINT: increase --threads=\n",
+	printf("WARN: cannot allocate pipe slot!\n"
+	       "WARN: offset=%d max_filled=%d count_submitted=%d pos_last=%d\n"
+	       "WARN: i=%d pos_table[i+offset]=%d\n"
+	       "WARN: this is no real harm, but your measurements might be DISTORTED\n"
+	       "WARN: by some unnecessary artificial delays.\n"
+	       "HINT: increase the --threads= parameter.\n",
 	       offset,
+	       max_filled,
 	       count_submitted,
-	       pos_last);
+	       pos_last,
+	       i,
+	       pos_table[i + offset]);
 	fflush(stdout);
 
  ok:
