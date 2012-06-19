@@ -106,6 +106,12 @@ while (( resume )); do
 	echo ""
 	echo "==============================================================="
 	echo "======== $test_dir"
+	if [ -e "$test_dir/stop" ] || [ -e "./stop" ]; then
+	    echo "would start $test_dir"
+	    echo "echo stopping due to stop file."
+	    resume=0
+	    break
+	fi
 	(
 	    cd $test_dir
 	    # source additional user modules (if available)
