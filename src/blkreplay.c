@@ -748,9 +748,98 @@ done:
 
 ///////////////////////////////////////////////////////////////////////
 
-static
-int similar_execute(struct request *rq)
+void verbose_status(struct request *rq, char *info)
 {
+	struct timespec now;
+	struct timespec diff;
+
+	clock_gettime(CLOCK_REALTIME, &now);
+	timespec_diff(&diff, &start_stamp, &now);
+	diff.tv_sec -= START_GRACE;
+
+	printf("INFO:"
+	       " action='%s'"
+	       " pid=%d"
+	       " count_submitted=%d"
+	       " count_pushback=%d"
+	       " real_time=%ld.%09ld",
+	       info,
+	       getpid(),
+	       count_submitted,
+	       count_pushback,
+	       diff.tv_sec, diff.tv_nsec);
+
+	if (rq) {
+		printf(" rq_time=%ld.%09ld"
+		       " seqnr=%lld"
+		       " q_nr=%d"
+		       " block=%lld"
+		       " len=%d"
+		       " mode='%c'",
+		       rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec,
+		       rq->seqnr,
+		       rq->q_nr,
+		       rq->sector,
+		       rq->length,
+		       rq->rwbs);
+	}
+
+	printf("\n");
+	fflush(stdout);
+}
+
+///////////////////////////////////////////////////////////////////////
+
+static
+void do_wait(struct request *rq, struct timespec *now, int less_wait)
+{
+#ifdef DEBUG_TIMING
+	printf("do_wait\n");
+#endif
+
+	for (;;) {
+		struct timespec rest_wait = {};
+		clock_gettime(CLOCK_REALTIME, now);
+		timespec_diff(&rq->replay_stamp, &start_stamp, now);
+		rq->replay_stamp.tv_sec -= START_GRACE; // grace period
+
+		timespec_diff(&rest_wait, &rq->replay_stamp, &rq->orig_factor_stamp);
+
+		rest_wait.tv_sec -= less_wait;
+
+
+#ifdef DEBUG_TIMING
+		printf("(%d) %d %lld.%09ld %lld.%09ld %lld.%09ld\n",
+		       getpid(),
+		       less_wait,
+		       (long long)now->tv_sec,
+		       now->tv_nsec,
+		       (long long)rq->replay_stamp.tv_sec,
+		       rq->replay_stamp.tv_nsec,
+		       (long long)rest_wait.tv_sec,
+		       rest_wait.tv_nsec);
+		fflush(stdout);
+#endif
+
+		if ((long long)rest_wait.tv_sec < 0) {
+			break;
+		}
+
+		if (verbose > 3) {
+			verbose_status(rq, "nanosleep");
+		}
+
+		nanosleep(&rest_wait, NULL);
+	}
+}
+
+///////////////////////////////////////////////////////////////////////
+
+static
+int do_action(struct request *rq)
+{
+	struct timespec t0 = {};
+	struct timespec t1 = {};
 	int len = rq->length * 512;
 	long long newpos;
 	long long s_status;
@@ -762,8 +851,7 @@ int similar_execute(struct request *rq)
 		printf("ERROR: trying to position at %lld (main_size=%lld)\n", rq->sector, main_size);
 		fflush(stdout);
 	}
-	if (fake_io)
-		return 0;
+
 	newpos = (long long)rq->sector * 512;
 	s_status = lseek64(main_fd, newpos, SEEK_SET);
 	if (s_status != newpos) {
@@ -772,7 +860,7 @@ int similar_execute(struct request *rq)
 		return -1;
 	}
 	{
-		int status;
+		int status = -1;
 		void *buffer = NULL;
 		if (posix_memalign(&buffer, 4096, len)) {
 			printf("ERROR: cannot allocate memory\n");
@@ -781,16 +869,31 @@ int similar_execute(struct request *rq)
 		}
 		if (rq->rwbs == 'W') {
 			make_tags(rq, buffer, len);
-			status = do_write(buffer, len);
+
+			do_wait(rq, &t0, 0);
+
+			if (!fake_io)
+				status = do_write(buffer, len);
+
+			clock_gettime(CLOCK_REALTIME, &t1);
+			timespec_diff(&rq->replay_duration, &t0, &t1);
+
 			if (verify_mode >= 3 && status == len) { // additional re-read and verify
 				paranoia_check(rq, buffer);
 			}
 		} else {
-			status = do_read(buffer, len);
+			do_wait(rq, &t0, 0);
+
+			if (!fake_io)
+				status = do_read(buffer, len);
+
+			clock_gettime(CLOCK_REALTIME, &t1);
+			timespec_diff(&rq->replay_duration, &t0, &t1);
+
 			check_tags(rq, buffer, len, 0);
 		}
 		free(buffer);
-		if (status != len) {
+		if (!fake_io && status != len) {
 			printf("ERROR: bad %cIO %d / %d on %d at pos %lld (%s)\n", rq->rwbs, status, errno, main_fd, rq->sector, strerror(errno));
 			fflush(stdout);
 			//exit(-1);
@@ -957,48 +1060,6 @@ void pos_put(int pos)
 		printf("ERROR: imbalanced pos_table at %d (%d), count_submitted=%d\n", pos,  pos_table[pos], count_submitted);
 		fflush(stdout);
 	}
-}
-
-///////////////////////////////////////////////////////////////////////
-
-void verbose_status(struct request *rq, char *info)
-{
-	struct timespec now;
-	struct timespec diff;
-
-	clock_gettime(CLOCK_REALTIME, &now);
-	timespec_diff(&diff, &start_stamp, &now);
-	diff.tv_sec -= START_GRACE;
-
-	printf("INFO:"
-	       " action='%s'"
-	       " pid=%d"
-	       " count_submitted=%d"
-	       " count_pushback=%d"
-	       " real_time=%ld.%09ld",
-	       info,
-	       getpid(),
-	       count_submitted,
-	       count_pushback,
-	       diff.tv_sec, diff.tv_nsec);
-
-	if (rq) {
-		printf(" rq_time=%ld.%09ld"
-		       " seqnr=%lld"
-		       " q_nr=%d"
-		       " block=%lld"
-		       " len=%d"
-		       " mode='%c'",
-		       rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec,
-		       rq->seqnr,
-		       rq->q_nr,
-		       rq->sector,
-		       rq->length,
-		       rq->rwbs);
-	}
-
-	printf("\n");
-	fflush(stdout);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -1209,68 +1270,6 @@ done:
 ///////////////////////////////////////////////////////////////////////
 
 static
-void do_wait(struct request *rq, struct timespec *now, int less_wait)
-{
-#ifdef DEBUG_TIMING
-	printf("do_wait\n");
-#endif
-
-	for (;;) {
-		struct timespec rest_wait = {};
-		clock_gettime(CLOCK_REALTIME, now);
-		timespec_diff(&rq->replay_stamp, &start_stamp, now);
-		rq->replay_stamp.tv_sec -= START_GRACE; // grace period
-
-		timespec_diff(&rest_wait, &rq->replay_stamp, &rq->orig_factor_stamp);
-
-		rest_wait.tv_sec -= less_wait;
-
-
-#ifdef DEBUG_TIMING
-		printf("(%d) %d %lld.%09ld %lld.%09ld %lld.%09ld\n",
-		       getpid(),
-		       less_wait,
-		       (long long)now->tv_sec,
-		       now->tv_nsec,
-		       (long long)rq->replay_stamp.tv_sec,
-		       rq->replay_stamp.tv_nsec,
-		       (long long)rest_wait.tv_sec,
-		       rest_wait.tv_nsec);
-		fflush(stdout);
-#endif
-
-		if ((long long)rest_wait.tv_sec < 0) {
-			break;
-		}
-
-		if (verbose > 3) {
-			verbose_status(rq, "nanosleep");
-		}
-
-		nanosleep(&rest_wait, NULL);
-	}
-}
-
-static
-void do_action(struct request *rq)
-{
-	struct timespec t0 = {};
-	struct timespec t1 = {};
-	int code;
-
-	do_wait(rq, &t0, 0);
-
-	code = similar_execute(rq);
-
-	clock_gettime(CLOCK_REALTIME, &t1);
-
-	timespec_diff(&rq->replay_duration, &t0, &t1);
-	(void)code; // shut up gcc
-}
-
-///////////////////////////////////////////////////////////////////////
-
-static
 void main_open(int again)
 {
 	long long size;
@@ -1379,7 +1378,7 @@ void do_worker(int in_fd, int back_fd)
 			verbose_status(&rq, "worker_got_rq");
 		}
 
-		do_action(&rq);
+		(void)do_action(&rq);
 		count++;
 
 		if (rq.old_version) {
