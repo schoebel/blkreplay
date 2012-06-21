@@ -166,7 +166,7 @@ done
 function make_statistics
 {
     bad=$1
-    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if (\$2 > $bad) { if (!hit) start=\$1; hit++; } } END { printf (\"min=%f\nmax=%f\ncount=%d\navg=%f\nhit=%d\nstart=%f\n\", min, max, count, (count > 0 ? sum/count : 0), hit, start); }"
+    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if (\$2 > $bad) { if (!hit) start=\$1; hit++; } } END { printf (\"min=%11.9f\nmax=%11.9f\ncount=%d\navg=%11.9f\nhit=%d\nstart=%11.9f\n\", min, max, count, (count > 0 ? sum/count : 0), hit, start); }"
 }
 
 function compute_ws
@@ -174,7 +174,7 @@ function compute_ws
     window=$1
     advance=$1
     (( advance <= 0 )) && advance=1
-    gawk -F ";" "BEGIN{ start = 0.0; count = 0; } { if (!start) start = \$1; while (\$1 >= start + $advance) { delta = 0.0; if ($window) { c = asorti(table); delta = table[c-1] - table[0]; } printf(\"%f %d %f %f\n\", start+$advance, count, delta, (c > 0 ? delta/c : 0)); if ($window) { count = 0; delete table; } start += $advance; } if (!table[\$2]) { table[\$2] = \$2; count++; } }"
+    gawk -F ";" "BEGIN{ start = 0.0; count = 0; } { if (!start) start = \$1; while (\$1 >= start + $advance) { delta = 0.0; if ($window) { c = asorti(table); delta = table[c-1] - table[0]; } printf(\"%14.9f %d %14.9f %14.9f\n\", start+$advance, count, delta, (c > 0 ? delta/c : 0)); if ($window) { count = 0; delete table; } start += $advance; } if (!table[\$2]) { table[\$2] = \$2; count++; } }"
 }
 
 function compute_flying
@@ -189,7 +189,7 @@ function compute_flying
 function compute_sum
 {
     $sort -g |\
-	gawk '{ if ($1 == oldx) { oldy += $2; } else { printf("%f %f\n", oldx, oldy); oldx = $1; oldy = $2; } } END{ printf("%f %f\n", oldx, oldy); }'
+	gawk '{ if ($1 == oldx) { oldy += $2; } else { printf("%14.9f %14.9f\n", oldx, oldy); oldx = $1; oldy = $2; } } END{ printf("%14.9f %14.9f\n", oldx, oldy); }'
 }
 
 function extract_fields
@@ -205,7 +205,7 @@ function extract_fields
 
 function _diff_timestamps
 {
-    gawk -F":" '{ if (count++ % 2) { printf("%f\n", $2 - old); } old = $2; }'
+    gawk -F":" '{ if (count++ % 2) { printf("%14.9f\n", $2 - old); } old = $2; }'
 }
 
 function diff_timestamps
@@ -217,7 +217,7 @@ function diff_timestamps
 
 function cumul
 {
-    gawk '{ sum += $1; printf("%f\n", sum); }'
+    gawk '{ sum += $1; printf("%14.9f\n", sum); }'
 }
 
 [[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
@@ -242,7 +242,7 @@ for mode in reads writes; do
 	cat $inp.sort0.9 > /dev/null &
     fi
     if (( dynamic_mode )); then
-	cat $inp.sort0.1 | gawk -F ";" '{ printf("%f %f\n", $2+$6, $7); }' >\
+	cat $inp.sort0.1 | gawk -F ";" '{ printf("%14.9f %14.9f\n", $2+$6, $7); }' >\
 	    $out.g01.latency.$i.realtime &
 	cat $inp.sort2.1 | cut -d ';' -f 2,7 | sed 's/;/ /' >\
 	    $out.g02.latency.$i.setpoint &
@@ -301,7 +301,7 @@ if (( verbose_mode )); then
 	$out.g51.pushback_level &
     grep "'submit'" < $myfifo.verbose.3 |\
 	extract_fields "real_time rq_time" '\1:\2' |\
-	gawk -F":" '{ printf("%f\n", $2 - $1); }' >\
+	gawk -F":" '{ printf("%14.9f\n", $2 - $1); }' >\
 	$out.g52.submit_ahead &
     grep "'\(submit\|worker_got_rq\)'" < $myfifo.verbose.4 |\
 	diff_timestamps |\
