@@ -78,6 +78,7 @@ echo "Starting main conversion to '$output'..." > /dev/stderr
 
 {
     echo_copyright "$filename.blktrace.*"
+    echo "INFO: action_char=$action_char"
     echo "start ; sector; length ; op ;  replay_delay=0 ; replay_duration=0"
     
     blkparse -v -i "$filename" -f '%a; %6T.%9t ; %12S ; %4n ; %3d ; 0.0 ; 0.0\n' |\
