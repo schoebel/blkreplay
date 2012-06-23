@@ -192,6 +192,16 @@ function compute_sum
 	gawk '{ if ($1 == oldx) { oldy += $2; } else { printf("%14.9f %14.9f\n", oldx, oldy); oldx = $1; oldy = $2; } } END{ printf("%14.9f %14.9f\n", oldx, oldy); }'
 }
 
+function extract_variables
+{
+    spec="$1"
+    var_list="$(echo $spec | sed 's/ \+/\\|/g')"
+    grep "^INFO: " |\
+	sed "s/[^a-z]\($var_list\) *[=:] *\([0-9.]\+\)/\n\1=\2\n/g" |\
+	grep "^[a-z_]\+=[0-9.]\+$" |\
+	sort -u
+}
+
 function extract_fields
 {
     spec="$1"
@@ -382,9 +392,15 @@ for mode in reads writes; do
 	tee  $myfifo.$mode.sort2.1 >\
 	     $myfifo.$mode.sort2.2 &
 done
+
+# extract some interesting variables
+mkfifo $myfifo.vars
+var_list="use_my_guess dry_run use_o_direct use_o_sync"
+extract_variables "$var_list" < $myfifo.vars > $tmp/vars &
+
 #  read FILE, add line numbers, and fill the main pipelines
 zcat -f < "$tmp/master.fifo" |\
-    tee $myfifo.pre $myfifo.all.sort0.0 |\
+    tee $myfifo.pre $myfifo.vars $myfifo.all.sort0.0 |\
     grep ";" |\
     grep -v replay_ |\
     gawk -F ";" '{ if ($1 < 100000000000000000 && $5 < 100000000000000000 && $6 < 100000000000000000) { print; } }' |\
@@ -398,7 +414,7 @@ zcat -f < "$tmp/master.fifo" |\
         $myfifo.writes.sort2.0 &
 
 # fill the master pipeline...
-echo "Start preparation phase...."
+echo "Starting preparation phase...."
 zcat -f $(cat $tmp/files) > "$tmp/master.fifo" &
 
 # really start all the background pipelines by this in _foreground_ ...
@@ -409,6 +425,26 @@ echo "Waiting for completion..."
 wait
 echo "Done preparation phase."
 
+cat $tmp/vars
+eval "$(cat $tmp/vars)"
+is_fake=0
+fake_label=""
+if [ -n "$use_o_direct" ]; then
+    if (( !use_o_direct || dry_run )); then
+	echo "detected FAKE results"
+	is_fake=1
+	fake_text="FAKE RESULT"
+	if (( dry_run )); then
+	    fake_text="DRY RUN -- $fake_text"
+	else
+	    (( !use_o_direct )) && fake_text="$fake_text -- no O_DIRECT"
+	fi
+	fake_font="arial,28"
+	fake_color="#B35200"
+	fake_label="set label \"$fake_text\" at graph 0.5, graph 0.5 center font \"$fake_font\" textcolor rgb \"$fake_color\" front rotate by 45"
+    fi
+fi
+
 # finally start all the gnuplot commands in parallel; they can take much time on huge plots
 
 for reads_file in $tmp/*.reads.tmp.* ; do
@@ -418,6 +454,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	continue
     fi
     title=$(basename $reads_file | sed 's/\.reads\././; s/\.log\|\.tmp//g')
+    (( is_fake )) && title="$title.FAKE"
     extra1=""
     extra2=""
     items="delays"
@@ -546,6 +583,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	$xlogscale
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
+	$fake_label
 	$plot;
 EOF
     ) &
@@ -615,6 +653,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	$scale
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
+	$fake_label
 	$plot;
 EOF
     ) &

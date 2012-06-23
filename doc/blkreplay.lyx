@@ -1506,7 +1506,7 @@ blkreplay
 operating environment
 \emph default
  where it is running.
- Otherwise, you can easily produce totally invalid fake results.
+ Otherwise, you may produce totally invalid results.
 \end_layout
 
 \begin_layout Standard
@@ -1683,7 +1683,7 @@ O_DIRECT
 \end_layout
 
 \begin_layout Standard
-Notice that even by this measure, there are often some subtle differences
+Notice that even by these measures, there may remain some subtle differences
  between the operations occurring at point A and point B.
  The block layer of the Linux kernel does some optimizations, for example
  it tries to 

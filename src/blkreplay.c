@@ -144,6 +144,8 @@ long long max_size = 0;
 int dry_run = 0;
 int fake_io = 0;
 int fork_dispatcher = 1;
+int use_o_direct = 1;
+int use_o_sync = 0;
 int mmap_mode = 0;
 int conflict_mode = 0; 
 /* 0 = allow arbitrary permutations in ordering
@@ -1273,13 +1275,18 @@ static
 void main_open(int again)
 {
 	long long size;
-	int flags = O_RDWR | O_DIRECT;
+	int flags = O_RDWR;
 	if (again || dry_run) {
-		flags = O_RDONLY | O_DIRECT;
+		flags = O_RDONLY;
 	}
 #ifdef O_LARGEFILE
 	flags |= O_LARGEFILE;
 #endif
+	if (use_o_direct)
+		flags |= O_DIRECT;
+	if (use_o_sync)
+		flags |= O_SYNC;
+
 	main_fd = open(main_name, flags);
 	if (main_fd < 0) {
 		printf("ERROR: cannot open file '%s', errno = %d (%s)\n", main_name, errno, strerror(errno));
@@ -1993,6 +2000,30 @@ const struct arg arg_table[] = {
 		.arg_descr = "Expert options (DANGEROUS):",
 	},
 	{
+		.arg_name  = "o-direct",
+		.arg_descr = "use O_DIRECT (default)",
+		.arg_const = 1,
+		.arg_val   = &use_o_direct,
+	},
+	{
+		.arg_name  = "no-o-direct",
+		.arg_descr = "don't use O_DIRECT, deliver FAKE results",
+		.arg_const = 0,
+		.arg_val   = &use_o_direct,
+	},
+	{
+		.arg_name  = "o-sync",
+		.arg_descr = "use O_SYNC",
+		.arg_const = 1,
+		.arg_val   = &use_o_sync,
+	},
+	{
+		.arg_name  = "no-o-sync",
+		.arg_descr = "don't use O_SYNC (default)",
+		.arg_const = 0,
+		.arg_val   = &use_o_sync,
+	},
+	{
 		.arg_name  = "dry-run",
 		.arg_descr = "don't actually do IO, measure internal overhead",
 		.arg_const = 1,
@@ -2160,6 +2191,22 @@ void parse_args(int argc, char *argv[])
 	}
 }
 
+void print_fake(void)
+{
+	printf("INFO: use_o_direct=%d\n", use_o_direct);
+	printf("INFO: use_o_sync=%d\n", use_o_sync);
+	printf("INFO: simulate_io=%lu.%09lu\n", simulate_io.tv_sec, simulate_io.tv_nsec);
+	printf("INFO: dry_run=%d\n", dry_run);
+
+	if (dry_run || !use_o_direct || !use_o_sync) {
+		printf("\n"
+		       "INFO: measurement results are thus FAKE results!!!\n"
+		       "\n"
+		       );
+	}
+	fflush(stdout);
+}
+
 int main(int argc, char *argv[])
 {
 	int max_threads;
@@ -2199,12 +2246,8 @@ int main(int argc, char *argv[])
 		dry_run = 1;
 	if (simulate_io.tv_sec || simulate_io.tv_nsec)
 		dry_run = 1;
-	if (dry_run) {
-		printf("INFO: this is a DRY_RUN!!!!!!!!!\n"
-		       "INFO: measurements results are FAKE results!\n"
-		       "\n"
-		       );
-	}
+
+	print_fake();
 
 	if (time_factor != 0.0) {
 		time_stretch = 1.0 / time_factor;
@@ -2250,12 +2293,7 @@ int main(int argc, char *argv[])
 		check_all_tags();
 	}
 
-	if (dry_run) {
-		printf("\n"
-		       "INFO: this was a DRY_RUN!!!!!!!!!\n"
-		       "INFO: measurements results are FAKE results!\n"
-		       );
-	}
+	print_fake();
 
 	return 0;
 }
