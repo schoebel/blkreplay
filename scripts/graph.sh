@@ -435,8 +435,10 @@ echo "Done preparation phase."
 
 cat $tmp/vars
 eval "$(cat $tmp/vars)"
+wrap_int="$(echo $wraparound_factor | cut -d. -f1)"
+wrap_frac="$(echo $wraparound_factor | cut -d. -f2)"
 var_color=""
-if (( $(echo $wraparound_factor | cut -d. -f1) < 1 )); then
+if (( wrap_int > 1 || (!wrap_int && wrap_frac < 500) )); then
     var_color="textcolor rgb \"#A300A0\""
 fi
 var_text="$(echo $(grep 'wrap' $tmp/vars))"
