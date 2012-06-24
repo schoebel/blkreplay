@@ -435,8 +435,12 @@ echo "Done preparation phase."
 
 cat $tmp/vars
 eval "$(cat $tmp/vars)"
+var_color=""
+if (( $(echo $wraparound_factor | cut -d. -f1) < 1 )); then
+    var_color="textcolor rgb \"#A300A0\""
+fi
 var_text="$(echo $(grep 'wrap' $tmp/vars))"
-var_label="set label \"$var_text\" at graph 1.0, screen 0.0 right front offset 0, character 1"
+var_label="set label \"$var_text\" at graph 1.0, screen 0.0 right $var_color front offset 0, character 1"
 is_fake=0
 fake_label=""
 if [ -n "$use_o_direct" ]; then
