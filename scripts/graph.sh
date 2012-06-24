@@ -195,10 +195,11 @@ function compute_sum
 function extract_variables
 {
     spec="$1"
-    var_list="$(echo $spec | sed 's/ \+/\\|/g')"
-    grep "^INFO: " |\
-	sed "s/[^a-z]\($var_list\) *[=:] *\([0-9.]\+\)/\n\1=\2\n/g" |\
-	grep "^[a-z_]\+=[0-9.]\+$" |\
+    var_list="$(echo $spec | sed 's/ \+/\\|/g' | sed 's/_/[_ ]\\+/g')"
+    grep "^[A-Za-z#]" |\
+	sed "s/\($var_list\) *[=:] *\([0-9.]\+\)/\n\1=\2\n/g" |\
+	grep "^[a-z_]\+[a-z_ ]\+=[0-9.]\+$" |\
+	sed 's/ \+/_/g' |\
 	sort -u
 }
 
@@ -395,7 +396,7 @@ done
 
 # extract some interesting variables
 mkfifo $myfifo.vars
-var_list="use_my_guess dry_run use_o_direct use_o_sync"
+var_list="use_my_guess dry_run use_o_direct use_o_sync wraparound_factor"
 extract_variables "$var_list" < $myfifo.vars > $tmp/vars &
 
 #  read FILE, add line numbers, and fill the main pipelines
@@ -427,6 +428,8 @@ echo "Done preparation phase."
 
 cat $tmp/vars
 eval "$(cat $tmp/vars)"
+var_text="$(echo $(grep 'wrap' $tmp/vars))"
+var_label="set label \"$var_text\" at graph 1.0, screen 0.0 right front offset 0, character 1"
 is_fake=0
 fake_label=""
 if [ -n "$use_o_direct" ]; then
@@ -583,6 +586,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	$xlogscale
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
+	$var_label
 	$fake_label
 	$plot;
 EOF
@@ -653,6 +657,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	$scale
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
+	$var_label
 	$fake_label
 	$plot;
 EOF
