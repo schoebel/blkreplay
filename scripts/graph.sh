@@ -40,7 +40,12 @@ check_installed "$check_list"
 tmp="${TMPDIR:-/tmp}/graph.$$"
 rm -rf "$tmp"
 mkdir -p "$tmp"
-mkfifo "$tmp/master.fifo"
+mkfifo "$tmp/fifo.master" || exit $?
+prefifo="$tmp/fifo.pre"
+mainfifo="$tmp/fifo.main"
+subfifo="$tmp/fifo.sub"
+
+# operation modes
 
 static_mode=0
 dynamic_mode=0
@@ -136,32 +141,8 @@ if [ -z "$name" ]; then
 fi
 
 sort="sort"
-# Use lots of named pipes for maximum parallelism (SMP scalability)
 
-myfifo="$tmp/myfifo"
-mkfifo $myfifo.pre
-for k in {0..3}; do
-    mkfifo $myfifo.all.sort0.$k
-done
-for k in {1..3}; do
-    mkfifo $myfifo.all.sort2.$k
-done
-ws_fifos=""
-for window in $ws_list; do
-    ws=$myfifo.all.sort2.$window
-    mkfifo $ws
-    ws_fifos="$ws_fifos $ws"
-    mkfifo $myfifo.all.dist1.$window
-    mkfifo $myfifo.all.dist2.$window
-done
-for mode in reads writes; do
-    for k in {0..10}; do
-	mkfifo $myfifo.$mode.sort0.$k
-    done
-    for k in {0..2}; do
-	mkfifo $myfifo.$mode.sort2.$k
-    done
-done
+# Use lots of named pipes for maximum parallelism (SMP scalability)
 
 function make_statistics
 {
@@ -231,203 +212,218 @@ function cumul
     gawk '{ sum += $1; printf("%14.9f\n", sum); }'
 }
 
+out="$tmp/$name"
+
+
 [[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
 thrp_window=${thrp_window:-3}
 
 gawk_thrp="{ time=int(\$1); if (time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; if (time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); factor = int((time - oldtime) / $thrp_window); oldtime += factor * $thrp_window; if (factor > 1) { printf(\"%d 0.0\\n\", oldtime); } }; count=0; }; count++; }"
 
-out="$tmp/$name"
-
-# worker pipelines for reads / writes
-for mode in reads writes; do
-    inp=$myfifo.$mode
-    i="$mode.tmp"
-    if (( static_mode )); then
-	cat $inp.sort0.8 | cut -d ';' -f 4 | $bin_dir/bins.exe >\
-	    $out.g40.rqsize.$i.bins &
-	cat $inp.sort0.9 | cut -d ';' -f 3 |\
-	    gawk '{ i = int($1 / 2097152); table[i]++; if (i > max) max = i;} END{for (i = 0; i <= max + 1; i++) printf("%5d %5d\n", i, table[i]); }' >\
-	    $out.g41.rqpos.$i.bins &
-    else
-	cat $inp.sort0.8 > /dev/null &
-	cat $inp.sort0.9 > /dev/null &
-    fi
-    if (( dynamic_mode )); then
-	cat $inp.sort0.1 | gawk -F ";" '{ printf("%14.9f %14.9f\n", $2+$6, $7); }' >\
-	    $out.g01.latency.$i.realtime &
-	cat $inp.sort2.1 | cut -d ';' -f 2,7 | sed 's/;/ /' >\
-	    $out.g02.latency.$i.setpoint &
-	cat $inp.sort0.2 | cut -d ';' -f 1,7 | sed 's/;/ /' >\
-	    $out.g03.latency.$i.points &
-	cat $inp.sort2.2 | cut -d ';' -f 2,6 | sed 's/;/ /' >\
-	    $out.g04.delay.$i.setpoint &
-	cat $inp.sort0.3 | cut -d ';' -f 1,6 | sed 's/;/ /' >\
-	    $out.g05.delay.$i.points &
-	cat $inp.sort0.4 | cut -d ';' -f 7 | $bin_dir/bins.exe >\
-	    $out.g06.latency.$i.bins &
-	cat $inp.sort0.5 | cut -d ';' -f 6 | $bin_dir/bins.exe >\
-	    $out.g07.delay.$i.bins &
-	mkfifo $inp.side.{1..2}
-	cat $inp.sort0.6 |\
-	    compute_flying "+\$6" 7 |\
-	    tee $inp.side.{1..2} |\
-	    cut -d";" -f1,2 |\
-	    sed 's/;/ /' >\
-	    $out.g08.latency.$i.flying &
-	cat $inp.sort0.7 |\
-	    compute_flying "" 6 |\
-	    cut -d";" -f1,2 |\
-	    sed 's/;/ /' >\
-	    $out.g09.delay.$i.flying &
-	cat $inp.side.1 |\
-	    cut -d";" -f2,4 |\
-	    grep -v "x" |\
-	    sed 's/;/ /' >\
-	    $out.g10.latency.$i.xy &
-	cat $inp.side.2 |\
-	    cut -d";" -f2,3 |\
-	    grep -v "x" |\
-	    sed 's/;/ /' >\
-	    $out.g11.delay.$i.xy &
-	cat $inp.sort0.10 | cut -d ';' -f 6,7 | sed 's/;/ /' >\
-	    $out.g12.$i.latency.delay.xy &
-    else
-	for i in $inp.sort?.*; do
-	    cat $i > /dev/null &
-	done
-    fi
-done
-
-# worker pipelines for all requests
-if (( verbose_mode )); then
-    extra_modes="submit_level pushback_level submit_ahead submit_lag answer_lag submit_lag_cumul answer_lag_cumul input_wait answer_wait input_wait_cumul answer_wait_cumul"
-    mkfifo $myfifo.verbose.{1..7}
-    grep "^INFO: action=" $myfifo.all.sort0.0 |\
-	tee $myfifo.verbose.{1..7} > /dev/null &
-    grep "'\(submit\|got_answer\)'" < $myfifo.verbose.1 |\
-	extract_fields "count_submitted" '\1' >\
-	$out.g50.submit_level &
-    grep "'\(submit\|got_answer\)'" < $myfifo.verbose.2 |\
-	extract_fields "count_pushback" '\1' >\
-	$out.g51.pushback_level &
-    grep "'submit'" < $myfifo.verbose.3 |\
-	extract_fields "real_time rq_time" '\1:\2' |\
-	gawk -F":" '{ printf("%14.9f\n", $2 - $1); }' >\
-	$out.g52.submit_ahead &
-    grep "'\(submit\|worker_got_rq\)'" < $myfifo.verbose.4 |\
-	diff_timestamps |\
-	tee $out.g53.submit_lag |\
-	cumul >\
-	$out.g53.submit_lag_cumul &
-    grep "'\(worker_send_answer\|got_answer\)'" < $myfifo.verbose.5 |\
-	diff_timestamps |\
-	tee $out.g54.answer_lag |\
-	cumul >\
-	$out.g54.answer_lag_cumul &
-    grep "'\(wait_for_input\|got_input\)'" < $myfifo.verbose.6 |\
-	extract_fields "real_time" ':\1' |\
-	_diff_timestamps |\
-	tee $out.g55.input_wait |\
-	cumul >\
-	$out.g55.input_wait_cumul &
-    grep "'\(wait_for_answer\|got_answer\)'" < $myfifo.verbose.7 |\
-	extract_fields "real_time" ':\1' |\
-	_diff_timestamps |\
-	tee $out.g56.answer_wait |\
-	cumul >\
-	$out.g56.answer_wait_cumul &
-else
-    cat $myfifo.all.sort0.0 > /dev/null &
-fi
-
-cat $myfifo.all.sort2.1 |\
+mkfifo $mainfifo.all.sort2.thrp
+cat $mainfifo.all.sort2.thrp |\
     cut -d ';' -f 2 |\
     gawk "$gawk_thrp" >\
     $out.g00.demand.thrp &
-cat $myfifo.all.sort0.1 |\
+mkfifo $mainfifo.all.nosort.thrp
+cat $mainfifo.all.nosort.thrp |\
     gawk -F ";" '{ printf("%d\n", $2+$6+$7); }' |\
     $sort -n |\
     gawk "$gawk_thrp" >\
     $out.g00.actual.thrp &
 
-if (( static_mode )); then
-    cat $myfifo.all.sort0.2 |\
-	compute_flying "+\$6" 7 |\
-	cut -d";" -f1,2 |\
-	sed 's/;/ /' >\
-	$out.g08.latency.sum.tmp.flying &
-    cat $myfifo.all.sort0.3 |\
-	compute_flying "" 6 |\
-	cut -d";" -f1,2 |\
-	sed 's/;/ /' >\
-	$out.g09.delay.sum.tmp.flying &
-else
-    cat $myfifo.all.sort0.2 > /dev/null &
-    cat $myfifo.all.sort0.3 > /dev/null &
+
+# worker pipelines for reads / writes
+for mode in reads writes all; do
+    inp="$mainfifo.$mode"
+    side="$subfifo.side.$mode"
+    i="$mode.tmp"
+    if (( static_mode )); then
+	mkfifo $inp.nosort.rqsize
+	cat $inp.nosort.rqsize |\
+	    cut -d ';' -f 4 |\
+	    $bin_dir/bins.exe >\
+	    $out.g40.rqsize.$i.bins &
+	mkfifo $inp.nosort.rqpos
+	cat $inp.nosort.rqpos |\
+	    cut -d ';' -f 3 |\
+	    gawk '{ i = int($1 / 2097152); table[i]++; if (i > max) max = i;} END{for (i = 0; i <= max + 1; i++) printf("%5d %5d\n", i, table[i]); }' >\
+	    $out.g41.rqpos.$i.bins &
+    fi
+    if (( dynamic_mode )) && [ "$mode" != "all" ]; then
+	mkfifo $inp.nosort.dyn.1
+	cat $inp.nosort.dyn.1 |\
+	    gawk -F ";" '{ printf("%14.9f %14.9f\n", $2+$6, $7); }' >\
+	    $out.g01.latency.$i.realtime &
+	mkfifo $inp.sort2.dyn.2
+	cat $inp.sort2.dyn.2 |\
+	    cut -d ';' -f 2,7 |\
+	    sed 's/;/ /' >\
+	    $out.g02.latency.$i.setpoint &
+	mkfifo $inp.nosort.dyn.3
+	cat $inp.nosort.dyn.3 |\
+	    cut -d ';' -f 1,7 |\
+	    sed 's/;/ /' >\
+	    $out.g03.latency.$i.points &
+	mkfifo $inp.sort2.dyn.4
+	cat $inp.sort2.dyn.4 |\
+	    cut -d ';' -f 2,6 |\
+	    sed 's/;/ /' >\
+	    $out.g04.delay.$i.setpoint &
+	mkfifo $inp.nosort.dyn.5
+	cat $inp.nosort.dyn.5 |\
+	    cut -d ';' -f 1,6 |\
+	    sed 's/;/ /' >\
+	    $out.g05.delay.$i.points &
+	mkfifo $side.{1..2}
+	cat $side.1 |\
+	    cut -d";" -f2,4 |\
+	    grep -v "x" |\
+	    sed 's/;/ /' >\
+	    $out.g10.latency.$i.xy &
+	cat $side.2 |\
+	    cut -d";" -f2,3 |\
+	    grep -v "x" |\
+	    sed 's/;/ /' >\
+	    $out.g11.delay.$i.xy &
+	mkfifo $inp.nosort.dyn.12
+	cat $inp.nosort.dyn.12 |\
+	    cut -d ';' -f 6,7 |\
+	    sed 's/;/ /' >\
+	    $out.g12.$i.latency.delay.xy &
+    fi
+    if (( dynamic_mode )); then
+	mkfifo $inp.nosort.dyn.6
+	cat $inp.nosort.dyn.6 |\
+	    cut -d ';' -f 7 |\
+	    $bin_dir/bins.exe >\
+	    $out.g06.latency.$i.bins &
+	mkfifo $inp.nosort.dyn.7
+	cat $inp.nosort.dyn.7 |\
+	    cut -d ';' -f 6 |\
+	    $bin_dir/bins.exe >\
+	    $out.g07.delay.$i.bins &
+	mkfifo $inp.nosort.dyn.8
+	cat $inp.nosort.dyn.8 |\
+	    compute_flying "+\$6" 7 |\
+	    tee $side.* |\
+	    cut -d";" -f1,2 |\
+	    sed 's/;/ /' >\
+	    $out.g08.latency.$i.flying &
+	mkfifo $inp.nosort.dyn.9
+	cat $inp.nosort.dyn.9 |\
+	    compute_flying "" 6 |\
+	    cut -d";" -f1,2 |\
+	    sed 's/;/ /' >\
+	    $out.g09.delay.$i.flying &
+    fi
+done
+
+# worker pipelines for all requests
+if (( verbose_mode )); then
+    mkfifo $prefifo.verbose
+    extra_modes="submit_level pushback_level submit_ahead submit_lag answer_lag submit_lag_cumul answer_lag_cumul input_wait answer_wait input_wait_cumul answer_wait_cumul"
+    mkfifo $subfifo.verbose.{1..7}
+    grep "^INFO: action=" < $prefifo.verbose |\
+	tee $subfifo.verbose.* > /dev/null &
+    grep "'\(submit\|got_answer\)'" < $subfifo.verbose.1 |\
+	extract_fields "count_submitted" '\1' >\
+	$out.g50.submit_level &
+    grep "'\(submit\|got_answer\)'" < $subfifo.verbose.2 |\
+	extract_fields "count_pushback" '\1' >\
+	$out.g51.pushback_level &
+    grep "'submit'" < $subfifo.verbose.3 |\
+	extract_fields "real_time rq_time" '\1:\2' |\
+	gawk -F":" '{ printf("%14.9f\n", $2 - $1); }' >\
+	$out.g52.submit_ahead &
+    grep "'\(submit\|worker_got_rq\)'" < $subfifo.verbose.4 |\
+	diff_timestamps |\
+	tee $out.g53.submit_lag |\
+	cumul >\
+	$out.g53.submit_lag_cumul &
+    grep "'\(worker_send_answer\|got_answer\)'" < $subfifo.verbose.5 |\
+	diff_timestamps |\
+	tee $out.g54.answer_lag |\
+	cumul >\
+	$out.g54.answer_lag_cumul &
+    grep "'\(wait_for_input\|got_input\)'" < $subfifo.verbose.6 |\
+	extract_fields "real_time" ':\1' |\
+	_diff_timestamps |\
+	tee $out.g55.input_wait |\
+	cumul >\
+	$out.g55.input_wait_cumul &
+    grep "'\(wait_for_answer\|got_answer\)'" < $subfifo.verbose.7 |\
+	extract_fields "real_time" ':\1' |\
+	_diff_timestamps |\
+	tee $out.g56.answer_wait |\
+	cumul >\
+	$out.g56.answer_wait_cumul &
 fi
 
 if (( dynamic_mode )); then
-    cat $myfifo.all.sort2.2 | cut -d ';' -f 2,7 | make_statistics $bad_latency >\
+    mkfifo $mainfifo.all.sort2.latencies
+    cat $mainfifo.all.sort2.latencies |\
+	cut -d ';' -f 2,7 |\
+	make_statistics $bad_latency >\
 	$tmp/latencies &
-    cat $myfifo.all.sort2.3 | cut -d ';' -f 2,6 | make_statistics $bad_delay   >\
+    mkfifo $mainfifo.all.sort2.delays
+    cat $mainfifo.all.sort2.delays |\
+	cut -d ';' -f 2,6 |\
+	make_statistics $bad_delay   >\
 	$tmp/delays &
-else
-    cat $myfifo.all.sort2.2 > /dev/null &
-    cat $myfifo.all.sort2.3 > /dev/null &
 fi
 
 for window in $ws_list; do
-    cat $myfifo.all.sort2.$window | cut -d ';' -f 2,3 | compute_ws $window |\
-	tee $myfifo.all.dist1.$window $myfifo.all.dist2.$window |\
+    mkfifo $mainfifo.all.sort2.window.$window
+    mkfifo $subfifo.window{1..2}.$window
+    cat $mainfifo.all.sort2.window.$window |\
+	cut -d ';' -f 2,3 |\
+	compute_ws $window |\
+	tee $subfifo.window*.$window |\
 	gawk '{print $1, $2; }' >\
 	$out.g30.ws_log.$window.extra &
     ln -sf $out.g30.ws_log.$window.extra $out.g31.ws_lin.$window.extra 
-    cat $myfifo.all.dist1.$window |\
+    cat $subfifo.window1.$window |\
 	gawk '{print $1, $3; }' >\
 	$out.g32.sum_dist.$window.extra &
-    cat $myfifo.all.dist2.$window |\
+    cat $subfifo.window2.$window |\
 	gawk '{print $1, $4; }' >\
 	$out.g33.avg_dist.$window.extra &
 done
 
-# intermediate pipelines for Reads/Writes
-for mode in reads writes; do
-    regex=" R "
-    [ $mode = "writes" ] && regex=" W "
-    grep "$regex" < $myfifo.$mode.sort0.0 |\
-	tee  $myfifo.$mode.sort0.{1..10} > /dev/null &
-    grep "$regex" < $myfifo.$mode.sort2.0 |\
-	tee  $myfifo.$mode.sort2.1 >\
-	     $myfifo.$mode.sort2.2 &
-done
-
 # extract some interesting variables
-mkfifo $myfifo.vars
+mkfifo $prefifo.vars
 var_list="use_my_guess dry_run use_o_direct use_o_sync wraparound_factor"
-extract_variables "$var_list" < $myfifo.vars > $tmp/vars &
+extract_variables "$var_list" < $prefifo.vars > $tmp/vars &
 
 #  read FILE, add line numbers, and fill the main pipelines
-zcat -f < "$tmp/master.fifo" |\
-    tee $myfifo.pre $myfifo.vars $myfifo.all.sort0.0 |\
+mkfifo $prefifo.main
+mkfifo $mainfifo.{tee_reads,tee_writes}.{nosort,sort2}
+zcat -f < "$tmp/fifo.master" |\
+    tee $prefifo.* |\
     grep ";" |\
     grep -v replay_ |\
     gawk -F ";" '{ if ($1 < 100000000000000000 && $5 < 100000000000000000 && $6 < 100000000000000000) { print; } }' |\
     nl -s ';' |\
-    tee $myfifo.all.sort0.{1..3} |\
-    tee $myfifo.{reads,writes}.sort0.0 |\
+    tee $mainfifo.{all,tee_reads,tee_writes}.nosort* |\
     $sort -t';' -k2 -n |\
-    tee $myfifo.all.sort2.{1..3} |\
-    tee $ws_fifos |\
-    tee $myfifo.reads.sort2.0 >\
-        $myfifo.writes.sort2.0 &
+    tee $mainfifo.{all,tee_reads,tee_writes}.sort2* > /dev/null &
+for mode in reads writes; do
+    regex=" R "
+    [ $mode = "writes" ] && regex=" W "
+    for ord in nosort sort2; do
+	grep "$regex" < $mainfifo.tee_$mode.$ord |\
+	    tee $mainfifo.$mode.$ord* > /dev/null &
+    done
+done
 
 # fill the master pipeline...
 echo "Starting preparation phase...."
-zcat -f $(cat $tmp/files) > "$tmp/master.fifo" &
+zcat -f $(cat $tmp/files) > "$tmp/fifo.master" &
 
 # really start all the background pipelines by this in _foreground_ ...
 
-start_time="$(grep " started at " < $myfifo.pre | sed 's/^.*started at //' | (head -1; cat > /dev/null))"
+start_time="$(grep " started at " < $prefifo.main | sed 's/^.*started at //' | (head -1; cat > /dev/null))"
 
 echo "Waiting for completion..."
 wait
@@ -501,10 +497,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    *.xy)
 	    ;;
 	    *.bins | *.flying)
-            sum_file=$(echo $reads_file | sed 's/\.reads\./.sum./')
-	    if ! [ -e $sum_file ]; then
-		cat $reads_file $writes_file | compute_sum > $sum_file
-	    fi
+            sum_file=$(echo $reads_file | sed 's/\.reads\./.all./')
 	    extra2=", '$sum_file' title 'Reads+Writes' with lines lt 7"
 	    ;;
 	    *.latency.* | *.delay.*)
