@@ -965,7 +965,7 @@ fork bomb
 \end_inset
 
 , in particular under high connection rates and slow block devices.
- An high number of ordinary Unix processes is doing conventional 
+ A high number of ordinary Unix processes is doing conventional 
 \family typewriter
 read()
 \family default
@@ -5933,16 +5933,64 @@ dynamic
 \end_layout
 
 \begin_layout Standard
-Both classes of graphics are described in the following.
+There is one exception: the throughput graphics are produced always, independent
+ly from 
+\family typewriter
+--static
+\family default
+ or 
+\family typewriter
+--dynamic
+\family default
+.
+ In the following, the meaning of different suffixes occurring in the output
+ filenames is described:
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.thrp.*.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The throughput is displayed on the y axis.
+ The requested throughput is green, while the actual throughput is red,
+ for comparison.
+ When both are exactly identical (which occurs for example in 
+\family typewriter
+--static
+\family default
+ mode or when you have an extremely fast disk or a very low-demanding load),
+ don't be confused when the green line completely covers the red one (a
+ property of 
+\family typewriter
+gnuplot
+\family default
+).
 \end_layout
 
 \begin_layout Subsubsection
-Static Analysis
-\end_layout
-
-\begin_layout Standard
-Here is a list of the meaning of different suffixes, together with a short
- description:
+Static Analysis (
+\family typewriter
+--static
+\family default
+)
 \end_layout
 
 \begin_layout Description
@@ -6151,68 +6199,6 @@ average seek distance
 \begin_layout Description
 
 \family typewriter
-*.thrp.*.png
-\family default
- 
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-strut
-\end_layout
-
-\end_inset
-
-
-\begin_inset Newline newline
-\end_inset
-
-The throughput is displayed on the y axis.
- The requested throughput is green, while the actual throughput (only occurring
- in 
-\family typewriter
-*.replay.gz
-\family default
-) is red, for comparison
-\begin_inset Foot
-status open
-
-\begin_layout Plain Layout
-Strictly speaking, the 
-\emph on
-actual
-\emph default
- throughput is a dynamic result, which the 
-\emph on
-required
-\emph default
- throughput is a static one.
- Although both may occur in one picture, 
-\family typewriter
-*.thrp.*
-\family default
- is nevertheless treated as 
-\begin_inset Quotes eld
-\end_inset
-
-static
-\begin_inset Quotes erd
-\end_inset
-
-.
-\end_layout
-
-\end_inset
-
-.
-\end_layout
-
-\begin_layout Description
-
-\family typewriter
 *.rqsize.*.png
 \family default
  
@@ -6264,7 +6250,11 @@ Displays a histogram of the request position (sector#) occurring in the
 \end_layout
 
 \begin_layout Subsubsection
-Dynamic Analysis
+Dynamic Analysis (
+\family typewriter
+--dynamic
+\family default
+)
 \end_layout
 
 \begin_layout Standard

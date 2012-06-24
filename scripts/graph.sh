@@ -339,11 +339,18 @@ if (( verbose_mode )); then
 else
     cat $myfifo.all.sort0.0 > /dev/null &
 fi
+
+cat $myfifo.all.sort2.1 |\
+    cut -d ';' -f 2 |\
+    gawk "$gawk_thrp" >\
+    $out.g00.demand.thrp &
+cat $myfifo.all.sort0.1 |\
+    gawk -F ";" '{ printf("%d\n", $2+$6+$7); }' |\
+    $sort -n |\
+    gawk "$gawk_thrp" >\
+    $out.g00.actual.thrp &
+
 if (( static_mode )); then
-    cat $myfifo.all.sort2.1 | cut -d ';' -f 2 | gawk "$gawk_thrp" >\
-	$out.g20.demand.thrp &
-    cat $myfifo.all.sort0.1 | gawk -F ";" '{ printf("%d\n", $2+$6+$7); }' | $sort -n | gawk "$gawk_thrp" >\
-	$out.g20.actual.thrp &
     cat $myfifo.all.sort0.2 |\
 	compute_flying "+\$6" 7 |\
 	cut -d";" -f1,2 |\
@@ -355,11 +362,10 @@ if (( static_mode )); then
 	sed 's/;/ /' >\
 	$out.g09.delay.sum.tmp.flying &
 else
-    cat $myfifo.all.sort2.1 > /dev/null &
-    cat $myfifo.all.sort0.1 > /dev/null &
     cat $myfifo.all.sort0.2 > /dev/null &
     cat $myfifo.all.sort0.3 > /dev/null &
 fi
+
 if (( dynamic_mode )); then
     cat $myfifo.all.sort2.2 | cut -d ';' -f 2,7 | make_statistics $bad_latency >\
 	$tmp/latencies &
@@ -369,6 +375,7 @@ else
     cat $myfifo.all.sort2.2 > /dev/null &
     cat $myfifo.all.sort2.3 > /dev/null &
 fi
+
 for window in $ws_list; do
     cat $myfifo.all.sort2.$window | cut -d ';' -f 2,3 | compute_ws $window |\
 	tee $myfifo.all.dist1.$window $myfifo.all.dist2.$window |\
