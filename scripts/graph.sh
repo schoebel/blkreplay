@@ -245,10 +245,15 @@ for mode in reads writes all; do
 	    $bin_dir/bins.exe >\
 	    $out.g40.rqsize.$i.bins &
 	mkfifo $inp.nosort.rqpos
+	mkfifo $side.rqpos_tmp
 	cat $inp.nosort.rqpos |\
 	    cut -d ';' -f 3 |\
-	    gawk '{ i = int($1 / 2097152); table[i]++; if (i > max) max = i;} END{for (i = 0; i <= max + 1; i++) printf("%5d %5d\n", i, table[i]); }' >\
+	    gawk '{ i = int($1 / 2097152); table[i]++; if (i > xmax) xmax = i; } END{ for (i = 0; i <= xmax + 1; i++) { printf("%5d %5d\n%5d %5d\n", i, table[i], i+1, table[i]); if (table[i] > ymax) ymax = table[i]; } printf("ymax=%d\n", ymax); }' |\
+	    tee $side.rqpos_tmp |\
+	    grep -v '^[a-z]' >\
 	    $out.g41.rqpos.$i.bins &
+	grep '^[a-z]' < $side.rqpos_tmp >\
+	    $tmp/rqpos_$mode.ymax &
     fi
     if (( dynamic_mode )) && [ "$mode" != "all" ]; then
 	mkfifo $inp.nosort.dyn.1
@@ -393,7 +398,7 @@ done
 
 # extract some interesting variables
 mkfifo $prefifo.vars
-var_list="use_my_guess dry_run use_o_direct use_o_sync wraparound_factor"
+var_list="use_my_guess dry_run use_o_direct use_o_sync wraparound_factor size_of_device"
 extract_variables "$var_list" < $prefifo.vars > $tmp/vars &
 
 #  read FILE, add line numbers, and fill the main pipelines
@@ -430,7 +435,7 @@ wait
 echo "Done preparation phase."
 
 cat $tmp/vars
-eval "$(cat $tmp/vars)"
+source $tmp/vars
 wrap_int="$(echo $wraparound_factor | cut -d. -f1)"
 wrap_frac="$(echo $wraparound_factor | cut -d. -f2)"
 var_color=""
@@ -477,10 +482,10 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	*.latency.*)
 	items="latencies"
 	bad=$bad_latency
-	eval $(cat $tmp/latencies)
+	source $tmp/latencies
 	;;
 	*.delay.*)
-	eval $(cat $tmp/delays)
+	source $tmp/delays
 	;;
 	*)
 	max=$(cat $reads_file $writes_file | wc -l)
@@ -532,6 +537,17 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    ;;
 	    *.rqpos.*)
 	    ylabel="Request Position in Device [GiB]"
+	    if (( size_of_device > 0 )); then
+		(( device_size = (size_of_device - 1) / 2 / 1024 / 1024 + 1 ))
+		source $tmp/rqpos_all.ymax
+		{
+		    echo "$device_size.01 1"
+		    echo "$device_size.01 $ymax"
+		    echo "$device_size.02 $ymax"
+		    echo "$device_size.02 1"
+		} > $tmp/vfile.$title
+		extra2=", '$tmp/vfile.$title' title 'Size of Device = $device_size [GiB]' with lines lt 6"
+	    fi
 	    ;;
 	esac
 	case $reads_file in
@@ -566,6 +582,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	case $reads_file in
 	    *.rqpos.*)
 	    xlogscale=""
+	    with="with lines"
 	    ;;
 	esac
 	
