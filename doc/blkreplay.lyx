@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.26
+Version 0.27
 \end_layout
 
 \begin_layout Standard
@@ -3552,7 +3552,7 @@ There is a simple intuitive rule: your replay device for
 \family typewriter
 blkreplay
 \family default
- should have the 
+ should have (almost) the 
 \emph on
 same
 \emph default
@@ -3571,17 +3571,29 @@ blkreplay
 \family default
  and check the output file.
  At the end, you will find a human-readable statistics showing the highest
- original block number occurring in the replay, as well as the 
-\series bold
-wraparound factor
-\series default
- related to your current replay device size.
- Therefrom you can easily compute the right device sizes.
+ original block number occurring in the replay, as well as some other interestin
+g numbers.
 \end_layout
 
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Standard
+For easy checking, our output graphics will display the so-called 
+\series bold
+wraparound_factor
+\series default
+ in the lower right corner: it shows the ratio between the max block# occuring
+ in the load, and the size of the replay device.
+ Ideally, it should be near 
+\begin_inset Formula $1.0$
+\end_inset
+
+.
+ When it deviates from this by more than a factor of two (or less than one
+ halve), it is printed in purple color to warn you.
 \end_layout
 
 \begin_layout Standard
