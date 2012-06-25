@@ -267,6 +267,11 @@ for mode in reads writes all; do
 	    cut -d ';' -f 2,7 |\
 	    sed 's/;/ /' >\
 	    $out.g02.latency.$i.setpoint &
+	mkfifo $inp.sort7.dyn.3
+	cat $inp.sort7.dyn.3 |\
+	    cut -d ';' -f 2,7 |\
+	    sed 's/;/ /' >\
+	    $out.g03.latency.$i.completed &
 	mkfifo $inp.nosort.dyn.3
 	cat $inp.nosort.dyn.3 |\
 	    cut -d ';' -f 1,7 |\
@@ -576,10 +581,13 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    xlabel="Real Duration [sec]"
 	    ;;
 	    *.setpoint)
-	    xlabel="Intended Duration [sec]"
+	    xlabel="Demanded Duration [sec]"
 	    ;;
 	    *.points)
 	    xlabel="Requests [count]"
+	    ;;
+	    *.completed)
+	    xlabel="Completion Timestamp [sec]"
 	    ;;
 	    *.flying)
 	    xlabel="Duration [sec]"

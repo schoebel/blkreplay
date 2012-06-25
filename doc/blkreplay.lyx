@@ -6400,7 +6400,7 @@ The x axis is ordered according to the
 \emph on
 intended
 \emph default
- starting point, i.e.
+ request submission time (starting point), i.e.
  when the request 
 \emph on
 should have
@@ -6411,6 +6411,32 @@ should have
 *.replay.gz
 \family default
  are merged.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.completed.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The x axis is ordered by the completion time of the requests.
+ Note that this may differ from the submission time.
 \end_layout
 
 \begin_layout Description
@@ -6445,7 +6471,16 @@ requests
 equidistant
 \emph default
 , even in case of heavy throughput differences.
- May be used as a kind of 
+ For 
+\family typewriter
+*.replay.gz
+\family default
+, the order is the 
+\emph on
+completion
+\emph default
+ order.
+ This graphics is useful as a kind of 
 \begin_inset Quotes eld
 \end_inset
 
@@ -6462,12 +6497,17 @@ not
 \family typewriter
 *.realtime.png
 \family default
- and 
+, 
 \family typewriter
 *.setpoint.png
 \family default
+ and 
+\family typewriter
+*.completed.png
+\family default
 ).
- Instead, the runs are just concatenated (pasted together sequentially).
+ Instead, the runs are just concatenated (pasted together sequentially)
+ in the same order as in the corresponding files.
 \end_layout
 
 \begin_layout Description
