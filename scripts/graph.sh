@@ -225,10 +225,9 @@ cat $mainfifo.all.sort2.thrp |\
     cut -d ';' -f 2 |\
     gawk "$gawk_thrp" >\
     $out.g00.demand.thrp &
-mkfifo $mainfifo.all.nosort.thrp
-cat $mainfifo.all.nosort.thrp |\
-    gawk -F ";" '{ printf("%d\n", $2+$6+$7); }' |\
-    $sort -n |\
+mkfifo $mainfifo.all.sort7.thrp
+cat $mainfifo.all.sort7.thrp |\
+    cut -d ';' -f 2 |\
     gawk "$gawk_thrp" >\
     $out.g00.actual.thrp &
 
@@ -256,9 +255,10 @@ for mode in reads writes all; do
 	    $tmp/rqpos_$mode.ymax &
     fi
     if (( dynamic_mode )) && [ "$mode" != "all" ]; then
-	mkfifo $inp.nosort.dyn.1
-	cat $inp.nosort.dyn.1 |\
-	    gawk -F ";" '{ printf("%14.9f %14.9f\n", $2+$6, $7); }' >\
+	mkfifo $inp.sort6.dyn.1
+	cat $inp.sort6.dyn.1 |\
+	    cut -d ';' -f 2,7 |\
+	    sed 's/;/ /' >\
 	    $out.g01.latency.$i.realtime &
 	mkfifo $inp.sort2.dyn.2
 	cat $inp.sort2.dyn.2 |\
@@ -324,7 +324,7 @@ for mode in reads writes all; do
     fi
 done
 
-# worker pipelines for all requests
+# global worker pipelines
 if (( verbose_mode )); then
     mkfifo $prefifo.verbose
     extra_modes="submit_level pushback_level submit_ahead submit_lag answer_lag submit_lag_cumul answer_lag_cumul input_wait answer_wait input_wait_cumul answer_wait_cumul"
@@ -401,9 +401,35 @@ mkfifo $prefifo.vars
 var_list="use_my_guess dry_run use_o_direct use_o_sync wraparound_factor size_of_device"
 extract_variables "$var_list" < $prefifo.vars > $tmp/vars &
 
+# create intermediate pipelines on demand
+for mode in reads writes; do
+    regex=" R "
+    [ $mode = "writes" ] && regex=" W "
+    for ord in nosort sort2 sort6 sort7; do
+	if [ -n "$(echo $mainfifo.$mode.$ord*)" ]; then
+	    mkfifo $mainfifo.tee_$mode.$ord
+	    grep "$regex" < $mainfifo.tee_$mode.$ord |\
+		tee $mainfifo.$mode.$ord* > /dev/null &
+	fi
+    done
+done
+if [ -n "$(echo $mainfifo.{all,reads,write}.sort6.*)" ]; then
+    mkfifo $mainfifo.all.nosort.tee_sort6
+    cat $mainfifo.all.nosort.tee_sort6 |\
+	gawk -F ";" '{ printf("%s;%14.9f;%s;%s;%s;%s;%s\n", $1, $2+$6, $3, $4, $5, $6, $7); }' |\
+	$sort -t';' -k2 -n |\
+	tee $mainfifo.all.sort6* $mainfifo.tee_{reads,writes}.sort6 > /dev/null &
+fi
+if [ -n "$(echo $mainfifo.{all,reads,write}.sort7.*)" ]; then
+    mkfifo $mainfifo.all.nosort.tee_sort7
+    cat $mainfifo.all.nosort.tee_sort7 |\
+	gawk -F ";" '{ printf("%s;%14.9f;%s;%s;%s;%s;%s\n", $1, $2+$6+$7, $3, $4, $5, $6, $7); }' |\
+	$sort -t';' -k2 -n |\
+	tee $mainfifo.all.sort7* $mainfifo.tee_{reads,writes}.sort7 > /dev/null &
+fi
+
 #  read FILE, add line numbers, and fill the main pipelines
 mkfifo $prefifo.main
-mkfifo $mainfifo.{tee_reads,tee_writes}.{nosort,sort2}
 zcat -f < "$tmp/fifo.master" |\
     tee $prefifo.* |\
     grep ";" |\
@@ -413,14 +439,6 @@ zcat -f < "$tmp/fifo.master" |\
     tee $mainfifo.{all,tee_reads,tee_writes}.nosort* |\
     $sort -t';' -k2 -n |\
     tee $mainfifo.{all,tee_reads,tee_writes}.sort2* > /dev/null &
-for mode in reads writes; do
-    regex=" R "
-    [ $mode = "writes" ] && regex=" W "
-    for ord in nosort sort2; do
-	grep "$regex" < $mainfifo.tee_$mode.$ord |\
-	    tee $mainfifo.$mode.$ord* > /dev/null &
-    done
-done
 
 # fill the master pipeline...
 echo "Starting preparation phase...."
