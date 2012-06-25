@@ -496,7 +496,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	continue
     fi
     (
-	color="green"
+	color=""
 	lt_color=2
 	case $reads_file in
 	    *.xy)
@@ -508,8 +508,9 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    *.latency.* | *.delay.*)
 	    test_title="Test"
 	    delay_title="$test_title passed: no $items beyond ${bad}s (max=${max}s)"
+	    color="(green)"
 	    if [[ hit -gt 0 ]]; then
-		color="purple"
+		color="(purple)"
 		lt_color=4
 		echo "$start 0" > $tmp/vfile.$title
 		echo "$start $max" >> $tmp/vfile.$title
@@ -586,7 +587,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    ;;
 	esac
 	
-	echo "---> plot on $title.$picturetype ($color)"
+	echo "---> plot on $title.$picturetype $color"
     
 	plot=""
 	if [ -s "$reads_file" ]; then
@@ -646,7 +647,8 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	continue
     fi
 
-    echo "---> plot on $mode"
+    echo "---> plot on $title.$picturetype"
+
     (
 	xlabel="Duration [sec]"
 	scale=""
