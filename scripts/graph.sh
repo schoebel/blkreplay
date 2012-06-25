@@ -233,13 +233,13 @@ mkfifo $mainfifo.all.sort2.thrp
 cat $mainfifo.all.sort2.thrp |\
     cut -d ';' -f 2 |\
     gawk "$gawk_thrp" >\
-    $out.g00.demand.thrp &
+    $out.g000.overwiev.demand.thrp &
 if (( dynamic_mode )); then
     mkfifo $mainfifo.all.sort7.thrp
     cat $mainfifo.all.sort7.thrp |\
 	cut -d ';' -f 2 |\
 	gawk "$gawk_thrp" >\
-	$out.g00.actual.thrp &
+	$out.g000.overview.actual.thrp &
 fi
 
 # worker pipelines for reads / writes
@@ -312,7 +312,17 @@ for mode in reads writes all; do
 	    sed 's/;/ /' >\
 	    $out.g12.$i.latency.delay.xy &
     fi
+    mkfifo $inp.sort2.thrp.dedi
+    cat $inp.sort2.thrp.dedi |\
+	cut -d ';' -f 2 |\
+	gawk "$gawk_thrp" >\
+	$out.g00.thrp.$i.setpoint &
     if (( dynamic_mode )); then
+	mkfifo $inp.sort7.thrp.dedi
+	cat $inp.sort7.thrp.dedi |\
+	    cut -d ';' -f 2 |\
+	    gawk "$gawk_thrp" >\
+	    $out.g00.thrp.$i.completed &
 	mkfifo $inp.nosort.dyn.6
 	cat $inp.nosort.dyn.6 |\
 	    cut -d ';' -f 7 |\
@@ -548,7 +558,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	case $reads_file in
 	    *.xy)
 	    ;;
-	    *.bins | *.flying | *.turns.*)
+	    *.bins | *.flying | *.turns.* | *.thrp.*)
             sum_file=$(echo $reads_file | sed 's/\.reads\./.all./')
 	    extra2=", '$sum_file' title 'Reads+Writes' with lines lt 7"
 	    ;;
@@ -574,6 +584,11 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	xlogscale=""
 	ylogscale="set logscale y;"
 	case $reads_file in
+	    *.thrp.*)
+	    ylabel="Throughput [IO/sec]"
+	    with="with lines"
+	    ylogscale=""
+	    ;;
 	    *.latency.*)
 	    ylabel="Latency [sec]  (Avg=$avg)"
 	    ;;

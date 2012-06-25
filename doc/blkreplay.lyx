@@ -5970,19 +5970,18 @@ strut
 \end_inset
 
 The throughput is displayed on the y axis.
- The requested throughput is green, while the actual throughput is red,
- for comparison.
- When both are exactly identical (which occurs for example in 
-\family typewriter
---static
-\family default
- mode or when you have an extremely fast disk or a very low-demanding load),
- don't be confused when the green line completely covers the red one (a
- property of 
+ There is an overview variant, where the overall requested throughput is
+ depicted green, while the actual throughput (when running in dynamic mode)
+ is red, for comparison.
+ When both are exactly identical (which occurs for example when you have
+ an extremely fast disk or a very low-demanding load), don't be confused
+ when the green line completely covers the red one (a property of 
 \family typewriter
 gnuplot
 \family default
 ).
+ There are also more detailed variants where the read vs write throughput
+ is distinct.
 \end_layout
 
 \begin_layout Subsubsection
