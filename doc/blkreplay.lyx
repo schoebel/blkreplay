@@ -118,12 +118,23 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.28
+Version 0.29
 \end_layout
 
 \begin_layout Standard
 \noindent
-Copyright (C) 2012 Thomas Schöbel-Theuer.
+Copyright (C) 2012 Thomas Schöbel-Theuer / 1&1 Internet AG (see 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://www.1und1.de
+\end_layout
+
+\end_inset
+
+ shortly called 1&1 in the following).
 \end_layout
 
 \begin_layout Standard

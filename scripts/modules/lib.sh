@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright 2010-2012 Thomas Schoebel-Theuer, sponsored by 1&1 Internet AG
+# Copyright 2010-2012 Thomas Schoebel-Theuer /  1&1 Internet AG
 #
 # Email: tst@1und1.de
 #
@@ -111,7 +111,7 @@ function remote_all_noreturn
 function echo_copyright
 {
     name="$1"
-    copyright="${2:-Thomas Schoebel-Theuer, sponsored by 1&1 Internet AG}"
+    copyright="${2:-Thomas Schoebel-Theuer /  1&1 Internet AG}"
 
     # Notice: the following GNU all-permissive license applies to the
     # generated DATA file only, and does not change the GPL of this script.
