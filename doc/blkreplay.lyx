@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.27
+Version 0.28
 \end_layout
 
 \begin_layout Standard
@@ -1380,7 +1380,7 @@ with-drop
 with-partial
 \family default
  Any conflicting requests (in the sense of damaged IO) are pushed back to
- a pushback list and kept there until the conflict is gone.
+ an internal pushback list and kept there until the conflict is gone.
  Pushed back requests are immediately submitted as soon as the conflict
  has gone away.
  This results in a reordering of the 
@@ -1416,10 +1416,34 @@ original storage semantics
 \begin_inset Newline newline
 \end_inset
 
-Attention! this may reduce the overall IO parallelism, because some request
- slots must be reserved for pushed-back requests, in order to allow some
- fairness between ordinary and pushed-packed requests when the latter ones
- try to 
+Attention! as a side effect, this may 
+\emph on
+increase
+\emph default
+ the actual IO parallelism to a larger number than configured via the 
+\family typewriter
+threads=
+\family default
+ parameter, because some request slots (and in turn, also some threads)
+ must
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Otherwise a reactivated request from the pushback list could have to wait
+ for an ordinary request slot to become free, which would result in an artificia
+l delay.
+ Experiments have show that such kinds of distortions can be serious.
+\end_layout
+
+\end_inset
+
+ be reserved 
+\emph on
+in advance
+\emph default
+ for pushed-back requests.
+ When conflicts are gone and the system tries to 
 \begin_inset Quotes eld
 \end_inset
 
@@ -1427,9 +1451,9 @@ catch up
 \begin_inset Quotes erd
 \end_inset
 
-.
- This can happen in particular with some Windows loads, where a lot of writes
- seem to be repeated.
+, additional IO requests may be submitted.
+ In practice, this can happen in particular with some Windows loads, where
+ a lot of writes seem to be repeated.
 \end_layout
 
 \begin_layout Labeling
@@ -1472,9 +1496,26 @@ most robust
 \begin_layout Standard
 In many cases, you will prefer 
 \family typewriter
+with-partial
+\family default
+, which is the default.
+ It delivers almost the same throughput as 
+\family typewriter
+with-conflicts
+\family default
+ without the downsides of 
+\family typewriter
+with-drop
+\family default
+, while minimizing artificial delays.
+\end_layout
+
+\begin_layout Standard
+However, 
+\family typewriter
 with-ordering
 \family default
-.
+ is also useful in many scenarios.
  Practical experience from many hardware tests shows that the artificial
  delays caused by 
 \family typewriter
@@ -1490,6 +1531,20 @@ advantage
 indicator
 \series default
  for massive IO problems of the test candidate.
+ 
+\family typewriter
+with-ordering
+\family default
+ is often a kind of 
+\begin_inset Quotes eld
+\end_inset
+
+detector
+\begin_inset Quotes erd
+\end_inset
+
+ for hardware problems, since it visualizes any problems in an eye-catching
+ way.
 \end_layout
 
 \begin_layout Section

@@ -147,7 +147,7 @@ int fork_dispatcher = 1;
 int use_o_direct = 1;
 int use_o_sync = 0;
 int mmap_mode = 0;
-int conflict_mode = 0; 
+int conflict_mode = 2; 
 /* 0 = allow arbitrary permutations in ordering
  * 1 = drop conflicting requests
  * 2 = partial order by pushing back conflicting requests
@@ -1927,7 +1927,7 @@ const struct arg arg_table[] = {
 	},
 	{
 		.arg_name  = "with-partial",
-		.arg_descr = "partial ordering by pushing back conflicts",
+		.arg_descr = "partial ordering by pushing back conflicts (default)",
 		.arg_const = 2,
 		.arg_val   = &conflict_mode,
 	},
