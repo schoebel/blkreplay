@@ -220,17 +220,19 @@ thrp_window=${thrp_window:-3}
 
 gawk_thrp="{ time=int(\$1); if (time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; if (time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); factor = int((time - oldtime) / $thrp_window); oldtime += factor * $thrp_window; if (factor > 1) { printf(\"%d 0.0\\n\", oldtime); } }; count=0; }; count++; }"
 
+# produce throughput graphics always
 mkfifo $mainfifo.all.sort2.thrp
 cat $mainfifo.all.sort2.thrp |\
     cut -d ';' -f 2 |\
     gawk "$gawk_thrp" >\
     $out.g00.demand.thrp &
-mkfifo $mainfifo.all.sort7.thrp
-cat $mainfifo.all.sort7.thrp |\
-    cut -d ';' -f 2 |\
-    gawk "$gawk_thrp" >\
-    $out.g00.actual.thrp &
-
+if (( dynamic_mode )); then
+    mkfifo $mainfifo.all.sort7.thrp
+    cat $mainfifo.all.sort7.thrp |\
+	cut -d ';' -f 2 |\
+	gawk "$gawk_thrp" >\
+	$out.g00.actual.thrp &
+fi
 
 # worker pipelines for reads / writes
 for mode in reads writes all; do
