@@ -6249,17 +6249,63 @@ Displays a histogram of the request position (sector#) occurring in the
  The coarse units are necessary to avoid too much jitter in the y axis.
 \end_layout
 
+\begin_layout Description
+
+\family typewriter
+*.turns.*.png
+\family default
+ (both static and dynamic variants)
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+A turn is a request where the sector number is 
+\emph on
+lower
+\emph default
+ than the sector number of its predecessor.
+ For a mechanical hard disk, a turn means that it has to 
+\begin_inset Quotes eld
+\end_inset
+
+seek backwards
+\begin_inset Quotes erd
+\end_inset
+
+, which is often more time-consuming than seeking forward.
+ Imagine an old-fashioned magnetic tape (e.g.
+ DAT), then you will get some feeling for the meaning of a turn.
+ Turns are an interesting measure for the locality behaviour of the load
+ (or the replay result).
+ There is no freak that some IO schedulers try to minimize the number of
+ turns (for example the famous sawtooth strategy).
+ In this graphics, the y axis shows the 
+\emph on
+relative
+\emph default
+ number of turns occurring during a time window of 1 seconds (in percent,
+ related to the total number of requests occurring during that time window).
+ 
+\end_layout
+
 \begin_layout Subsubsection
 Dynamic Analysis (
 \family typewriter
 --dynamic
 \family default
 )
-\end_layout
-
-\begin_layout Standard
-Here is a list of the meaning of different suffixes, together with a short
- description:
 \end_layout
 
 \begin_layout Description
@@ -6336,6 +6382,61 @@ strut
 \end_inset
 
 On the y axis, the troughput (IOPS) is displayed.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.flying.*.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The y axis shows the total number of requests which are currently 
+\begin_inset Quotes eld
+\end_inset
+
+on the fly
+\begin_inset Quotes erd
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+Examples: 
+\family typewriter
+*.latency.flying.png
+\family default
+ is derived from the latency, and thus showing the number of requests currently
+ submitted to the device, while 
+\family typewriter
+*.delay.flying.png
+\family default
+ is derived from the delay, showing the number of requests currently waiting
+ in the logical 
+\begin_inset Quotes eld
+\end_inset
+
+delay queue
+\begin_inset Quotes erd
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Description
@@ -6508,61 +6609,6 @@ not
 ).
  Instead, the runs are just concatenated (pasted together sequentially)
  in the same order as in the corresponding files.
-\end_layout
-
-\begin_layout Description
-
-\family typewriter
-*.flying.png
-\family default
- 
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-strut
-\end_layout
-
-\end_inset
-
-
-\begin_inset Newline newline
-\end_inset
-
-The y axis shows the total number of requests which are currently 
-\begin_inset Quotes eld
-\end_inset
-
-on the fly
-\begin_inset Quotes erd
-\end_inset
-
-.
-\begin_inset Newline newline
-\end_inset
-
-Examples: 
-\family typewriter
-*.latency.flying.png
-\family default
- is derived from the latency, and thus showing the number of requests currently
- submitted to the device, while 
-\family typewriter
-*.delay.flying.png
-\family default
- is derived from the delay, showing the number of requests currently waiting
- in the logical 
-\begin_inset Quotes eld
-\end_inset
-
-delay queue
-\begin_inset Quotes erd
-\end_inset
-
-.
 \end_layout
 
 \begin_layout Description

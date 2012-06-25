@@ -158,6 +158,14 @@ function compute_ws
     gawk -F ";" "BEGIN{ start = 0.0; count = 0; } { if (!start) start = \$1; while (\$1 >= start + $advance) { delta = 0.0; if ($window) { c = asorti(table); delta = table[c-1] - table[0]; } printf(\"%14.9f %d %14.9f %14.9f\n\", start+$advance, count, delta, (c > 0 ? delta/c : 0)); if ($window) { count = 0; delete table; } start += $advance; } if (!table[\$2]) { table[\$2] = \$2; count++; } }"
 }
 
+function compute_turns
+{
+    window=$1
+    advance=$1
+    (( advance <= 0 )) && advance=1
+    gawk -F ";" "{ if (!start) start = \$1; while (\$1 >= start + $advance) { printf(\"%14.9f %d %d %f\n\", start + $advance, turns, count, count > 0 ? turns * 100.0 / count : 0); start += $advance; if ($window) { turns = 0; count = 0; } } if (\$2 < old) turns++; count++; old = \$2; }"
+}
+
 function compute_flying
 {
     add="$1"
@@ -328,6 +336,20 @@ for mode in reads writes all; do
 	    cut -d";" -f1,2 |\
 	    sed 's/;/ /' >\
 	    $out.g09.delay.$i.flying &
+	mkfifo $inp.sort7.turns.completed
+	cat $inp.sort7.turns.completed |\
+	    cut -d ';' -f 2,3 |\
+	    compute_turns 1 |\
+	    gawk '{print $1, $4; }' >\
+	    $out.g43.$i.turns.completed &
+    fi
+    if (( static_mode || dynamic_mode )); then
+	mkfifo $inp.sort2.turns.setpoint
+	cat $inp.sort2.turns.setpoint |\
+	    cut -d ';' -f 2,3 |\
+	    compute_turns 1 |\
+	    gawk '{print $1, $4; }' >\
+	    $out.g42.$i.turns.setpoint &
     fi
 done
 
@@ -526,7 +548,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	case $reads_file in
 	    *.xy)
 	    ;;
-	    *.bins | *.flying)
+	    *.bins | *.flying | *.turns.*)
             sum_file=$(echo $reads_file | sed 's/\.reads\./.all./')
 	    extra2=", '$sum_file' title 'Reads+Writes' with lines lt 7"
 	    ;;
@@ -550,6 +572,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	ylabel="UNDEFINED"
 	dlabel="Flying Requests [count]"
 	xlogscale=""
+	ylogscale="set logscale y;"
 	case $reads_file in
 	    *.latency.*)
 	    ylabel="Latency [sec]  (Avg=$avg)"
@@ -574,6 +597,11 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 		} > $tmp/vfile.$title
 		extra2=", '$tmp/vfile.$title' title 'Size of Device = $device_size [GiB]' with lines lt 6"
 	    fi
+	    ;;
+	    *.turns.*)
+	    ylabel="Number of Turns [%]"
+	    ylogscale=""
+	    with="with lines"
 	    ;;
 	esac
 	case $reads_file in
@@ -607,6 +635,8 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    *.xy)
 	    xlabel="Flying Requests [count]"
 	    ;;
+	    *.turns.*)
+	    xlabel="Duration [sec]"
 	esac
 	case $reads_file in
 	    *.rqpos.*)
@@ -634,8 +664,8 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	set term $picturetype $pictureoptions;
 	set output "$title.$picturetype";
 	set title "$title $start_time";
-	set logscale y;
 	$xlogscale
+	$ylogscale
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
 	$var_label
