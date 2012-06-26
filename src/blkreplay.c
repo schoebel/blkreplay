@@ -148,12 +148,18 @@ int fake_io = 0;
 int fork_dispatcher = 1;
 int use_o_direct = 1;
 int use_o_sync = 0;
+
 int mmap_mode = 0;
 int conflict_mode = 2; 
 /* 0 = allow arbitrary permutations in ordering
  * 1 = drop conflicting requests
  * 2 = partial order by pushing back conflicting requests
  * 3 = enforce ordering by waiting for conflicts
+ */
+int strong_mode = 1;
+/* 0 = conflicts are only counting between write/write
+ * 1 = conflicts are between read/write and write/write
+ * 2 = treat any damaged IO as conflicting
  */
 int verify_mode = 0; 
 /* 0 = no verify
@@ -328,6 +334,7 @@ struct fly {
 	struct fly *fl_next;
 	long long   fl_sector;
 	int         fl_len;
+	char        fl_rwbs;
 };
 
 struct fly_hash {
@@ -336,7 +343,7 @@ struct fly_hash {
 };
 
 static
-void fly_add(struct fly_hash *hash, long long sector, int len)
+void fly_add(struct fly_hash *hash, long long sector, int len, char rwbs)
 {
 	while (len > 0) {
 		struct fly *new = malloc(sizeof(struct fly));
@@ -353,6 +360,7 @@ void fly_add(struct fly_hash *hash, long long sector, int len)
 		}
 		new->fl_sector = sector;
 		new->fl_len = this_len;
+		new->fl_rwbs = rwbs;
 		new->fl_next = hash->fly_hash_table[index];
 		hash->fly_hash_table[index] = new;
 		hash->fly_count++;
@@ -363,7 +371,7 @@ void fly_add(struct fly_hash *hash, long long sector, int len)
 }
 
 static
-int fly_check(struct fly_hash *hash, long long sector, int len)
+int fly_check(struct fly_hash *hash, long long sector, int len, char rwbs)
 {
 	while (len > 0) {
 		struct fly *tmp = hash->fly_hash_table[FLY_HASH_FN(sector)];
@@ -374,7 +382,14 @@ int fly_check(struct fly_hash *hash, long long sector, int len)
 
 		for (; tmp != NULL; tmp = tmp->fl_next) {
 			if (sector + this_len > tmp->fl_sector && sector < tmp->fl_sector + tmp->fl_len) {
-				return 1;
+				if (strong_mode >= 2)
+					return 1;
+				if (rwbs == 'R' && toupper(tmp->fl_rwbs) == 'R')
+					continue;
+				if (strong_mode ||
+				    (rwbs == 'W' &&
+				     toupper(tmp->fl_rwbs) == 'W'))
+					return 1;
 			}
 		}
 
@@ -385,7 +400,7 @@ int fly_check(struct fly_hash *hash, long long sector, int len)
 }
 
 static
-void fly_delete(struct fly_hash *hash, long long sector, int len)
+void fly_delete(struct fly_hash *hash, long long sector, int len, char rwbs)
 {
 	while (len > 0) {
 		struct fly **res = &hash->fly_hash_table[FLY_HASH_FN(sector)];
@@ -396,7 +411,7 @@ void fly_delete(struct fly_hash *hash, long long sector, int len)
 			this_len = max_len;
 		
 		for (tmp = *res; tmp != NULL; res = &tmp->fl_next, tmp = *res) {
-			if (tmp->fl_sector == sector && tmp->fl_len == this_len) {
+			if (tmp->fl_sector == sector && tmp->fl_len == this_len && toupper(tmp->fl_rwbs) == rwbs) {
 				*res = tmp->fl_next;
 				hash->fly_count--;
 				free(tmp);
@@ -1134,9 +1149,11 @@ void submit_to_queues(struct request *rq, int is_pushback)
 	// generate write tag
 	rq->tag.tag_start = start_stamp.tv_sec;
 	rq->tag.tag_seqnr = ++seqnr;
+	if (conflict_mode &&
+	    (strong_mode || toupper(rq->rwbs) == 'W'))
+		fly_add(&fly_hash, rq->sector, rq->length, toupper(rq->rwbs));
+
 	if (toupper(rq->rwbs) != 'R') {
-		if (conflict_mode)
-			fly_add(&fly_hash, rq->sector, rq->length);
 		write_seqnr++;
 		force_blockversion(verify_fd, write_seqnr, rq->sector, rq->length);
 	}
@@ -1203,7 +1220,7 @@ void check_pushback(void)
 			break;
 		}
 
-		has_conflict = fly_check(&fly_hash, tmp->sector, tmp->length);
+		has_conflict = fly_check(&fly_hash, tmp->sector, tmp->length, toupper(tmp->rwbs));
 		if (has_conflict) {
 			prev = tmp;
 			ptr = &tmp->next;
@@ -1307,10 +1324,10 @@ int get_answer(void)
 			printf("ERROR: request %lld vanished\n", rq.sector);
 		}
 
+		if (conflict_mode &&
+		    (strong_mode || toupper(rq.rwbs) == 'W'))
+			fly_delete(&fly_hash, rq.sector, rq.length, toupper(rq.rwbs));
 		if (toupper(rq.rwbs) != 'R') {
-			if (conflict_mode) {
-				fly_delete(&fly_hash, rq.sector, rq.length);
-			}
 			if (verify_mode) {
 				unsigned int *data = get_blockversion(complete_fd, rq.sector, rq.length);
 				advance_blockversion(data, rq.length, rq.tag.tag_write_seqnr);
@@ -1686,7 +1703,7 @@ void execute(struct request *rq)
 		}
 
 		if (conflict_mode) {
-			status = fly_check(&fly_hash, rq->sector, rq->length);
+			status = fly_check(&fly_hash, rq->sector, rq->length, toupper(rq->rwbs));
 		} else if (verify_mode) {
 			unsigned int *now_version = get_blockversion(complete_fd, rq->sector, rq->length);
 			status = compare_blockversion(rq->old_version, now_version, rq->length);
@@ -1907,6 +1924,7 @@ void parse(FILE *inp)
 	printf("# ordered   requests (waits)  : %6d\n", statist_ordered);
 	printf("# verify errors during replay : %6lld\n", verify_errors);
 	printf("conflict_mode                 : %6d\n", conflict_mode);
+	printf("strong_mode                   : %6d\n", strong_mode);
 	printf("verify_mode                   : %6d\n", verify_mode);
 	if (fly_hash.fly_count)
 		printf("fly_count                     : %6d\n", fly_hash.fly_count);
@@ -2010,6 +2028,12 @@ const struct arg arg_table[] = {
 		.arg_descr = "enforce total order in case of conflicts",
 		.arg_const = 3,
 		.arg_val   = &conflict_mode,
+	},
+	{
+		.arg_name  = "strong",
+		.arg_descr = "mode between 0 and 2, see docs (default=1)",
+		.arg_const = ARG_INT,
+		.arg_val   = &strong_mode,
 	},
 
 
