@@ -112,7 +112,7 @@
 #define QUEUES               4096
 #define MAX_THREADS         32768
 #define FILL_FACTOR             8
-#define START_GRACE            15
+#define DEFAULT_START_GRACE    15
 #define DEFAULT_THREADS      1024
 #define DEFAULT_FAN_OUT         4
 #define DEFAULT_SPEEDUP       1.0
@@ -188,6 +188,9 @@ long long verify_errors = 0;
 long long verify_errors_after = 0;
 long long verify_mismatches = 0;
 
+struct timespec start_grace = {
+	.tv_sec = DEFAULT_START_GRACE,
+};
 struct timespec start_stamp = {};
 struct timespec first_stamp = {};
 struct timespec timeshift = {};
@@ -760,14 +763,20 @@ done:
 
 ///////////////////////////////////////////////////////////////////////
 
+void grace_diff(struct timespec *diff, struct timespec *now)
+{
+	struct timespec grace;
+	clock_gettime(CLOCK_REALTIME, now);
+	timespec_diff(&grace, &start_stamp, now);
+	timespec_diff(diff, &start_grace, &grace);
+}
+
 void verbose_status(struct request *rq, char *info)
 {
 	struct timespec now;
 	struct timespec diff;
 
-	clock_gettime(CLOCK_REALTIME, &now);
-	timespec_diff(&diff, &start_stamp, &now);
-	diff.tv_sec -= START_GRACE;
+	grace_diff(&diff, &now);
 
 	printf("INFO:"
 	       " action='%s'"
@@ -805,7 +814,7 @@ void verbose_status(struct request *rq, char *info)
 ///////////////////////////////////////////////////////////////////////
 
 static
-void do_wait(struct request *rq, struct timespec *now, int less_wait)
+void do_wait(struct request *rq, struct timespec *now)
 {
 #ifdef DEBUG_TIMING
 	printf("do_wait\n");
@@ -813,19 +822,13 @@ void do_wait(struct request *rq, struct timespec *now, int less_wait)
 
 	for (;;) {
 		struct timespec rest_wait = {};
-		clock_gettime(CLOCK_REALTIME, now);
-		timespec_diff(&rq->replay_stamp, &start_stamp, now);
-		rq->replay_stamp.tv_sec -= START_GRACE; // grace period
 
+		grace_diff(&rq->replay_stamp, now);
 		timespec_diff(&rest_wait, &rq->replay_stamp, &rq->orig_factor_stamp);
 
-		rest_wait.tv_sec -= less_wait;
-
-
 #ifdef DEBUG_TIMING
-		printf("(%d) %d %lld.%09ld %lld.%09ld %lld.%09ld\n",
+		printf("(%d) %lld.%09ld %lld.%09ld %lld.%09ld\n",
 		       getpid(),
-		       less_wait,
 		       (long long)now->tv_sec,
 		       now->tv_nsec,
 		       (long long)rq->replay_stamp.tv_sec,
@@ -882,7 +885,7 @@ int do_action(struct request *rq)
 			return -1;
 		}
 		if (toupper(rq->rwbs) == 'R') {
-			do_wait(rq, &t0, 0);
+			do_wait(rq, &t0);
 			
 			if (!fake_io)
 				status = do_read(buffer, len);
@@ -894,7 +897,7 @@ int do_action(struct request *rq)
 		} else {
 			make_tags(rq, buffer, len);
 
-			do_wait(rq, &t0, 0);
+			do_wait(rq, &t0);
 
 			if (!fake_io)
 				status = do_write(buffer, len);
@@ -1739,9 +1742,7 @@ int delay_distance(struct timespec *check)
 	if (!check->tv_sec)
 		return 0;
 
-	clock_gettime(CLOCK_REALTIME, &now);
-	timespec_diff(&elapsed, &start_stamp, &now);
-	elapsed.tv_sec -= START_GRACE; // grace period
+	grace_diff(&elapsed, &now);
 	timespec_diff(&diff, &elapsed, check);
 	timespec_diff(&delta, &diff, &ahead_limit);
 	if ((long)delta.tv_sec < 0)
@@ -1973,6 +1974,12 @@ const struct arg arg_table[] = {
 		.arg_descr = "start offset, used for output (in seconds)",
 		.arg_const = ARG_INT,
 		.arg_val   = &replay_out,
+	},
+	{
+		.arg_name  = "start-grace",
+		.arg_descr = "start after grace period for filling the pipes (in seconds)",
+		.arg_const = ARG_INT,
+		.arg_val   = &start_grace.tv_sec,
 	},
 
 

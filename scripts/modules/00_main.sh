@@ -148,7 +148,7 @@ function main_run
 	    fi
 	done
 	# list of options with parameters
-	optlist="replay_start replay_duration replay_out threads speedup fan_out bottleneck simulate_io ahead_limit verbose"
+	optlist="replay_start replay_duration replay_out start_grace threads speedup fan_out bottleneck simulate_io ahead_limit verbose"
 	for opt in $optlist; do
 	    if eval "[ -n \"\$$opt\" ]"; then
 		options="$options --$(echo $opt | sed 's/_/-/g')=$(eval echo \$${opt})"
