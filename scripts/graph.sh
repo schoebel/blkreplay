@@ -442,6 +442,9 @@ mkfifo $prefifo.vars
 var_list="use_my_guess dry_run use_o_direct use_o_sync wraparound_factor size_of_device"
 extract_variables "$var_list" < $prefifo.vars > $tmp/vars &
 
+mkfifo $prefifo.warnings
+grep "^WARN" < $prefifo.warnings > $tmp/warnings &
+
 # create intermediate pipelines on demand
 for mode in reads writes r_push w_push ; do
     regex=" [Rr] "
@@ -505,6 +508,15 @@ if (( wrap_int > 1 || (!wrap_int && wrap_frac < 500) )); then
 fi
 var_text="$(echo $(grep 'wrap' $tmp/vars))"
 var_label="set label \"$var_text\" at graph 1.0, screen 0.0 right $var_color front offset 0, character 1"
+
+warn_label=""
+if [ -s $tmp/warnings ]; then
+    warn_text="$(head -n1 < $tmp/warnings)"
+    echo "$warn_text"
+    warn_color="#B35200"
+    warn_label="set label \"$warn_text\" at graph 0.0, screen 0.0 left textcolor rgb \"$warn_color\" front offset 0, character 1"
+fi
+
 is_fake=0
 fake_label=""
 if [ -n "$use_o_direct" ]; then
@@ -709,6 +721,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
 	$var_label
+	$warn_label
 	$fake_label
 	$plot;
 EOF
@@ -781,6 +794,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
 	$var_label
+	$warn_label
 	$fake_label
 	$plot;
 EOF

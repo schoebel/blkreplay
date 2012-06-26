@@ -1863,7 +1863,7 @@ void parse(FILE *inp)
 
 		if (rq->sector + rq->length > main_size && main_size) {
 			if (!overflow) {
-				printf("WARN: sector %lld+%d exceeds %lld, turning on wraparound.\n", rq->sector, rq->length, main_size);
+				printf("INFO: sector %lld+%d exceeds %lld, turning on wraparound.\n", rq->sector, rq->length, main_size);
 				fflush(stdout);
 				overflow++;
 			}
