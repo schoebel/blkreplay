@@ -169,6 +169,7 @@ int verbose = 0;
 int bottleneck = 0;
 
 int count_submitted = 0;   // number of requests on the fly
+int count_catchup = 0;     // number of requests catching up
 int count_pushback = 0;    // number of requests on pushback list
 
 int max_submitted = 0;
@@ -259,8 +260,14 @@ struct request {
 	struct request *next;
 	unsigned int *old_version;
 };
+
 // the following reduces a potential space bottleneck on the answer pipe
 #define RQ_SIZE (sizeof(struct request) - 2*sizeof(void*))
+#ifdef PIPE_BUF
+# define FILL_MAX  (PIPE_BUF / RQ_SIZE)
+#else
+# define FILL_MAX  (1024 / RQ_SIZE)
+#endif
 
 static struct request *rq_hash[RQ_HASH_MAX] = {};
 
@@ -763,11 +770,13 @@ void verbose_status(struct request *rq, char *info)
 	       " action='%s'"
 	       " pid=%d"
 	       " count_submitted=%d"
+	       " count_catchup=%d"
 	       " count_pushback=%d"
 	       " real_time=%ld.%09ld",
 	       info,
 	       getpid(),
 	       count_submitted,
+	       count_catchup,
 	       count_pushback,
 	       diff.tv_sec, diff.tv_nsec);
 
@@ -999,29 +1008,29 @@ void close_all_queues(int q[][2], int max, int i2, int except)
 
 // positions: which queue to take?
 
-static char *pos_table = NULL;
-int pos_last = 0;
+static short *pos_table = NULL;
 
 static
 int pos_get(int offset, int max_filled)
 {
+	static int pos_last[2] = {};
 	int start;
 	int max;
+	int best;
+	int besti;
 	int i;
 
 	if (!pos_table) {
-		pos_table = malloc(table_max);
+		pos_table = malloc(table_max * sizeof(short));
 		if (!pos_table) {
 			printf("FATAL ERROR: out of memory for pos_table\n");
 			fflush(stdout);
 			exit(-1);
 		}
-		memset(pos_table, 0, table_max);
+		memset(pos_table, 0, table_max * sizeof(short));
 	}
 
-	start = 0;
-	if (!offset)
-		start = (pos_last + 1) % total_max;
+	start = (pos_last[offset / total_max] + 1) % total_max;
 
 	for (max = total_max, i = start; --max >= 0; i = (i + 1) % total_max) {
 		if (pos_table[i + offset] < max_filled)
@@ -1029,17 +1038,41 @@ int pos_get(int offset, int max_filled)
 	}
 
 	printf("WARN: cannot allocate pipe slot!\n"
-	       "WARN: offset=%d max_filled=%d count_submitted=%d pos_last=%d\n"
-	       "WARN: i=%d pos_table[i+offset]=%d\n"
+	       "WARN: table_max=%d total_max=%d max_filled=%d\n"
+	       "WARN: count_submitted=%d count_catchup=%d count_pushback=%d\n"
+	       "WARN: offset=%d i=%d pos_table[i+offset]=%d\n"
+	       "WARN: pos_last[0]=%d pos_last[1]=%d\n"
 	       "WARN: this is no real harm, but your measurements might be DISTORTED\n"
 	       "WARN: by some unnecessary artificial delays.\n"
 	       "HINT: increase the --threads= parameter.\n",
-	       offset,
+	       table_max,
+	       total_max,
 	       max_filled,
 	       count_submitted,
-	       pos_last,
+	       count_catchup,
+	       count_pushback,
+	       offset,
 	       i,
-	       pos_table[i + offset]);
+	       pos_table[i + offset],
+	       pos_last[0],
+	       pos_last[1]);
+
+	/* Try to make the best of the mess...
+	 */
+	best = INT_MAX;
+	besti = -1;
+	for (max = total_max, i = start; --max >= 0; i = (i + 1) % total_max) {
+		if (pos_table[i + offset] < best) {
+			best = pos_table[i + offset];
+			besti = i;
+		}
+	}
+	if (besti >= 0) {
+		i = besti;
+		printf("WARN: remapped to i=%d pos_table[i+offset]=%d\n",
+		       i,
+		       pos_table[i + offset]);
+	}
 	fflush(stdout);
 
  ok:
@@ -1047,8 +1080,10 @@ int pos_get(int offset, int max_filled)
 	if (count_submitted > max_submitted)
 		max_submitted = count_submitted;
 
-	if (!offset)
-		pos_last = i;
+	if (offset > 0)
+		count_catchup++;
+
+	pos_last[offset / total_max] = i;
 	pos_table[i + offset]++;
 	return i + offset;
 }
@@ -1056,10 +1091,16 @@ int pos_get(int offset, int max_filled)
 static
 void pos_put(int pos)
 {
+	if (pos >= total_max)
+		count_catchup--;
 	count_submitted--;
 	pos_table[pos]--;
 	if (pos_table[pos] < 0) {
-		printf("ERROR: imbalanced pos_table at %d (%d), count_submitted=%d\n", pos,  pos_table[pos], count_submitted);
+		printf("ERROR: imbalanced pos_table at %d (%d), count_submitted=%d count_catchup=%d\n",
+		       pos, 
+		       pos_table[pos],
+		       count_submitted,
+		       count_catchup);
 		fflush(stdout);
 	}
 }
@@ -1078,7 +1119,7 @@ void submit_to_queues(struct request *rq, int is_pushback)
 	if (is_pushback) {
 		rq->q_nr = pos_get(total_max, 1);
 	} else {
-		rq->q_nr = pos_get(0, 127);
+		rq->q_nr = pos_get(0, FILL_MAX);
 	}
 
 	index = rq->q_nr % sub_max;
@@ -1139,7 +1180,22 @@ void check_pushback(void)
 	struct request *prev = NULL;
 	
 	while (tmp) {
-		int has_conflict = fly_check(&fly_hash, tmp->sector, tmp->length);
+		int has_conflict;
+
+		if (count_catchup >= total_max) {
+			printf("INFO: stopping pushback scan at"
+			       " count_submitted=%d"
+			       " count_catchup=%d"
+			       " count_pushback=%d\n"
+			       "HINT: this means that catch-up is limited by available threads\n",
+			       count_submitted,
+			       count_catchup,
+			       count_pushback);
+			fflush(stdout);
+			break;
+		}
+
+		has_conflict = fly_check(&fly_hash, tmp->sector, tmp->length);
 		if (has_conflict) {
 			prev = tmp;
 			ptr = &tmp->next;
@@ -1415,13 +1471,7 @@ void do_worker(int in_fd, int back_fd)
  * In order to limit the fan-in / fan-out, we create intermediate
  * "distributor threads" limiting the maximum competition.
  */
-#ifdef PIPE_BUF
-# define CP_FACTOR  (PIPE_BUF / RQ_SIZE)
-#else
-# define CP_FACTOR  (1024 / RQ_SIZE)
-#endif
-
-#define CP_SIZE    (RQ_SIZE * CP_FACTOR)
+#define CP_SIZE    (RQ_SIZE * FILL_MAX)
 
 static
 void do_dispatcher_copy(int in_fd, int out_fd)
@@ -1436,7 +1486,7 @@ void do_dispatcher_copy(int in_fd, int out_fd)
 #endif
 
 	if (verbose > 2) {
-		printf("dispatcher %d fan_out = %d cp_factor = %lu packet_len = %d\n", getpid(), fan_out, (unsigned long)CP_FACTOR, packet_len);
+		printf("dispatcher %d fan_out = %d fill_max = %lu packet_len = %d\n", getpid(), fan_out, (unsigned long)FILL_MAX, packet_len);
 		fflush(stdout);
 	}
 
@@ -1846,6 +1896,8 @@ void parse(FILE *inp)
 		printf("fly_count                     : %6d\n", fly_hash.fly_count);
 	if (count_submitted)
 		printf("count_submitted               : %6d\n", count_submitted);
+	if (count_catchup)
+		printf("count_catchup                 : %6d\n", count_catchup);
 	if (count_pushback)
 		printf("count_pushback                : %6d\n", count_pushback);
 
@@ -2198,7 +2250,7 @@ void print_fake(void)
 	printf("INFO: simulate_io=%lu.%09lu\n", simulate_io.tv_sec, simulate_io.tv_nsec);
 	printf("INFO: dry_run=%d\n", dry_run);
 
-	if (dry_run || !use_o_direct || !use_o_sync) {
+	if (dry_run || !use_o_direct) {
 		printf("\n"
 		       "INFO: measurement results are thus FAKE results!!!\n"
 		       "\n"
@@ -2247,8 +2299,6 @@ int main(int argc, char *argv[])
 	if (simulate_io.tv_sec || simulate_io.tv_nsec)
 		dry_run = 1;
 
-	print_fake();
-
 	if (time_factor != 0.0) {
 		time_stretch = 1.0 / time_factor;
 
@@ -2273,6 +2323,8 @@ int main(int argc, char *argv[])
 			main_name,
 			ctime(&now));
 		fflush(stdout);
+
+		print_fake();
 
 		parse(stdin);
 
