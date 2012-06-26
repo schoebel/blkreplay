@@ -1661,15 +1661,8 @@ void execute(struct request *rq)
 
 	if (!is_called) { // only upon first call
 		is_called++;
-		memcpy(&first_stamp, &rq->orig_stamp, sizeof(first_stamp));
-
-		// effective only opon first call
 		fork_childs();
 	}
-
-	// compute virtual start time
-	timespec_diff(&rq->orig_factor_stamp, &first_stamp, &rq->orig_stamp);
-	timespec_multiply(&rq->orig_factor_stamp, time_stretch);
 
 	if (rq->old_version) {
 		free(rq->old_version);
@@ -1738,13 +1731,16 @@ static
 int delay_distance(struct timespec *check)
 {
 	struct timespec now;
+	struct timespec elapsed;
 	struct timespec diff;
 
 	if (!check->tv_sec)
 		return 0;
 
 	clock_gettime(CLOCK_REALTIME, &now);
-	timespec_diff(&diff, &now, check);
+	timespec_diff(&elapsed, &start_stamp, &now);
+	elapsed.tv_sec -= START_GRACE; // grace period
+	timespec_diff(&diff, &elapsed, check);
 	if ((long)diff.tv_sec >= 1)
 		return 1;
 
@@ -1758,6 +1754,7 @@ int delay_distance(struct timespec *check)
 static
 void parse(FILE *inp)
 {
+	static int first_call = 0;
 	char buffer[4096];
 	struct timespec old_stamp = {};
 	struct request *rq = NULL;
@@ -1824,12 +1821,6 @@ void parse(FILE *inp)
 			verbose_status(rq, "got_input");
 		}
 
-		// avoid flooding the pipelines too much
-		while (count_submitted > bottleneck ||
-		       (count_submitted > 1 && delay_distance(&old_stamp))) {
-			get_answer();
-		}
-
 		// check replay time window
 		if (rq->orig_stamp.tv_sec < replay_start) {
 			continue;
@@ -1841,6 +1832,20 @@ void parse(FILE *inp)
 		if (rq->rwbs != 'R' && rq->rwbs != 'W') {
 			printf("ERROR: bad character '%c'\n", rq->rwbs);
 			continue;
+		}
+
+		// compute virtual start time
+		if (!first_call) {
+			first_call++;
+			memcpy(&first_stamp, &rq->orig_stamp, sizeof(first_stamp));
+		}
+		timespec_diff(&rq->orig_factor_stamp, &first_stamp, &rq->orig_stamp);
+		timespec_multiply(&rq->orig_factor_stamp, time_stretch);
+
+		// avoid flooding the pipelines too much
+		while (count_submitted > bottleneck ||
+		       (count_submitted > 1 && delay_distance(&rq->orig_factor_stamp))) {
+			get_answer();
 		}
 
 		rq->seqnr = ++statist_total;
