@@ -1844,7 +1844,9 @@ void parse(FILE *inp)
 
 		// avoid flooding the pipelines too much
 		while (count_submitted > bottleneck ||
-		       (count_submitted > 1 && delay_distance(&rq->orig_factor_stamp))) {
+		       ((conflict_mode == 1 ||
+			 (count_pushback > 0 && count_submitted > 1)) &&
+			delay_distance(&rq->orig_factor_stamp))) {
 			get_answer();
 		}
 
