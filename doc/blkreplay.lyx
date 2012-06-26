@@ -1525,7 +1525,48 @@ with-conflicts
 \family typewriter
 with-drop
 \family default
-, while minimizing artificial delays.
+, while minimizing artificial delays
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+In extreme cases, pushed-back requests (visualized in purple) can form some
+ kind of 
+\begin_inset Quotes eld
+\end_inset
+
+transitive queues
+\begin_inset Quotes erd
+\end_inset
+
+, e.g.
+ when pushback requests depend on other pushback requests transitively.
+ In such a case, their delays can sum up over a longer time, independently
+ from 
+\begin_inset Quotes eld
+\end_inset
+
+normal
+\begin_inset Quotes erd
+\end_inset
+
+ writes (clearly visible in the delay diagram).
+ Although this is often a property of the load, you can 
+\emph on
+try(!)
+\emph default
+ to minimize such an effect by setting the expert option 
+\family typewriter
+ahead_limit
+\family default
+ to values lower than 1s (however too low values will destroy throughput
+ at all).
+ Dangerous!
+\end_layout
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard

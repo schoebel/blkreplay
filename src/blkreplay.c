@@ -194,6 +194,7 @@ struct timespec timeshift = {};
 struct timespec meta_delays = {};
 long long meta_delay_count;
 struct timespec simulate_io = {};
+struct timespec ahead_limit = {};
 
 #define _STRINGIFY(x) #x
 #define STRINGIFY(x) _STRINGIFY(x)
@@ -1733,6 +1734,7 @@ int delay_distance(struct timespec *check)
 	struct timespec now;
 	struct timespec elapsed;
 	struct timespec diff;
+	struct timespec delta;
 
 	if (!check->tv_sec)
 		return 0;
@@ -1741,7 +1743,8 @@ int delay_distance(struct timespec *check)
 	timespec_diff(&elapsed, &start_stamp, &now);
 	elapsed.tv_sec -= START_GRACE; // grace period
 	timespec_diff(&diff, &elapsed, check);
-	if ((long)diff.tv_sec >= 1)
+	timespec_diff(&delta, &diff, &ahead_limit);
+	if ((long)delta.tv_sec < 0)
 		return 1;
 
 	return 0;
@@ -2108,6 +2111,12 @@ const struct arg arg_table[] = {
 	},
 #endif
 	{
+		.arg_name  = "ahead-limit",
+		.arg_descr = "limit pipe fillahead (realtime <sec>.<nsec>)",
+		.arg_const = ARG_TIMESPEC,
+		.arg_val   = &ahead_limit,
+	},
+	{
 		.arg_name  = "fan-out",
 		.arg_descr = "only for kernel hackers (default=" STRINGIFY(DEFAULT_FAN_OUT) ")",
 		.arg_const = ARG_INT,
@@ -2259,6 +2268,7 @@ void print_fake(void)
 {
 	printf("INFO: use_o_direct=%d\n", use_o_direct);
 	printf("INFO: use_o_sync=%d\n", use_o_sync);
+	printf("INFO: ahead_limit=%lu.%09lu\n", ahead_limit.tv_sec, ahead_limit.tv_nsec);
 	printf("INFO: simulate_io=%lu.%09lu\n", simulate_io.tv_sec, simulate_io.tv_nsec);
 	printf("INFO: dry_run=%d\n", dry_run);
 
@@ -2310,6 +2320,9 @@ int main(int argc, char *argv[])
 		dry_run = 1;
 	if (simulate_io.tv_sec || simulate_io.tv_nsec)
 		dry_run = 1;
+
+	if (ahead_limit.tv_sec <= 0 && ahead_limit.tv_nsec <= 0)
+		ahead_limit.tv_sec = 1;
 
 	if (time_factor != 0.0) {
 		time_stretch = 1.0 / time_factor;
