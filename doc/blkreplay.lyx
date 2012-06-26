@@ -1463,8 +1463,15 @@ catch up
 \end_inset
 
 , additional IO requests may be submitted.
- In practice, this can happen in particular with some Windows loads, where
+\begin_inset Newline newline
+\end_inset
+
+In practice, this can happen in particular with some Windows loads, where
  a lot of writes seem to be repeated.
+ Frequently, pushed back requests (colored in purple for better distinction
+ from red-colored ordinary write requests) are the main contributors to
+ delays.
+ Check them!
 \end_layout
 
 \begin_layout Labeling
@@ -6965,8 +6972,45 @@ The following example shows the replay latencies of a natural load over
 
 \begin_layout Standard
 \noindent
-Reads are depicted blue, while writes are red.
- They form some kind of 
+Reads are depicted as blue dots, while writes are colored red.
+ In case of 
+\family typewriter
+--with-partial
+\family default
+, pushed-back requests are displayed additionally
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Notice that the set of purple 
+\begin_inset Quotes eld
+\end_inset
+
+pushes
+\begin_inset Quotes erd
+\end_inset
+
+ is always a 
+\emph on
+subset
+\emph default
+ of the 
+\begin_inset Quotes eld
+\end_inset
+
+writes
+\begin_inset Quotes erd
+\end_inset
+
+.
+ They are only visible because they are printed later (hiding the previous
+ red dots).
+\end_layout
+
+\end_inset
+
+ in purple.
+ Together, they form some kind of 
 \begin_inset Quotes eld
 \end_inset
 

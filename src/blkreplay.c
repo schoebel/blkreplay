@@ -40,6 +40,8 @@
 #define _GNU_SOURCE
 #include <config.h>
 
+#include <ctype.h>
+
 #include <stdio.h>
 
 #include <errno.h>
@@ -878,7 +880,17 @@ int do_action(struct request *rq)
 			fflush(stdout);
 			return -1;
 		}
-		if (rq->rwbs == 'W') {
+		if (toupper(rq->rwbs) == 'R') {
+			do_wait(rq, &t0, 0);
+			
+			if (!fake_io)
+				status = do_read(buffer, len);
+
+			clock_gettime(CLOCK_REALTIME, &t1);
+			timespec_diff(&rq->replay_duration, &t0, &t1);
+
+			check_tags(rq, buffer, len, 0);
+		} else {
 			make_tags(rq, buffer, len);
 
 			do_wait(rq, &t0, 0);
@@ -892,16 +904,6 @@ int do_action(struct request *rq)
 			if (verify_mode >= 3 && status == len) { // additional re-read and verify
 				paranoia_check(rq, buffer);
 			}
-		} else {
-			do_wait(rq, &t0, 0);
-
-			if (!fake_io)
-				status = do_read(buffer, len);
-
-			clock_gettime(CLOCK_REALTIME, &t1);
-			timespec_diff(&rq->replay_duration, &t0, &t1);
-
-			check_tags(rq, buffer, len, 0);
 		}
 		free(buffer);
 		if (!fake_io && status != len) {
@@ -1128,7 +1130,7 @@ void submit_to_queues(struct request *rq, int is_pushback)
 	// generate write tag
 	rq->tag.tag_start = start_stamp.tv_sec;
 	rq->tag.tag_seqnr = ++seqnr;
-	if (rq->rwbs == 'W') {
+	if (toupper(rq->rwbs) != 'R') {
 		if (conflict_mode)
 			fly_add(&fly_hash, rq->sector, rq->length);
 		write_seqnr++;
@@ -1161,6 +1163,8 @@ void add_pushback(struct request *rq)
 	}
 	pushback_tail = rq;
 	rq->next = NULL;
+
+	rq->rwbs = tolower(rq->rwbs);
 
 	statist_pushback++;
 	count_pushback++;
@@ -1299,7 +1303,7 @@ int get_answer(void)
 			printf("ERROR: request %lld vanished\n", rq.sector);
 		}
 
-		if (rq.rwbs == 'W') {
+		if (toupper(rq.rwbs) != 'R') {
 			if (conflict_mode) {
 				fly_delete(&fly_hash, rq.sector, rq.length);
 			}
@@ -1833,13 +1837,14 @@ void parse(FILE *inp)
 		if (replay_end && rq->orig_stamp.tv_sec >= replay_end) {
 			break;
 		}
+		rq->rwbs = toupper(rq->rwbs);
 		if (rq->rwbs != 'R' && rq->rwbs != 'W') {
 			printf("ERROR: bad character '%c'\n", rq->rwbs);
 			continue;
 		}
 
 		rq->seqnr = ++statist_total;
-		if (rq->rwbs == 'W')
+		if (rq->rwbs != 'R')
 			statist_writes++;
 
 		if (rq->sector + rq->length > max_size)

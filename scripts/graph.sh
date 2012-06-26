@@ -243,7 +243,7 @@ if (( dynamic_mode )); then
 fi
 
 # worker pipelines for reads / writes
-for mode in reads writes all; do
+for mode in reads writes r_push w_push all; do
     inp="$mainfifo.$mode"
     side="$subfifo.side.$mode"
     i="$mode.tmp"
@@ -257,7 +257,7 @@ for mode in reads writes all; do
 	mkfifo $side.rqpos_tmp
 	cat $inp.nosort.rqpos |\
 	    cut -d ';' -f 3 |\
-	    gawk '{ i = int($1 / 2097152); table[i]++; if (i > xmax) xmax = i; } END{ for (i = 0; i <= xmax + 1; i++) { printf("%5d %5d\n%5d %5d\n", i, table[i], i+1, table[i]); if (table[i] > ymax) ymax = table[i]; } printf("ymax=%d\n", ymax); }' |\
+	    gawk 'BEGIN{ xmax = -2; ymax = 0; } { i = int($1 / 2097152); table[i]++; if (i > xmax) xmax = i; } END{ for (i = 0; i <= xmax + 1; i++) { printf("%5d %5d\n%5d %5d\n", i, table[i], i+1, table[i]); if (table[i] > ymax) ymax = table[i]; } if (ymax > 0) printf("ymax=%d\n", ymax); }' |\
 	    tee $side.rqpos_tmp |\
 	    grep -v '^[a-z]' >\
 	    $out.g41.rqpos.$i.bins &
@@ -346,14 +346,16 @@ for mode in reads writes all; do
 	    cut -d";" -f1,2 |\
 	    sed 's/;/ /' >\
 	    $out.g09.delay.$i.flying &
-	mkfifo $inp.sort7.turns.completed
-	cat $inp.sort7.turns.completed |\
-	    cut -d ';' -f 2,3 |\
-	    compute_turns 1 |\
-	    gawk '{print $1, $4; }' >\
-	    $out.g43.$i.turns.completed &
+	if [ "$mode" != "r_push" ] && [ "$mode" != "w_push" ]; then
+	    mkfifo $inp.sort7.turns.completed
+	    cat $inp.sort7.turns.completed |\
+		cut -d ';' -f 2,3 |\
+		compute_turns 1 |\
+		gawk '{print $1, $4; }' >\
+		$out.g43.$i.turns.completed &
+	fi
     fi
-    if (( static_mode || dynamic_mode )); then
+    if (( static_mode || dynamic_mode )) && [ "$mode" != "r_push" ] && [ "$mode" != "w_push" ]; then
 	mkfifo $inp.sort2.turns.setpoint
 	cat $inp.sort2.turns.setpoint |\
 	    cut -d ';' -f 2,3 |\
@@ -441,9 +443,11 @@ var_list="use_my_guess dry_run use_o_direct use_o_sync wraparound_factor size_of
 extract_variables "$var_list" < $prefifo.vars > $tmp/vars &
 
 # create intermediate pipelines on demand
-for mode in reads writes; do
-    regex=" R "
-    [ $mode = "writes" ] && regex=" W "
+for mode in reads writes r_push w_push ; do
+    regex=" [Rr] "
+    [ $mode = "writes" ] && regex=" [Ww] "
+    [ $mode = "r_push" ] && regex=" r "
+    [ $mode = "w_push" ] && regex=" w "
     for ord in nosort sort2 sort6 sort7; do
 	if [ -n "$(echo $mainfifo.$mode.$ord*)" ]; then
 	    mkfifo $mainfifo.tee_$mode.$ord
@@ -457,14 +461,14 @@ if [ -n "$(echo $mainfifo.{all,reads,write}.sort6.*)" ]; then
     cat $mainfifo.all.nosort.tee_sort6 |\
 	gawk -F ";" '{ printf("%s;%14.9f;%s;%s;%s;%s;%s\n", $1, $2+$6, $3, $4, $5, $6, $7); }' |\
 	$sort -t';' -k2 -n |\
-	tee $mainfifo.all.sort6* $mainfifo.tee_{reads,writes}.sort6 > /dev/null &
+tee $mainfifo.all.sort6* $mainfifo.tee_{reads,writes,r_push,w_push}.sort6 > /dev/null &
 fi
 if [ -n "$(echo $mainfifo.{all,reads,write}.sort7.*)" ]; then
     mkfifo $mainfifo.all.nosort.tee_sort7
     cat $mainfifo.all.nosort.tee_sort7 |\
 	gawk -F ";" '{ printf("%s;%14.9f;%s;%s;%s;%s;%s\n", $1, $2+$6+$7, $3, $4, $5, $6, $7); }' |\
 	$sort -t';' -k2 -n |\
-	tee $mainfifo.all.sort7* $mainfifo.tee_{reads,writes}.sort7 > /dev/null &
+tee $mainfifo.all.sort7* $mainfifo.tee_{reads,writes,r_push,w_push}.sort7 > /dev/null &
 fi
 
 #  read FILE, add line numbers, and fill the main pipelines
@@ -475,9 +479,9 @@ zcat -f < "$tmp/fifo.master" |\
     grep -v replay_ |\
     gawk -F ";" '{ if ($1 < 100000000000000000 && $5 < 100000000000000000 && $6 < 100000000000000000) { print; } }' |\
     nl -s ';' |\
-    tee $mainfifo.{all,tee_reads,tee_writes}.nosort* |\
+    tee $mainfifo.{all,tee_reads,tee_writes,tee_r_push,tee_w_push}.nosort* |	\
     $sort -t';' -k2 -n |\
-    tee $mainfifo.{all,tee_reads,tee_writes}.sort2* > /dev/null &
+    tee $mainfifo.{all,tee_reads,tee_writes,tee_r_push,tee_w_push}.sort2* > /dev/null &
 
 # fill the master pipeline...
 echo "Starting preparation phase...."
@@ -523,6 +527,8 @@ fi
 
 for reads_file in $tmp/*.reads.tmp.* ; do
     writes_file=$(echo $reads_file | sed 's/\.reads\./.writes./')
+    r_push_file=$(echo $reads_file | sed 's/\.reads\./.r_push./')
+    w_push_file=$(echo $reads_file | sed 's/\.reads\./.w_push./')
     if grep -q "inf" $reads_file $writes_file; then
 	echo "Skipping $reads_file due to errors"
 	continue
@@ -664,7 +670,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
     
 	plot=""
 	if [ -s "$reads_file" ]; then
-	    plot="plot '$reads_file' title 'Reads' $with lt 3"
+	    plot="plot '$reads_file' title 'Reads' $with lt 5"
 	fi
 	if [ -s "$writes_file" ]; then
 	    if [ -n "$plot" ]; then
@@ -672,7 +678,26 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    else
 		plot="plot "
 	    fi
-	    plot="$plot '$writes_file' title 'Writes' $with lt 1 $extra1 $extra2"
+	    plot="$plot '$writes_file' title 'Writes' $with lt 1"
+	fi
+	if [ -s "$r_push_file" ]; then
+	    if [ -n "$plot" ]; then
+		plot="$plot, "
+	    else
+		plot="plot "
+	    fi
+	    plot="$plot '$r_push_file' title 'Read Pushes' $with lt 3"
+	fi
+	if [ -s "$w_push_file" ]; then
+	    if [ -n "$plot" ]; then
+		plot="$plot, "
+	    else
+		plot="plot "
+	    fi
+	    plot="$plot '$w_push_file' title 'Write Pushes' $with lt 4"
+	fi
+	if [ -n "$plot" ]; then
+	    plot="$plot $extra1 $extra2"
 	fi
 	
 	<<EOF gnuplot
