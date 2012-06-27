@@ -22,20 +22,11 @@
 check_list="wget buffer"
 check_installed "$check_list"
 
-function main_prepare
+function devices_prepare
 {
     replay_count=0
     replay_host_list="$(eval echo "$replay_host_list")"
     replay_device_list="$(eval echo "$replay_device_list")"
-    if echo "$input_file_list" | grep -q '^\(http\|ftp\)s\?:'; then
-	echo "Downloading $input_file_list"
-	(
-	    cd "$download_dir" || exit -1
-	    wget --recursive --level=1 --accept "$(basename "$input_file_list")" --continue --no-verbose "$(dirname "$input_file_list")" || exit -1
-	) || exit $?
-	input_file_list="$download_dir/$(echo "$input_file_list" | cut -d: -f2- )"
-    fi
-    input_file_list="$(eval echo "$input_file_list")"
     if [ -z "$replay_host_list" ]; then
 	echo "variable replay_host_list is undefined"
 	exit -1
@@ -46,9 +37,7 @@ function main_prepare
 	    device=$(echo $i | cut -d: -f2-)
 	    replay_host[$replay_count]=$host
 	    replay_device[$replay_count]=$device
-	    replay_max=$replay_count
 	    (( replay_count++ ))
-	    (( replay_max_parallelism > 0 && replay_count >= replay_max_parallelism )) && break
 	done
     else
 	if [ -z "$replay_device_list" ]; then
@@ -59,26 +48,21 @@ function main_prepare
 	    for device in $replay_device_list; do
 		replay_host[$replay_count]=$host
 		replay_device[$replay_count]=$device
-		replay_max=$replay_count
 		(( replay_count++ ))
-		(( replay_max_parallelism > 0 && replay_count >= replay_max_parallelism )) && break
 	    done
-	    (( replay_max_parallelism > 0 && replay_count >= replay_max_parallelism )) && break
 	done
     fi
-    if [ -z "$input_file_list" ]; then
-	echo "variable input_file_list is undefined"
-	exit -1
+    if (( replay_max_parallelism > 0 && replay_count > replay_max_parallelism )); then
+	echo "reducing replay_count from $replay_count to $replay_max_parallelism due to replay_max_parallelism."
+	replay_count=$replay_max_parallelism
     fi
+    replay_max=$(( replay_count - 1 ))
     replay_hosts_unique="$(for i in $(eval echo {0..$replay_max}); do echo "${replay_host[$i]}"; done | sort -u)"
-    target_hosts_unique="$replay_hosts_unique" # may by later extended by iSCSI&co
+    if [ -z "$target_hosts_unique" ]; then
+	target_hosts_unique="$replay_hosts_unique" # may by later extended by iSCSI&co
+    fi
     all_hosts_unique="$replay_hosts_unique" # may by later extended by iSCSI&co
-    j=0
-    for i in $input_file_list; do
-	input_file[$j]=$i
-	(( j++ ))
-    done
-    echo "List of hosts / devices / input files / output files:"
+    echo "${new_txt} of hosts / devices / input files / output files:"
     j=0
     for i in $(eval echo {0..$replay_max}); do
 	[ -z "${input_file[$j]}" ] && j=0
@@ -92,6 +76,34 @@ function main_prepare
 	echo " $i: ${replay_host[$i]} ${replay_device[$i]} $(basename ${input_file[$i]}) ${output_file[$i]}"
 	(( j++ ))
     done
+    return 0
+}
+
+function main_prepare
+{
+    if echo "$input_file_list" | grep -q '^\(http\|ftp\)s\?:'; then
+	echo "Downloading $input_file_list"
+	(
+	    cd "$download_dir" || exit -1
+	    wget --recursive --level=1 --accept "$(basename "$input_file_list")" --continue --no-verbose "$(dirname "$input_file_list")" || exit -1
+	) || exit $?
+	input_file_list="$download_dir/$(echo "$input_file_list" | cut -d: -f2- )"
+    fi
+    input_file_list="$(eval echo "$input_file_list")"
+    if [ -z "$input_file_list" ]; then
+	echo "variable input_file_list is undefined"
+	exit -1
+    fi
+    j=0
+    for i in $input_file_list; do
+	input_file[$j]=$i
+	(( j++ ))
+    done
+
+    new_txt="List"
+    devices_prepare
+    new_txt="New / regenerated list"
+
     input_pipe_list="nice gunzip -f < \"\${input_file[\$i]}\" | grep '^ *[0-9.]* *;'"
     output_pipe_list="cat"
     echo ""

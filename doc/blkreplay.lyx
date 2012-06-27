@@ -8313,6 +8313,21 @@ iscsi_target
 \labelwidthstring 00.00.0000
 
 \family typewriter
+recreate_lvm
+\family default
+ You just supply some physical devices (PVs) in 
+\family typewriter
+$replay_device_list
+\family default
+, and this module will transparently (re-)create an LVM volume group (VG)
+ for you, together with some configurable number of logical volumes (LVs)
+ inside it, optionally even with LVM striping.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
 create_lv
 \family default
  Here you can put in your code for re-creating logical volumes on an arbitrary
@@ -10354,6 +10369,32 @@ name "sec:Module-Parameters"
 
 \begin_layout Standard
 The following list is in the order of activation.
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-recreate_lvm.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-recreate_lvm.conf}
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
