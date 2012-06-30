@@ -488,20 +488,24 @@ fi
 
 for window in $ws_list; do
     mkfifo $mainfifo.all.sort2.window.$window
-    mkfifo $subfifo.window{1..2}.$window
+    if (( window > 5 )); then
+	mkfifo $subfifo.window{1..2}.$window
+    fi
     cat $mainfifo.all.sort2.window.$window |\
 	cut -d ';' -f 2,3 |\
 	compute_ws $window |\
 	tee $subfifo.window*.$window |\
 	gawk '{print $1, $2; }' >\
 	$out.g30.ws_log.$window.extra &
-    ln -sf $out.g30.ws_log.$window.extra $out.g31.ws_lin.$window.extra 
-    cat $subfifo.window1.$window |\
-	gawk '{print $1, $3; }' >\
-	$out.g32.sum_dist.$window.extra &
-    cat $subfifo.window2.$window |\
-	gawk '{print $1, $4; }' >\
-	$out.g33.avg_dist.$window.extra &
+    ln -sf $out.g30.ws_log.$window.extra $out.g31.ws_lin.$window.extra
+    if [ -e $subfifo.window1.$window ]; then
+	cat $subfifo.window1.$window |\
+	    gawk '{print $1, $3; }' >\
+	    $out.g32.sum_dist.$window.extra &
+	cat $subfifo.window2.$window |\
+	    gawk '{print $1, $4; }' >\
+	    $out.g33.avg_dist.$window.extra &
+    fi
 done
 
 # extract some interesting variables
@@ -803,16 +807,6 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
     [ $mode = latency ] && lines="linespoints"
     for i in $tmp/*.$mode $tmp/*.$mode.*.extra; do
 	[ -s $i ] || continue
-	case $mode in
-	    sum_dist | avg_dist)
-	    case $i in
-		*.00[0-5].*)
-		rm -f "$i"
-		continue
-		;;
-	    esac
-	    ;;
-	esac
 	title=$(basename $i | sed 's/\.\(tmp\|extra\)//g')
 	color_key=$(echo $title | sed 's/^.*\.g[0-9]\+\.//')
 	if (( verbose_mode )); then
