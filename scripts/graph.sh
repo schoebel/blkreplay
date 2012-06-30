@@ -22,12 +22,44 @@
 # usage: /path/to/graph.sh *.replay.gz
 # TST started November 2009
 
+# defaults for picture options
+
 picturetype="${picturetype:-png}" # [ps|jpeg|gif|...]
 pictureoptions="${pictureoptions:=small size 1200,800}" # other values: "size 800,600" etc
 bad_latency="${bad_latency:-5.0}" # seconds
 bad_delay="${bad_delay:-10.0}" # seconds
 bad_ignore="${bad_ignore:-1}" # the n'th exceeding the limit
 ws_list="${ws_list:-000 001 006 060 600}"
+
+# defaults for colors (RGB values)
+
+declare -A color
+declare -A default_color
+default_color[reads]="#00BFFF" # DeepSkyBlue
+default_color[writes]="#FF0000" # red
+default_color[r_push]="#00008B" # DarkBlue
+default_color[w_push]="#FF1493" # DeepPink
+default_color[all]="#CDCD00" # yellow3
+
+default_color[ok]="#00EE00" # green2
+default_color[bad]="#A020F0" # purple
+default_color[border]="#000000" # black
+default_color[warn]="#B35200"
+default_color[fake]="#B35200"
+
+default_color[demand]="#00CD00" # green3
+default_color[actual]="#FFA500" # orange1
+
+default_color[000]="#EE0000" # red2
+default_color[001]="#228B22" # ForestGreen
+default_color[006]="#0000CD" # MediumBlue
+default_color[060]="#CD950C" # DarkGoldenrod3
+
+for i in "${!default_color[@]}"; do
+    if [ -z "${color[$i]}" ]; then
+	color[$i]="${default_color[$i]}"
+    fi
+done
 
 # check some preconditions
 
@@ -146,8 +178,8 @@ sort="sort"
 
 function make_statistics
 {
-    bad=$1
-    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if (\$2 > $bad) { if (!hit) start=\$1; hit++; } } END { printf (\"min=%11.9f\nmax=%11.9f\ncount=%d\navg=%11.9f\nhit=%d\nstart=%11.9f\n\", min, max, count, (count > 0 ? sum/count : 0), hit, start); }"
+    bad_val=$1
+    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if (\$2 > $bad_val) { if (!hit) start=\$1; hit++; } } END { printf (\"min=%11.9f\nmax=%11.9f\ncount=%d\navg=%11.9f\nhit=%d\nstart=%11.9f\n\", min, max, count, (count > 0 ? sum/count : 0), hit, start); }"
 }
 
 function compute_ws
@@ -220,6 +252,41 @@ function cumul
     gawk '{ sum += $1; printf("%14.9f\n", sum); }'
 }
 
+function rgb
+{
+    op_name="$1"
+    color_name="$2"
+    # in case the color_name is a dotted identified a.b.c.d try all the suffixes
+    while true; do
+	if [ -n "${color[$color_name]}" ]; then
+	    echo "$op_name rgb \"${color[$color_name]}\""
+	    return 0
+	fi
+	new_color_name="$(echo "$color_name" | sed 's/^[a-z0-9_]*\.//')"
+	[ "$new_color_name" = "$color_name" ] && break
+	color_name="$new_color_name"
+    done
+    return 1
+}
+
+function textcolor
+{
+    for color_name; do
+	if rgb "textcolor" "$color_name"; then
+	    break;
+	fi
+    done
+}
+
+function lt
+{
+    for color_name; do
+	if rgb "lt" "$color_name"; then
+	    break;
+	fi
+    done
+}
+
 out="$tmp/$name"
 
 
@@ -233,13 +300,13 @@ mkfifo $mainfifo.all.sort2.thrp
 cat $mainfifo.all.sort2.thrp |\
     cut -d ';' -f 2 |\
     gawk "$gawk_thrp" >\
-    $out.g000.overwiev.demand.thrp &
+    $out.g000.overwiev.thrp.demand.extra &
 if (( dynamic_mode )); then
     mkfifo $mainfifo.all.sort7.thrp
     cat $mainfifo.all.sort7.thrp |\
 	cut -d ';' -f 2 |\
 	gawk "$gawk_thrp" >\
-	$out.g000.overview.actual.thrp &
+	$out.g000.overview.thrp.actual.extra &
 fi
 
 # worker pipelines for reads / writes
@@ -504,7 +571,7 @@ wrap_int="$(echo $wraparound_factor | cut -d. -f1)"
 wrap_frac="$(echo $wraparound_factor | cut -d. -f2)"
 var_color=""
 if (( wrap_int > 1 || (!wrap_int && wrap_frac < 500) )); then
-    var_color="textcolor rgb \"#A300A0\""
+    var_color="$(textcolor warn)"
 fi
 var_text="$(echo $(grep 'wrap' $tmp/vars))"
 var_label="set label \"$var_text\" at graph 1.0, screen 0.0 right $var_color front offset 0, character 1"
@@ -513,8 +580,7 @@ warn_label=""
 if [ -s $tmp/warnings ]; then
     warn_text="$(head -n1 < $tmp/warnings)"
     echo "$warn_text"
-    warn_color="#B35200"
-    warn_label="set label \"$warn_text\" at graph 0.0, screen 0.0 left textcolor rgb \"$warn_color\" front offset 0, character 1"
+    warn_label="set label \"$warn_text\" at graph 0.0, screen 0.0 left $(textcolor warn) front offset 0, character 1"
 fi
 
 is_fake=0
@@ -530,8 +596,7 @@ if [ -n "$use_o_direct" ]; then
 	    (( !use_o_direct )) && fake_text="$fake_text -- no O_DIRECT"
 	fi
 	fake_font="arial,28"
-	fake_color="#B35200"
-	fake_label="set label \"$fake_text\" at graph 0.5, graph 0.5 center font \"$fake_font\" textcolor rgb \"$fake_color\" front rotate by 45"
+	fake_label="set label \"$fake_text\" at graph 0.5, graph 0.5 center font \"$fake_font\" $(textcolor fake) front rotate by 45"
     fi
 fi
 
@@ -550,13 +615,13 @@ for reads_file in $tmp/*.reads.tmp.* ; do
     extra1=""
     extra2=""
     items="delays"
-    bad=$bad_delay
+    bad_val=$bad_delay
     min=0
     max=0
     case $reads_file in
 	*.latency.*)
 	items="latencies"
-	bad=$bad_latency
+	bad_val=$bad_latency
 	source $tmp/latencies
 	;;
 	*.delay.*)
@@ -571,28 +636,28 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	continue
     fi
     (
-	color=""
-	lt_color=2
+	ok_txt=""
+	ok_color="ok"
 	case $reads_file in
 	    *.xy)
 	    ;;
 	    *.bins | *.flying | *.turns.* | *.thrp.*)
             sum_file=$(echo $reads_file | sed 's/\.reads\./.all./')
-	    extra2=", '$sum_file' title 'Reads+Writes' with lines lt 7"
+	    extra2=", '$sum_file' title 'Reads+Writes' with lines $(lt all)"
 	    ;;
 	    *.latency.* | *.delay.*)
 	    test_title="Test"
-	    delay_title="$test_title passed: no $items beyond ${bad}s (max=${max}s)"
-	    color="(green)"
+	    delay_title="$test_title passed: no $items beyond ${bad_val}s (max=${max}s)"
+	    ok_txt="(ok)"
 	    if [[ hit -gt 0 ]]; then
-		color="(purple)"
-		lt_color=4
+		ok_txt="(bad)"
+		ok_color="bad"
 		echo "$start 0" > $tmp/vfile.$title
 		echo "$start $max" >> $tmp/vfile.$title
-		delay_title="$test_title failed: $hit $items are beyond ${bad}s (max=${max}s)"
-		extra2=", '$tmp/vfile.$title' title 'Start=$start' with lines lt $lt_color"
+		delay_title="$test_title failed: $hit $items are beyond ${bad_val}s (max=${max}s)"
+		extra2=", '$tmp/vfile.$title' title 'Start=$start' with lines $(lt $ok_color)"
 	    fi
-	    extra1=", $bad title '$delay_title' with lines lt $lt_color"
+	    extra1=", $bad_val title '$delay_title' with lines $(lt $ok_color)"
 	    ;;
 	esac
 	with="with points ps 0.1"
@@ -628,7 +693,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 		    echo "$device_size.02 $ymax"
 		    echo "$device_size.02 1"
 		} > $tmp/vfile.$title
-		extra2=", '$tmp/vfile.$title' title 'Size of Device = $device_size [GiB]' with lines lt 6"
+		extra2=", '$tmp/vfile.$title' title 'Size of Device = $device_size [GiB]' with lines $(lt border)"
 	    fi
 	    ;;
 	    *.turns.*)
@@ -678,11 +743,11 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    ;;
 	esac
 	
-	echo "---> plot on $title.$picturetype $color"
+	echo "---> plot on $title.$picturetype $ok_txt"
     
 	plot=""
 	if [ -s "$reads_file" ]; then
-	    plot="plot '$reads_file' title 'Reads' $with lt 5"
+	    plot="plot '$reads_file' title 'Reads' $with $(lt reads)"
 	fi
 	if [ -s "$writes_file" ]; then
 	    if [ -n "$plot" ]; then
@@ -690,7 +755,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    else
 		plot="plot "
 	    fi
-	    plot="$plot '$writes_file' title 'Writes' $with lt 1"
+	    plot="$plot '$writes_file' title 'Writes' $with $(lt writes)"
 	fi
 	if [ -s "$r_push_file" ]; then
 	    if [ -n "$plot" ]; then
@@ -698,7 +763,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    else
 		plot="plot "
 	    fi
-	    plot="$plot '$r_push_file' title 'Read Pushes' $with lt 3"
+	    plot="$plot '$r_push_file' title 'Read Pushes' $with $(lt r_push)"
 	fi
 	if [ -s "$w_push_file" ]; then
 	    if [ -n "$plot" ]; then
@@ -706,7 +771,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    else
 		plot="plot "
 	    fi
-	    plot="$plot '$w_push_file' title 'Write Pushes' $with lt 4"
+	    plot="$plot '$w_push_file' title 'Write Pushes' $with $(lt w_push)"
 	fi
 	if [ -n "$plot" ]; then
 	    plot="$plot $extra1 $extra2"
@@ -749,9 +814,15 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	    ;;
 	esac
 	title=$(basename $i | sed 's/\.\(tmp\|extra\)//g')
-	plot="$plot$delim '$i' $using title '$title' with $lines"
+	color_key=$(echo $title | sed 's/^.*\.g[0-9]\+\.//')
+	if (( verbose_mode )); then
+	    expansion="$(rgb "" "$color_key")"
+	    [ -z "$expansion" ] && expansion="(no expansion)"
+	    echo "Color_Key = $color_key => $expansion"
+	fi
+	plot="$plot$delim '$i' $using title '$title' with $lines $(lt "$color_key")"
 	delim=","
-	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i | sed 's/\.\(tmp\|extra\|000\|actual\)//g').$picturetype"
+	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i | sed 's/\.\(tmp\|extra\|000\|actual\|demand\)//g').$picturetype"
     done
 
     if [ -z "$plot" ]; then
