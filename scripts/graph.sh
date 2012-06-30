@@ -178,8 +178,46 @@ sort="sort"
 
 function make_statistics
 {
-    bad_val=$1
-    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if (\$2 > $bad_val) { if (!hit) start=\$1; hit++; } } END { printf (\"min=%11.9f\nmax=%11.9f\ncount=%d\navg=%11.9f\nhit=%d\nstart=%11.9f\n\", min, max, count, (count > 0 ? sum/count : 0), hit, start); }"
+    prefix="$1"
+    bad_val="$2"
+    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; hit=0; start=0.0; } { sum += \$2; count++; if (\$2 > max) max = \$2; if (\$2 < min || !min) min = \$2; if (\$2 > $bad_val) { if (!hit) start=\$1; hit++; } } END { printf (\"${prefix}min=%11.9f\n${prefix}max=%11.9f\n${prefix}count=%d\n${prefix}avg=%11.9f\n${prefix}hit=%d\n${prefix}start=%11.9f\n\", min, max, count, (count > 0 ? sum / count : 0), hit, start); }"
+}
+
+function make_statistics_short
+{
+    prefix="$1"
+    gawk -F ";" "BEGIN{min=0.0; max=0.0; sum=0.0; count=0; } { sum += \$1; count++; if (\$1 > max) max = \$1; if (\$1 < min || !min) min = \$1; } END { printf (\"${prefix}min=%f\n${prefix}max=%f\n${prefix}count=%d\n${prefix}avg=%f\n\", min, max, count, (count > 0 ? sum / count : 0)); }"
+}
+
+function _output_statistics
+{
+    outfix="$1"
+    mode="$2"
+    tee $tmp/stat.$outfix |\
+	grep "_max=\|_avg=" |\
+	sort |\
+	echo $(sed "s/^.*_\([a-z]\+\)=/\1=/") |\
+	echo "${mode}_label=\"  ($(sed 's/ /, /'))\"" >\
+	$tmp/label.$outfix
+}
+
+function output_statistics
+{
+    prefix="$1"
+    bad_val="$2"
+    outfix="$3"
+    mode="$4"
+    make_statistics "$prefix" "$bad_val" |\
+	_output_statistics "$outfix.$mode" "$mode"
+}
+
+function output_statistics_short
+{
+    prefix="$1"
+    outfix="$2"
+    mode="$3"
+    make_statistics_short "$prefix" |\
+	_output_statistics "$outfix.$mode" "$mode"
 }
 
 function compute_ws
@@ -290,6 +328,8 @@ function lt
 out="$tmp/$name"
 
 
+turn_window=${turn_window:-1}
+
 [[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
 thrp_window=${thrp_window:-3}
 
@@ -313,13 +353,15 @@ fi
 for mode in reads writes r_push w_push all; do
     inp="$mainfifo.$mode"
     side="$subfifo.side.$mode"
-    i="$mode.tmp"
+    outp="$mode.tmp"
     if (( static_mode )); then
 	mkfifo $inp.nosort.rqsize
+	mkfifo $side.rqsize.stat
 	cat $inp.nosort.rqsize |\
 	    cut -d ';' -f 4 |\
+	    tee $side.rqsize.stat |\
 	    $bin_dir/bins.exe >\
-	    $out.g40.rqsize.$i.bins &
+	    $out.g40.$outp.rqsize.bins &
 	mkfifo $inp.nosort.rqpos
 	mkfifo $side.rqpos_tmp
 	cat $inp.nosort.rqpos |\
@@ -327,7 +369,7 @@ for mode in reads writes r_push w_push all; do
 	    gawk 'BEGIN{ xmax = -2; ymax = 0; } { i = int($1 / 2097152); table[i]++; if (i > xmax) xmax = i; } END{ for (i = 0; i <= xmax + 1; i++) { printf("%5d %5d\n%5d %5d\n", i, table[i], i+1, table[i]); if (table[i] > ymax) ymax = table[i]; } if (ymax > 0) printf("ymax=%d\n", ymax); }' |\
 	    tee $side.rqpos_tmp |\
 	    grep -v '^[a-z]' >\
-	    $out.g41.rqpos.$i.bins &
+	    $out.g41.$outp.rqpos.bins &
 	grep '^[a-z]' < $side.rqpos_tmp >\
 	    $tmp/rqpos_$mode.ymax &
     fi
@@ -336,99 +378,143 @@ for mode in reads writes r_push w_push all; do
 	cat $inp.sort6.dyn.1 |\
 	    cut -d ';' -f 2,7 |\
 	    sed 's/;/ /' >\
-	    $out.g01.latency.$i.realtime &
+	    $out.g01.$outp.latency.realtime &
 	mkfifo $inp.sort2.dyn.2
 	cat $inp.sort2.dyn.2 |\
 	    cut -d ';' -f 2,7 |\
 	    sed 's/;/ /' >\
-	    $out.g02.latency.$i.setpoint &
+	    $out.g02.$outp.latency.setpoint &
 	mkfifo $inp.sort7.dyn.3
 	cat $inp.sort7.dyn.3 |\
 	    cut -d ';' -f 2,7 |\
 	    sed 's/;/ /' >\
-	    $out.g03.latency.$i.completed &
+	    $out.g03.$outp.latency.completed &
 	mkfifo $inp.nosort.dyn.3
 	cat $inp.nosort.dyn.3 |\
 	    cut -d ';' -f 1,7 |\
 	    sed 's/;/ /' >\
-	    $out.g03.latency.$i.points &
+	    $out.g03.$outp.latency.points &
 	mkfifo $inp.sort2.dyn.4
 	cat $inp.sort2.dyn.4 |\
 	    cut -d ';' -f 2,6 |\
 	    sed 's/;/ /' >\
-	    $out.g04.delay.$i.setpoint &
+	    $out.g04.$outp.delay.setpoint &
 	mkfifo $inp.nosort.dyn.5
 	cat $inp.nosort.dyn.5 |\
 	    cut -d ';' -f 1,6 |\
 	    sed 's/;/ /' >\
-	    $out.g05.delay.$i.points &
-	mkfifo $side.{1..2}
-	cat $side.1 |\
+	    $out.g05.$outp.delay.points &
+	mkfifo $side.tee.{1..2}
+	cat $side.tee.1 |\
 	    cut -d";" -f2,4 |\
 	    grep -v "x" |\
 	    sed 's/;/ /' >\
-	    $out.g10.latency.$i.xy &
-	cat $side.2 |\
+	    $out.g10.$outp.latency.xy &
+	cat $side.tee.2 |\
 	    cut -d";" -f2,3 |\
 	    grep -v "x" |\
 	    sed 's/;/ /' >\
-	    $out.g11.delay.$i.xy &
+	    $out.g11.$outp.delay.xy &
 	mkfifo $inp.nosort.dyn.12
 	cat $inp.nosort.dyn.12 |\
 	    cut -d ';' -f 6,7 |\
 	    sed 's/;/ /' >\
-	    $out.g12.$i.latency.delay.xy &
+	    $out.g12.$outp.latency.delay.xy &
     fi
     mkfifo $inp.sort2.thrp.dedi
+    mkfifo $side.thrp.stat
     cat $inp.sort2.thrp.dedi |\
 	cut -d ';' -f 2 |\
-	gawk "$gawk_thrp" >\
-	$out.g00.thrp.$i.setpoint &
+	gawk "$gawk_thrp" |\
+	tee $side.thrp.stat >\
+	$out.g00.$outp.thrp.setpoint &
     if (( dynamic_mode )); then
 	mkfifo $inp.sort7.thrp.dedi
 	cat $inp.sort7.thrp.dedi |\
 	    cut -d ';' -f 2 |\
 	    gawk "$gawk_thrp" >\
-	    $out.g00.thrp.$i.completed &
+	    $out.g00.$outp.thrp.completed &
 	mkfifo $inp.nosort.dyn.6
 	cat $inp.nosort.dyn.6 |\
 	    cut -d ';' -f 7 |\
 	    $bin_dir/bins.exe >\
-	    $out.g06.latency.$i.bins &
+	    $out.g06.$outp.latency.bins &
 	mkfifo $inp.nosort.dyn.7
 	cat $inp.nosort.dyn.7 |\
 	    cut -d ';' -f 6 |\
 	    $bin_dir/bins.exe >\
-	    $out.g07.delay.$i.bins &
+	    $out.g07.$outp.delay.bins &
 	mkfifo $inp.nosort.dyn.8
+	mkfifo $side.latency.flying.stat
 	cat $inp.nosort.dyn.8 |\
 	    compute_flying "+\$6" 7 |\
-	    tee $side.* |\
+	    tee $side.tee.* |\
 	    cut -d";" -f1,2 |\
+	    tee $side.latency.flying.stat |\
 	    sed 's/;/ /' >\
-	    $out.g08.latency.$i.flying &
+	    $out.g08.$outp.latency.flying &
 	mkfifo $inp.nosort.dyn.9
+	mkfifo $side.delay.flying.stat
 	cat $inp.nosort.dyn.9 |\
 	    compute_flying "" 6 |\
 	    cut -d";" -f1,2 |\
+	    tee $side.delay.flying.stat |\
 	    sed 's/;/ /' >\
-	    $out.g09.delay.$i.flying &
+	    $out.g09.$outp.delay.flying &
 	if [ "$mode" != "r_push" ] && [ "$mode" != "w_push" ]; then
 	    mkfifo $inp.sort7.turns.completed
+	    mkfifo $side.turns.completed.stat
 	    cat $inp.sort7.turns.completed |\
 		cut -d ';' -f 2,3 |\
-		compute_turns 1 |\
-		gawk '{print $1, $4; }' >\
-		$out.g43.$i.turns.completed &
+		compute_turns $turn_window |\
+		gawk '{print $1, $4; }' |\
+		tee $side.turns.completed.stat >\
+		$out.g43.$outp.turns.completed &
 	fi
     fi
     if (( static_mode || dynamic_mode )) && [ "$mode" != "r_push" ] && [ "$mode" != "w_push" ]; then
 	mkfifo $inp.sort2.turns.setpoint
+	mkfifo $side.turns.setpoint.stat
 	cat $inp.sort2.turns.setpoint |\
 	    cut -d ';' -f 2,3 |\
-	    compute_turns 1 |\
-	    gawk '{print $1, $4; }' >\
-	    $out.g42.$i.turns.setpoint &
+	    compute_turns $turn_window |\
+	    gawk '{print $1, $4; }' |\
+	    tee $side.turns.setpoint.stat >\
+	    $out.g42.$outp.turns.setpoint &
+    fi
+    # create statistics
+    cat $side.thrp.stat |\
+	gawk '{print $2;}' |\
+	output_statistics_short "thrp_${mode}_" thrp $mode &
+    if (( static_mode )); then
+	cat $side.rqsize.stat |\
+	    output_statistics_short "rqsize_${mode}_" rqsize $mode &
+    fi
+    if (( dynamic_mode )); then
+	mkfifo $inp.nosort.latencies.stat
+	cat $inp.nosort.latencies.stat |\
+	    cut -d ';' -f 2,7 |\
+	    output_statistics "latency_${mode}_" "$bad_latency" latencies $mode &
+	mkfifo $inp.nosort.delays.stat
+	cat $inp.nosort.delays.stat |\
+	    cut -d ';' -f 2,6 |\
+	    output_statistics "delay_${mode}_" "$bad_delay" delays $mode &
+	cat $side.latency.flying.stat |\
+	    cut -d";" -f2 |\
+	    output_statistics_short "latency_flying_${mode}_" latency.flying $mode &
+	cat $side.delay.flying.stat |\
+	    cut -d";" -f2 |\
+	    output_statistics_short "delay_flying_${mode}_" delay.flying $mode &
+    fi
+    if [ -e $side.turns.setpoint.stat ]; then
+	cat $side.turns.setpoint.stat |\
+	    gawk '{print $2;}' |\
+	    output_statistics_short "turns_setpoint_${mode}_" turns.setpoint $mode &
+    fi
+    if [ -e $side.turns.completed.stat ]; then
+	cat $side.turns.completed.stat |\
+	    gawk '{print $2;}' |\
+	    output_statistics_short "turns_completed_${mode}_" turns.completed $mode &
     fi
 done
 
@@ -471,19 +557,6 @@ if (( verbose_mode )); then
 	tee $out.g56.answer_wait |\
 	cumul >\
 	$out.g56.answer_wait_cumul &
-fi
-
-if (( dynamic_mode )); then
-    mkfifo $mainfifo.all.sort2.latencies
-    cat $mainfifo.all.sort2.latencies |\
-	cut -d ';' -f 2,7 |\
-	make_statistics $bad_latency >\
-	$tmp/latencies &
-    mkfifo $mainfifo.all.sort2.delays
-    cat $mainfifo.all.sort2.delays |\
-	cut -d ';' -f 2,6 |\
-	make_statistics $bad_delay   >\
-	$tmp/delays &
 fi
 
 for window in $ws_list; do
@@ -623,6 +696,11 @@ if [ -n "$use_o_direct" ]; then
     fi
 fi
 
+# source all statistics values
+for i in $tmp/stat.*; do
+    source "$i"
+done
+
 # finally start all the gnuplot commands in parallel; they can take much time on huge plots
 
 for reads_file in $tmp/*.reads.tmp.* ; do
@@ -645,13 +723,17 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	*.latency.*)
 	items="latencies"
 	bad_val=$bad_latency
-	source $tmp/latencies
+	max="$latency_all_max"
+	hit="$latency_all_hit"
+	start="$latency_all_start"
 	;;
 	*.delay.*)
-	source $tmp/delays
+	max="$delay_all_max"
+	hit="$delay_all_hit"
+	start="$delay_all_start"
 	;;
 	*)
-	max=$(cat $reads_file $writes_file | wc -l)
+	max=$(cat $reads_file $writes_file | head -n1 | wc -l)
 	;;
     esac
     if [ "$min" = "$max" ]; then
@@ -661,12 +743,12 @@ for reads_file in $tmp/*.reads.tmp.* ; do
     (
 	ok_txt=""
 	ok_color="ok"
+	all_file=""
 	case $reads_file in
 	    *.xy)
 	    ;;
 	    *.bins | *.flying | *.turns.* | *.thrp.*)
-            sum_file=$(echo $reads_file | sed 's/\.reads\./.all./')
-	    extra2=", '$sum_file' title 'Reads+Writes' with lines $(lt all)"
+            all_file=$(echo $reads_file | sed 's/\.reads\./.all./')
 	    ;;
 	    *.latency.* | *.delay.*)
 	    test_title="Test"
@@ -686,24 +768,41 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	with="with points ps 0.1"
 	xlabel="UNDEFINED"
 	ylabel="UNDEFINED"
-	dlabel="Flying Requests [count]"
 	xlogscale=""
 	ylogscale="set logscale y;"
+	infix=""
 	case $reads_file in
 	    *.thrp.*)
-	    ylabel="Throughput [IO/sec]"
+	    infix="thrp"
+	    ylabel="Throughput [IO/sec]  (Avg=$thrp_all_avg, Max=$thrp_all_max)"
 	    with="with lines"
 	    ylogscale=""
 	    ;;
+	    *.latency.flying*)
+	    infix="latency.flying"
+	    ylabel="Flying Requests [count]  (Avg=$latency_flying_all_avg, Max=$latency_flying_all_max)"
+	    ;;
+	    *.delay.flying*)
+	    infix="delay.flying"
+	    ylabel="Delayed Requests [count]  (Avg=$delay_flying_all_avg, Max=$delay_flying_all_max)"
+	    ;;
+	    *.latency.bins*)
+	    ylabel="Latency [sec]"
+	    ;;
 	    *.latency.*)
-	    ylabel="Latency [sec]  (Avg=$avg)"
+	    infix="latencies"
+	    ylabel="Latency [sec]  (Avg=$latency_all_avg, Max=$latency_all_max)"
+	    ;;
+	    *.delay.bins*)
+	    ylabel="Delay [sec]"
 	    ;;
 	    *.delay.*)
-	    ylabel="Delay [sec]  (Avg=$avg)"
-	    dlabel="Delayed Requests [count]"
+	    infix="delays"
+	    ylabel="Delay [sec]  (Avg=$delay_all_avg, Max=$delay_all_max)"
 	    ;;
 	    *.rqsize.*)
-	    ylabel="Request Size [blocks]"
+	    infix="rqsize"
+	    ylabel="Request Size [blocks]  (Avg=$rqsize_all_avg, Max=$rqsize_all_max)"
 	    ;;
 	    *.rqpos.*)
 	    ylabel="Request Position in Device [GiB]"
@@ -719,13 +818,30 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 		extra2="$extra2, '$tmp/vfile.$title.$i' title 'Size of Device = $device_size [GiB]' with lines $(lt border)"
 	    done
 	    ;;
+	    *.turns.setpoint*)
+	    infix="turns.setpoint"
+	    ylabel="Number of Turns during $turn_window sec [%]  (Avg=$turns_setpoint_all_avg, Max=$turns_setpoint_all_max)"
+	    ;;
+	    *.turns.completed*)
+	    infix="turns.completed"
+	    ylabel="Number of Turns during $turn_window sec [%]  (Avg=$turns_completed_all_avg, Max=$turns_completed_all_max)"
+	    ;;
+	esac
+
+	for i in $tmp/label.$infix.*; do
+	    source "$i"
+	done
+
+	if [ -s "$all_file" ]; then
+	    extra1="$extra1, '$all_file' title 'Reads+Writes${all_label}' with lines $(lt all)"
+	fi
+
+	case $reads_file in
 	    *.turns.*)
-	    ylabel="Number of Turns [%]"
+	    xlabel="Duration [sec]"
 	    ylogscale=""
 	    with="with lines"
 	    ;;
-	esac
-	case $reads_file in
 	    *.realtime)
 	    xlabel="Real Duration [sec]"
 	    ;;
@@ -741,7 +857,6 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    *.flying)
 	    xlabel="Duration [sec]"
 	    with="with lines"
-	    ylabel="$dlabel"
 	    ;;
 	    *.bins)
 	    with="with linespoints"
@@ -756,8 +871,6 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    *.xy)
 	    xlabel="Flying Requests [count]"
 	    ;;
-	    *.turns.*)
-	    xlabel="Duration [sec]"
 	esac
 	case $reads_file in
 	    *.rqpos.*)
@@ -770,7 +883,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
     
 	plot=""
 	if [ -s "$reads_file" ]; then
-	    plot="plot '$reads_file' title 'Reads' $with $(lt reads)"
+	    plot="plot '$reads_file' title 'Reads${reads_label}' $with $(lt reads)"
 	fi
 	if [ -s "$writes_file" ]; then
 	    if [ -n "$plot" ]; then
@@ -778,7 +891,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    else
 		plot="plot "
 	    fi
-	    plot="$plot '$writes_file' title 'Writes' $with $(lt writes)"
+	    plot="$plot '$writes_file' title 'Writes${writes_label}' $with $(lt writes)"
 	fi
 	if [ -s "$r_push_file" ]; then
 	    if [ -n "$plot" ]; then
@@ -786,7 +899,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    else
 		plot="plot "
 	    fi
-	    plot="$plot '$r_push_file' title 'Read Pushes' $with $(lt r_push)"
+	    plot="$plot '$r_push_file' title 'Read Pushes${r_push_label}' $with $(lt r_push)"
 	fi
 	if [ -s "$w_push_file" ]; then
 	    if [ -n "$plot" ]; then
@@ -794,7 +907,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    else
 		plot="plot "
 	    fi
-	    plot="$plot '$w_push_file' title 'Write Pushes' $with $(lt w_push)"
+	    plot="$plot '$w_push_file' title 'Write Pushes${w_push_label}' $with $(lt w_push)"
 	fi
 	if [ -n "$plot" ]; then
 	    plot="$plot $extra1 $extra2"
@@ -826,6 +939,11 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
     [ $mode = latency ] && lines="linespoints"
     for i in $tmp/*.$mode $tmp/*.$mode.*.extra; do
 	[ -s $i ] || continue
+	mode_title="$mode"
+	if [[ "$i" =~ ".extra" ]]; then
+	    mode_title="$(echo $i | sed "s/^.*\.$mode\./$mode./" | sed 's/\.extra//')"
+	fi
+	mode_title="$mode_title  ($(echo $(cat "$i" | sed 's/^ *[^ ]\+ \+//' | make_statistics_short "" | grep "max=\|avg=" | sort) | sed 's/ /, /'))"
 	title=$(basename $i | sed 's/\.\(tmp\|extra\)//g')
 	color_key=$(echo $title | sed 's/^.*\.g[0-9]\+\.//')
 	if (( verbose_mode )); then
@@ -833,7 +951,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	    [ -z "$expansion" ] && expansion="(no expansion)"
 	    echo "Color_Key = $color_key => $expansion"
 	fi
-	plot="$plot$delim '$i' $using title '$title' with $lines $(lt "$color_key")"
+	plot="$plot$delim '$i' $using title '$mode_title' with $lines $(lt "$color_key")"
 	delim=","
 	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i | sed 's/\.\(tmp\|extra\|000\|actual\|demand\)//g').$picturetype"
     done
@@ -852,11 +970,11 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	    ylabel="Throughput [IOs/sec]"
 	    ;;
 	    ws_log)
-	    ylabel="Workingset Size"
+	    ylabel="Workingset Size [count]"
 	    scale="set logscale y;"
 	    ;;
 	    ws_lin)
-	    ylabel="Workingset Size"
+	    ylabel="Workingset Size [count]"
 	    ;;
 	    avg_dist)
 	    ylabel="Average Distance [sectors]"
@@ -873,7 +991,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	<<EOF gnuplot
 	set term $picturetype $pictureoptions;
 	set output "$outname";
-	set title '$mode $start_time'
+	set title '$title $start_time'
 	$scale
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
