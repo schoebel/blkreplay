@@ -569,15 +569,32 @@ echo "Waiting for completion..."
 wait
 echo "Done preparation phase."
 
-cat $tmp/vars
+# variables may be defined multiple times (e.g. at different input files).
+# compute and display {min,max} range for each.
+
 source $tmp/vars
-wrap_int="$(echo $wraparound_factor | cut -d. -f1)"
-wrap_frac="$(echo $wraparound_factor | cut -d. -f2)"
+for i in $(cut -d= -f1 < $tmp/vars | sort -u); do
+    grep "^$i=" $tmp/vars | cut -d= -f2 | sort -u -n > $tmp/vars.$i
+    eval "${i}_min=$(head -n1 < $tmp/vars.$i)"
+    eval "${i}_max=$(tail -n1 < $tmp/vars.$i)"
+    if eval "[ \"\$${i}_min\" = \"\$${i}_max\" ]"; then
+	eval "echo \"$i=\${$i}\""
+    else
+	eval "echo \"${i}_min=\${${i}_min}\""
+	eval "echo \"${i}_max=\${${i}_max}\""
+    fi
+done
+
+# display wrapoaround factor(s) in the corner
+
+wrap_int_min="$(echo $wraparound_factor_min | cut -d. -f1)"
+wrap_int_max="$(echo $wraparound_factor_max | cut -d. -f1)"
+wrap_frac_min="$(echo $wraparound_factor_min | cut -d. -f2)"
 var_color=""
-if (( wrap_int > 1 || (!wrap_int && wrap_frac < 500) )); then
+if (( wrap_int_max > 1 || (!wrap_int_min && wrap_frac_min < 500) )); then
     var_color="$(textcolor warn)"
 fi
-var_text="$(echo $(grep 'wrap' $tmp/vars))"
+var_text="wraparound_factor=$(echo "$(echo $(grep 'wraparound' $tmp/vars | cut -d= -f2 | sort -n -u))" | sed 's: :/:')"
 var_label="set label \"$var_text\" at graph 1.0, screen 0.0 right $var_color front offset 0, character 1"
 
 warn_label=""
@@ -587,14 +604,16 @@ if [ -s $tmp/warnings ]; then
     warn_label="set label \"$warn_text\" at graph 0.0, screen 0.0 left $(textcolor warn) front offset 0, character 1"
 fi
 
+# display FAKE label if necessary
+
 is_fake=0
 fake_label=""
 if [ -n "$use_o_direct" ]; then
-    if (( !use_o_direct || dry_run )); then
+    if (( !use_o_direct_min || dry_run_max )); then
 	echo "detected FAKE results"
 	is_fake=1
 	fake_text="FAKE RESULT"
-	if (( dry_run )); then
+	if (( dry_run_max )); then
 	    fake_text="DRY RUN -- $fake_text"
 	else
 	    (( !use_o_direct )) && fake_text="$fake_text -- no O_DIRECT"
@@ -688,17 +707,17 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    ;;
 	    *.rqpos.*)
 	    ylabel="Request Position in Device [GiB]"
-	    if (( size_of_device > 0 )); then
-		(( device_size = (size_of_device - 1) / 2 / 1024 / 1024 + 1 ))
-		source $tmp/rqpos_all.ymax
+	    source $tmp/rqpos_all.ymax
+	    for i in $(grep "size_of_device=" $tmp/vars | cut -d= -f2 | sort -n -u); do
+		(( device_size = (i - 1) / 2 / 1024 / 1024 + 1 ))
 		{
 		    echo "$device_size.01 1"
 		    echo "$device_size.01 $ymax"
 		    echo "$device_size.02 $ymax"
 		    echo "$device_size.02 1"
-		} > $tmp/vfile.$title
-		extra2=", '$tmp/vfile.$title' title 'Size of Device = $device_size [GiB]' with lines $(lt border)"
-	    fi
+		} > $tmp/vfile.$title.$i
+		extra2="$extra2, '$tmp/vfile.$title.$i' title 'Size of Device = $device_size [GiB]' with lines $(lt border)"
+	    done
 	    ;;
 	    *.turns.*)
 	    ylabel="Number of Turns [%]"
