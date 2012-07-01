@@ -27,6 +27,10 @@
 script_dir="$(cd "$(dirname "$(which "$0")")"; pwd)"
 source "$script_dir/modules/lib.sh" || exit $?
 
+to_produce="${to_produce:-replay.gz}"
+to_check="${to_check:-}"
+to_start="${to_start:-main}"
+
 dry_run_script=0
 verbose_script=0
 
@@ -89,7 +93,7 @@ while (( resume )); do
     echo "Scanning directory structure starting from $(pwd)"
     resume=0
     for test_dir in $(find . -type d | eval "$ignore" | sort); do
-	(( dry_run_script )) || rm -f $test_dir/dry-run.replay.gz
+	(( dry_run_script )) || rm -f $test_dir/dry-run.$to_produce
 	if [ -e "$test_dir/skip" ]; then
 	    echo "Skipping directory $test_dir"
 	    continue
@@ -99,8 +103,12 @@ while (( resume )); do
 	    continue
 	fi
 	shopt -u nullglob
-	if ls $test_dir/*.replay.gz > /dev/null 2>&1; then
+	if ls $test_dir/*.$to_produce > /dev/null 2>&1; then
 	    echo "Already finished $test_dir"
+	    continue
+	fi
+	if [ -n "$to_check" ] && ! ls $test_dir/*.$to_check > /dev/null 2>&1; then
+	    echo "No *.$to_check files exist in $test_dir"
 	    continue
 	fi
 	echo ""
@@ -135,10 +143,10 @@ while (( resume )); do
 	    export sub_prefix=$(echo $test_dir | sed 's/\//./g' | sed 's/\.\././g')
 	    if (( dry_run_script )); then
 		echo "==> Dry Run ..."
-		touch dry-run.replay.gz
+		touch dry-run.$to_produce
 	    else
 		echo "==> $(date) Starting $sub_prefix"
-		main || { echo "Replay failure $?"; exit -1; }
+		eval "$to_start" || { echo "Replay failure $?"; exit -1; }
 	    fi
 	    echo "==> $(date) Finished."
 	) || { echo "Failure $?"; exit -1; }
