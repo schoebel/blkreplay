@@ -85,20 +85,21 @@ while [ $# -ge 1 ]; do
     esac
 done
 
-ignore="grep -v '[/.]old' | grep -v 'ignore'"
+ignore_cmd="grep -v '[/.]old' | grep -v 'ignore'"
+sort_cmd="while read i; do if [ -e \"\$i\"/prio-[0-9]* ]; then echo \"\$(cd \$i; ls prio-[0-9]*):\$i\"; else echo \"z:\$i\"; fi; done | sort | sed 's/^[^:]*://'"
 
 # find directories
 resume=1
 while (( resume )); do
     echo "Scanning directory structure starting from $(pwd)"
     resume=0
-    for test_dir in $(find . -type d | eval "$ignore" | sort); do
+    for test_dir in $(find . -type d | eval "$ignore_cmd" | eval "$sort_cmd"); do
 	(( dry_run_script )) || rm -f $test_dir/dry-run.$to_produce
 	if [ -e "$test_dir/skip" ]; then
 	    echo "Skipping directory $test_dir"
 	    continue
 	fi
-	if [ $(find $test_dir -type d | eval "$ignore" | wc -l) -gt 1 ]; then
+	if [ $(find $test_dir -type d | eval "$ignore_cmd" | wc -l) -gt 1 ]; then
 	    echo "Ignoring inner directory $test_dir"
 	    continue
 	fi
@@ -156,6 +157,11 @@ while (( resume )); do
 	break
     done
 done
+
+if (( dry_run_script )); then
+    echo "removing dry-run.$to_produce everywhere..."
+    rm -f $(find . -name "dry-run.$to_produce")
+fi
 
 echo "======== Finished pwd=$(pwd)"
 exit 0
