@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.30
+Version 0.31
 \end_layout
 
 \begin_layout Standard
@@ -6266,6 +6266,10 @@ tree-replay.sh
 \end_layout
 
 \begin_layout Standard
+Here are some useful hints:
+\end_layout
+
+\begin_layout Itemize
 You may skip any directory by creating a file 
 \family typewriter
 skip
@@ -6279,8 +6283,8 @@ touch ./short/model1/skip
  Later, you can remove that file in order to fire off that benchmark.
 \end_layout
 
-\begin_layout Standard
-Hint: 
+\begin_layout Itemize
+
 \family typewriter
 skip
 \family default
@@ -6291,8 +6295,8 @@ skip
 , disabling the whole subtree in one step.
 \end_layout
 
-\begin_layout Standard
-Hint: design your 
+\begin_layout Itemize
+Design your 
 \family typewriter
 *.conf
 \family default
@@ -6312,9 +6316,9 @@ full
  cartesian product.
 \end_layout
 
-\begin_layout Standard
-Hint: you may create a new leaf directory (somewhere in the subtree) even
- in parallel to an already running benchmark.
+\begin_layout Itemize
+You may create a new leaf directory (somewhere in the subtree) even in parallel
+ to an already running benchmark.
  Whenever the currently running benchmark has completed, 
 \family typewriter
 tree-replay.sh
@@ -6325,9 +6329,9 @@ tree-replay.sh
 , and the first name according to ASCII sort order is taken first.
 \end_layout
 
-\begin_layout Standard
-Hint: when 10 or more variants could appear somewhere (even after a while),
- use leading zeros in any names like 
+\begin_layout Itemize
+When 10 or more variants could appear somewhere (even after a while), use
+ leading zeros in any names like 
 \family typewriter
 v001
 \family default
@@ -6338,8 +6342,8 @@ v002
  etc to ensure that ASCII sort order is the same as numerical order.
 \end_layout
 
-\begin_layout Standard
-Hint: sometimes the ASCII sort order of names like 
+\begin_layout Itemize
+Sometimes the ASCII sort order of names like 
 \family typewriter
 short
 \family default
@@ -6374,8 +6378,24 @@ short
  graphics.
 \end_layout
 
-\begin_layout Standard
-Hint: when you design your 
+\begin_layout Itemize
+You can rearrange the order in another way: just create an empty file 
+\family typewriter
+prio-nnn
+\family default
+ in a leaf directory, where 
+\family typewriter
+nnn
+\family default
+ is a number denoting a priority class.
+ Priority classes are overriding the global ASCII sort order.
+ Directories having the lowest priority class are run first, while directories
+ without any class are run last.
+ Inside of each class, the ASCII sort order is obeyed.
+\end_layout
+
+\begin_layout Itemize
+When you design your 
 \family typewriter
 *.conf
 \family default
@@ -6396,8 +6416,8 @@ full
  path) and therefore the order in which your benchmarks are run.
 \end_layout
 
-\begin_layout Standard
-Hint: when some benchmark fails, just delete the corresponding output files.
+\begin_layout Itemize
+When some benchmark fails, just delete the corresponding output files.
  On the next cycle, 
 \family typewriter
 tree-replay.sh
@@ -6406,8 +6426,8 @@ tree-replay.sh
  among others).
 \end_layout
 
-\begin_layout Standard
-Hint: 
+\begin_layout Itemize
+
 \family typewriter
 \emph on
 xxx
@@ -6571,7 +6591,24 @@ graph
 default-graph.conf
 \family default
 , the following steps will be carried out automatically for you.
- In case you need some individual graphics, read on.
+ Alternatively or in addition, the script 
+\family typewriter
+tree-graph.sh
+\family default
+ can be used to (re-)create all 
+\family typewriter
+*.png
+\family default
+ graphics in a whole directory hierarchy, analogously to 
+\family typewriter
+tree-replay.sh
+\family default
+ (and even sourcing the same 
+\family typewriter
+*.conf 
+\family default
+files in the same way).
+ In case you need some individual graphics, read on for details.
 \end_layout
 
 \begin_layout Standard
@@ -8276,19 +8313,6 @@ iscsi_target
 \labelwidthstring 00.00.0000
 
 \family typewriter
-scheduler
-\family default
- By default (when enabled), the IO scheduler will be set to 
-\family typewriter
-noop
-\family default
- (or another value) on all relevant target machines.
-\end_layout
-
-\begin_layout Labeling
-\labelwidthstring 00.00.0000
-
-\family typewriter
 create_lv
 \family default
  Here you can put in your code for re-creating logical volumes on an arbitrary
@@ -8315,6 +8339,19 @@ reference "sub:Pitfalls-from-Storage"
 \labelwidthstring 00.00.0000
 
 \family typewriter
+scheduler
+\family default
+ By default (when enabled), the IO scheduler will be set to 
+\family typewriter
+noop
+\family default
+ (or another value) on all relevant target machines.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
 wipe
 \family default
  When enabled, all your devices will be filled with random data before the
@@ -8331,6 +8368,21 @@ reference "sub:Pitfalls-from-Storage"
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+bbu_megaraid
+\family default
+ When enabled, your LSI megaraid conrollers will be programmed to enable/disable
+ BBU write caching.
+ The tool 
+\family typewriter
+MegaCli
+\family default
+ must be installed.
 \end_layout
 
 \begin_layout Labeling
@@ -8744,6 +8796,10 @@ artificial
 real applications
 \emph default
  which were capable of producing / consuming such extremely high IO traffic.
+ Real applications usually don't use AIO, where such problems occur less
+ frequently.
+ No wonder that benchmark results published on the internet are often based
+ on AIO, which is far from practice.
 \end_layout
 
 \begin_layout Standard
@@ -10286,7 +10342,7 @@ lstinputlisting[language=bash]{default-main.conf}
 \end_layout
 
 \begin_layout Section
-Module Parameters
+Ordinary Module Parameters
 \begin_inset CommandInset label
 LatexCommand label
 name "sec:Module-Parameters"
@@ -10319,32 +10375,6 @@ status open
 
 \backslash
 lstinputlisting[language=bash]{default-create_lv.conf}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Subsection
-File 
-\family typewriter
-default-graph.conf
-\end_layout
-
-\begin_layout Standard
-\noindent
-
-\family typewriter
-\size footnotesize
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-lstinputlisting[language=bash]{default-graph.conf}
 \end_layout
 
 \end_inset
@@ -10450,6 +10480,69 @@ status open
 \backslash
 lstinputlisting[language=bash]{default-wipe.conf}
 \end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-bbu_megaraid.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-wipe.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-graph.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+\size footnotesize
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{default-graph.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Pipe Module Parameters
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Pipe-Module-Parameters"
 
 \end_inset
 
