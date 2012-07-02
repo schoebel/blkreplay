@@ -41,8 +41,10 @@ function iscsi_target_iet_prepare
 {
     (( !enable_iscsi_target_iet )) && return 0
     iqn_base="${iqn_base:-iqn.2000-01.info.test:test}"
+    target_hosts_unique="$iscsi_target_host"
+    all_hosts_unique="$(for i in $all_hosts_unique $target_hosts_unique; do echo $i; done | sort -u)"
     echo "$FUNCNAME preparing iSCSI target $iscsi_target_host iqn_base=$iqn_base"
-    all_hosts_unique="$(for i in $all_hosts_unique $iscsi_target_host; do echo $i; done | sort -u)"
+
     iscsi_target_iet_finish >/dev/null 2>&1 # in case a previous run was interrupted
 
     for i in $(eval echo {0..$replay_max}); do

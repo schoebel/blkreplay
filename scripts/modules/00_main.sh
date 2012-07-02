@@ -71,7 +71,8 @@ function main_prepare
 	exit -1
     fi
     replay_hosts_unique="$(for i in $(eval echo {0..$replay_max}); do echo "${replay_host[$i]}"; done | sort -u)"
-    all_hosts_unique="$replay_hosts_uniqe" # may by later extended by iSCSI&co
+    target_hosts_unique="$replay_hosts_unique" # may by later extended by iSCSI&co
+    all_hosts_unique="$replay_hosts_unique" # may by later extended by iSCSI&co
     j=0
     for i in $input_file_list; do
 	input_file[$j]=$i
