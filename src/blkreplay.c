@@ -1533,7 +1533,7 @@ void do_dispatcher_copy(int in_fd, int out_fd)
 }
 
 static
-void _fork_answer_dispatcher()
+void _fork_answer_dispatcher(int close_fd)
 {
 	int old_answer_1 = answer[1];
 	int status;
@@ -1548,10 +1548,11 @@ void _fork_answer_dispatcher()
 	fflush(stdout);
 	pid = fork();
 	if (pid < 0) {
-		printf("FATAL ERROR: cannot fork\n");
+		printf("FATAL ERROR: cannot fork answer dispatcher\n");
 		exit(-1);
 	}
 	if (!pid) { // son
+		close(close_fd);
 		close(answer[1]);
 		
 		do_dispatcher_copy(answer[0], old_answer_1);
@@ -1597,7 +1598,7 @@ void _fork_childs(int in_fd, int this_max)
 
 		pid = fork();
 		if (pid < 0) {
-			printf("FATAL ERROR: cannot fork\n");
+			printf("FATAL ERROR: cannot fork child\n");
 			exit(-1);
 		}
 		if (!pid) { // son
@@ -1609,7 +1610,7 @@ void _fork_childs(int in_fd, int this_max)
 			close_all_queues(queue, sub_max, 1, -1);
 
 			if (fork_dispatcher && in_fd >= 0) {
-				_fork_answer_dispatcher();
+				_fork_answer_dispatcher(queue[i][0]);
 			}
 
 			_fork_childs(queue[i][0], next_max[i]);
