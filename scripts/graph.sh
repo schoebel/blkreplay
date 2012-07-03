@@ -946,7 +946,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	mode_title="$mode_title  ($(echo $(cat "$i" | sed 's/^ *[^ ]\+ \+//' | make_statistics_short "" | grep "max=\|avg=" | sort) | sed 's/ /, /'))"
 	title=$(basename $i | sed 's/\.\(tmp\|extra\)//g')
 	color_key=$(echo $title | sed 's/^.*\.g[0-9]\+\.//')
-	if (( verbose_mode )); then
+	if (( verbose_script )); then
 	    expansion="$(rgb "" "$color_key")"
 	    [ -z "$expansion" ] && expansion="(no expansion)"
 	    echo "Color_Key = $color_key => $expansion"
