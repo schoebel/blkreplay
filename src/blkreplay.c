@@ -246,6 +246,45 @@ void timespec_multiply(struct timespec *res, FLOAT factor)
 
 ///////////////////////////////////////////////////////////////////////
 
+// output flushing
+
+static struct timespec flush_total = {};
+
+static
+void flush_stdout(void)
+{
+	if (verbose > 0) {
+		struct timespec before;
+		struct timespec after;
+		struct timespec diff;
+		
+		clock_gettime(CLOCK_REALTIME, &before);
+		fflush(stdout);
+		clock_gettime(CLOCK_REALTIME, &after);
+		
+		timespec_diff(&diff, &before, &after);
+		timespec_add(&flush_total, &diff);
+	} else { // save processor time and syscalls
+		fflush(stdout);
+	}
+}
+
+static
+void do_exit(int status)
+{
+	if (verbose > 0) {
+		printf("INFO: exit pid=%d status=%d flush_total=%lu.%09lu\n",
+		       getpid(),
+		       status,
+		       flush_total.tv_sec, flush_total.tv_nsec);
+	}
+	exit(status);
+}
+
+///////////////////////////////////////////////////////////////////////
+
+// internal data structures
+
 struct verify_tag {
 	long long tag_start;
 	unsigned int tag_seqnr;
@@ -355,8 +394,8 @@ void fly_add(struct fly_hash *hash, long long sector, int len, char rwbs)
 
 		if (!new) {
 			printf("FATAL ERROR: out of memory for hashing\n");
-			fflush(stdout);
-			exit(-1);
+			flush_stdout();
+			do_exit(-1);
 		}
 		new->fl_sector = sector;
 		new->fl_len = this_len;
@@ -480,13 +519,13 @@ unsigned int *get_blockversion(int fd, long long blocknr, int count)
 	data = malloc(memlen);
 	if (!data) {
 		printf("FATAL ERROR: out of memory for hashing\n");
-		fflush(stdout);
+		flush_stdout();
 		verify_mode = 0;
 		return NULL;
 	}
 	if (lseek64(fd, blocknr * sizeof(unsigned int), SEEK_SET) != blocknr * sizeof(unsigned int)) {
 		printf("FATAL ERROR: llseek(%lld) in verify table failed %d (%s)\n", blocknr, errno, strerror(errno));
-		fflush(stdout);
+		flush_stdout();
 		verify_mode = 0;
 		free(data);
 		return NULL;
@@ -501,7 +540,7 @@ unsigned int *get_blockversion(int fd, long long blocknr, int count)
 
 	if (status < 0) {
 		printf("FATAL ERROR: read(%lld) from verify table failed %d %d (%s)\n", blocknr, status, errno, strerror(errno));
-		fflush(stdout);
+		flush_stdout();
 		verify_mode = 0;
 		free(data);
 		return NULL;
@@ -527,7 +566,7 @@ void put_blockversion(int fd, unsigned int *data, long long blocknr, int count)
 
 	if (lseek64(fd, blocknr * sizeof(unsigned int), SEEK_SET) != blocknr * sizeof(unsigned int)) {
 		printf("FATAL ERROR: llseek(%lld) in verify table failed %d (%s)\n", blocknr, errno, strerror(errno));
-		fflush(stdout);
+		flush_stdout();
 		verify_mode = 0;
 		return;
 	}
@@ -541,7 +580,7 @@ void put_blockversion(int fd, unsigned int *data, long long blocknr, int count)
 
 	if (status < 0) {
 		printf("FATAL ERROR: write to verify table failed %d (%s)\n", errno, strerror(errno));
-		fflush(stdout);
+		flush_stdout();
 		verify_mode = 0;
 	}
 }
@@ -601,7 +640,7 @@ void check_tags(struct request *rq, void *buffer, int len, int do_write)
 			continue;
 		if (tag->tag_start != start_stamp.tv_sec) {
 			printf("VERIFY ERROR (%s): bad start tag at sector %lld+%d (tag %lld != [expected] %ld)\n", mode, rq->sector, i/512, tag->tag_start, start_stamp.tv_sec);
-			fflush(stdout);
+			flush_stdout();
 			rq->verify_errors++;
 			continue;
 		}
@@ -613,7 +652,7 @@ void check_tags(struct request *rq, void *buffer, int len, int do_write)
 		if ((do_write && tag->tag_write_seqnr != rq->old_version[i/512]) ||
 		   tag->tag_write_seqnr < rq->old_version[i/512]) {
 			printf("VERIFY ERROR (%s): data version mismatch at sector %lld+%d (seqnr %u != [expected] %u)\n", mode, rq->sector, i/512, tag->tag_write_seqnr, rq->old_version[i/512]);
-			fflush(stdout);
+			flush_stdout();
 			rq->verify_errors++;
 			continue;
 		}
@@ -634,7 +673,7 @@ void make_tags(struct request *rq, void *buffer, int len)
 		}
 		if (lseek64(main_fd, rq->sector * 512, SEEK_SET) != rq->sector * 512) {
 			printf("ERROR: bad lseek at make_tags()\n");
-			fflush(stdout);
+			flush_stdout();
 		}
 	}
 
@@ -663,14 +702,14 @@ void check_all_tags()
 	struct verify_tag *tag;
 
 	printf("checking all tags..........\n");
-	fflush(stdout);
+	flush_stdout();
 
 	if (posix_memalign((void**)&table, 4096, TAG_CHUNK) ||
 	    posix_memalign((void**)&table2, 4096, TAG_CHUNK) ||
 	    posix_memalign(&buffer, 512, 512)) {
 		printf("FATAL ERROR: cannot allocate memory\n");
-		fflush(stdout);
-		exit(-1);
+		flush_stdout();
+		do_exit(-1);
 	}
 	tag = buffer;
 
@@ -683,13 +722,13 @@ void check_all_tags()
 			break;
 		if (status < 0) {
 			printf("ERROR: cannot read version table for block %lld: %d %s\n", blocknr, errno, strerror(errno));
-			fflush(stdout);
+			flush_stdout();
 			break;
 		}
 		status = read(complete_fd, table2, TAG_CHUNK);
 		if (status <= 0) {
 			printf("ERROR: cannot read completion table for block %lld: %d %s\n", blocknr, errno, strerror(errno));
-			fflush(stdout);
+			flush_stdout();
 			break;
 		}
 
@@ -702,11 +741,11 @@ void check_all_tags()
 
 			if (lseek64(main_fd, blocknr * 512, SEEK_SET) != blocknr * 512) {
 				printf("ERROR: bad lseek in check_all_tags()\n");
-				fflush(stdout);
+				flush_stdout();
 			}
 			if (do_read(buffer, 512) != 512) {
 				printf("ERROR: bad read in check_all_tags(): %d %s\n", errno, strerror(errno));
-				fflush(stdout);
+				flush_stdout();
 			}
 			checked++;
 			version2 = table2[i];
@@ -715,18 +754,18 @@ void check_all_tags()
 			if (tag->tag_write_seqnr != version && tag->tag_write_seqnr != version2) {
 				if (version != version2) {
 					printf("VERIFY MISMATCH: at block %lld (%u != %u != %u)\n", blocknr, tag->tag_write_seqnr, version, version2);
-					fflush(stdout);
+					flush_stdout();
 					verify_mismatches++;
 				} else {
 					printf("VERIFY ERROR:    at block %lld (%u != [expected] %u)\n", blocknr, tag->tag_write_seqnr, version);
-					fflush(stdout);
+					flush_stdout();
 					verify_errors_after++;
 				}
 			}
 		}
 	}
 	printf("SUMMARY: checked %lld / %lld blocks (%1.3f%%), found %lld errors, %lld mismatches\n", checked, max_size, 100.0 * (double)checked / (double)max_size, verify_errors_after, verify_mismatches);
-	fflush(stdout);
+	flush_stdout();
 	free(table);
 	free(table2);
 	free(buffer);
@@ -745,7 +784,7 @@ void paranoia_check(struct request *rq, void *buffer)
 
 	if (posix_memalign(&buffer2, 4096, len)) {
 		printf("VERIFY ERROR: cannot allocate memory\n");
-		fflush(stdout);
+		flush_stdout();
 		rq->verify_errors++;
 		goto done;
 	}
@@ -753,14 +792,14 @@ void paranoia_check(struct request *rq, void *buffer)
 	s_status = lseek64(main_fd, newpos, SEEK_SET);
 	if (s_status != newpos) {
 		printf("VERIFY ERROR: bad lseek64() %lld on main_fd=%d at pos %lld (%s) pid=%d\n", s_status, main_fd, rq->sector, strerror(errno), getpid());
-		fflush(stdout);
+		flush_stdout();
 		rq->verify_errors++;
 		goto done;
 	}
 	status2 = do_read(buffer2, len);
 	if (status2 != len) {
 		printf("VERIFY ERROR: bad %cIO %d / %d on %d at pos %lld (%s)\n", rq->rwbs, status2, errno, main_fd, rq->sector, strerror(errno));
-		fflush(stdout);
+		flush_stdout();
 		rq->verify_errors++;
 		goto done;
 	}
@@ -768,7 +807,7 @@ void paranoia_check(struct request *rq, void *buffer)
 		goto done;
 	if (memcmp(buffer, buffer2, len)) {
 		printf("VERIFY ERROR: memcmp(): bad storage semantics at sector = %lld len = %d tag_start = %lld tag2_start = %lld\n", rq->sector, len, tag->tag_start, tag2->tag_start);
-		fflush(stdout);
+		flush_stdout();
 		rq->verify_errors++;
 		goto done;
 	}
@@ -823,7 +862,7 @@ void verbose_status(struct request *rq, char *info)
 	}
 
 	printf("\n");
-	fflush(stdout);
+	flush_stdout();
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -850,7 +889,7 @@ void do_wait(struct request *rq, struct timespec *now)
 		       rq->replay_stamp.tv_nsec,
 		       (long long)rest_wait.tv_sec,
 		       rest_wait.tv_nsec);
-		fflush(stdout);
+		flush_stdout();
 #endif
 
 		if ((long long)rest_wait.tv_sec < 0) {
@@ -881,14 +920,14 @@ int do_action(struct request *rq)
 	}
 	if (rq->sector + rq->length >= main_size) {
 		printf("ERROR: trying to position at %lld (main_size=%lld)\n", rq->sector, main_size);
-		fflush(stdout);
+		flush_stdout();
 	}
 
 	newpos = (long long)rq->sector * 512;
 	s_status = lseek64(main_fd, newpos, SEEK_SET);
 	if (s_status != newpos) {
 		printf("ERROR: bad lseek64() %lld on main_fd=%d at pos %lld (%s) pid=%d\n", s_status, main_fd, rq->sector, strerror(errno), getpid());
-		fflush(stdout);
+		flush_stdout();
 		return -1;
 	}
 	{
@@ -896,7 +935,7 @@ int do_action(struct request *rq)
 		void *buffer = NULL;
 		if (posix_memalign(&buffer, 4096, len)) {
 			printf("ERROR: cannot allocate memory\n");
-			fflush(stdout);
+			flush_stdout();
 			return -1;
 		}
 		if (toupper(rq->rwbs) == 'R') {
@@ -927,8 +966,8 @@ int do_action(struct request *rq)
 		free(buffer);
 		if (!fake_io && status != len) {
 			printf("ERROR: bad %cIO %d / %d on %d at pos %lld (%s)\n", rq->rwbs, status, errno, main_fd, rq->sector, strerror(errno));
-			fflush(stdout);
-			//exit(-1);
+			flush_stdout();
+			//do_exit(-1);
 		}
 	}
 	return 0;
@@ -949,8 +988,8 @@ void pipe_write(int fd, void *data, int len)
 			len -= status;
 		} else {
 			printf("FATAL ERROR: bad pipe write fd=%d status=%d (%d %s)\n", fd, status, errno, strerror(errno));
-			fflush(stdout);
-			exit(-1);
+			flush_stdout();
+			do_exit(-1);
 		}
 	}
 }
@@ -961,8 +1000,8 @@ int pipe_read(int fd, void *data, int len)
 	int status = read(fd, data, len);
 	if (status < 0) {
 		printf("FATAL ERROR: bad pipe read fd=%d status=%d (%d %s)\n", fd, status, errno, strerror(errno));
-		fflush(stdout);
-		exit(-1);
+		flush_stdout();
+		do_exit(-1);
 	}
 	return status;
 }
@@ -986,8 +1025,8 @@ int get_request(int fd, struct request *rq)
 		rq->old_version = malloc(size);
 		if (!rq->old_version) {
 			printf("FATAL ERROR: out of memory\n");
-			fflush(stdout);
-			exit(-1);
+			flush_stdout();
+			do_exit(-1);
 		}
 		pipe_read(fd, rq->old_version, size);
 	}
@@ -1009,7 +1048,7 @@ void make_all_queues(int q[][2], int max)
 		int status = pipe(q[i]);
 		if (status < 0) {
 			printf("FATAL ERROR: cannot create pipe %d\n", i);
-			exit(-1);
+			do_exit(-1);
 		}
 	}
 }
@@ -1045,8 +1084,8 @@ int pos_get(int offset, int max_filled)
 		pos_table = malloc(table_max * sizeof(short));
 		if (!pos_table) {
 			printf("FATAL ERROR: out of memory for pos_table\n");
-			fflush(stdout);
-			exit(-1);
+			flush_stdout();
+			do_exit(-1);
 		}
 		memset(pos_table, 0, table_max * sizeof(short));
 	}
@@ -1094,7 +1133,7 @@ int pos_get(int offset, int max_filled)
 		       i,
 		       pos_table[i + offset]);
 	}
-	fflush(stdout);
+	flush_stdout();
 
  ok:
 	count_submitted++;
@@ -1122,7 +1161,7 @@ void pos_put(int pos)
 		       pos_table[pos],
 		       count_submitted,
 		       count_catchup);
-		fflush(stdout);
+		flush_stdout();
 	}
 }
 
@@ -1216,7 +1255,7 @@ void check_pushback(void)
 			       count_submitted,
 			       count_catchup,
 			       count_pushback);
-			fflush(stdout);
+			flush_stdout();
 			break;
 		}
 
@@ -1280,7 +1319,7 @@ void dump_request(struct request *rq)
 	       rq->replay_duration.tv_sec,
 	       rq->replay_duration.tv_nsec);
 
-	fflush(stdout);
+	flush_stdout();
 	statist_completed++;
 }
 
@@ -1345,7 +1384,7 @@ int get_answer(void)
 done:
 #ifdef DEBUG_TIMING
 	printf("aw=%d\n", res);
-	fflush(stdout);
+	flush_stdout();
 #endif
 	return res;
 }
@@ -1371,12 +1410,12 @@ void main_open(int again)
 	main_fd = open(main_name, flags);
 	if (main_fd < 0) {
 		printf("ERROR: cannot open file '%s', errno = %d (%s)\n", main_name, errno, strerror(errno));
-		exit(-1);
+		do_exit(-1);
 	}
 	size = lseek64(main_fd, 0, SEEK_END);
 	if (size <= 0) {
 		printf("ERROR: cannot determine size of device (%d %s)\n", errno, strerror(errno));
-		exit(-1);
+		do_exit(-1);
 	}
 	if (!main_size) {
 		main_size = size / 512;
@@ -1392,7 +1431,7 @@ char *mk_temp(const char *basename)
 	int len;
 	if (!res) {
 		printf("FATAL ERROR: out of memory for tmp pathname\n");
-		exit(-1);
+		do_exit(-1);
 	}
 	if (!tmpdir)
 		tmpdir = TMP_DIR;
@@ -1425,7 +1464,7 @@ void verify_open(int again)
 		verify_fd = open(file, flags, S_IRUSR | S_IWUSR);
 		if (verify_fd < 0) {
 			printf("ERROR: cannot open '%s' (%d %s)\n", VERIFY_TABLE, errno, strerror(errno));
-			fflush(stdout);
+			flush_stdout();
 			verify_mode = 0;
 		}
 	}
@@ -1437,7 +1476,7 @@ void verify_open(int again)
 		complete_fd = open(file, flags, S_IRUSR | S_IWUSR);
 		if (complete_fd < 0) {
 			printf("ERROR: cannot open '%s' (%d %s)\n", COMPLETION_TABLE, errno, strerror(errno));
-			fflush(stdout);
+			flush_stdout();
 			verify_mode = 0;
 		}
 	}
@@ -1485,7 +1524,7 @@ void do_worker(int in_fd, int back_fd)
 	close(back_fd);
 	if (verbose > 2) {
 		printf("worker %d count = %d\n", getpid(), count);
-		fflush(stdout);
+		flush_stdout();
 	}
 }
 
@@ -1512,7 +1551,7 @@ void do_dispatcher_copy(int in_fd, int out_fd)
 
 	if (verbose > 2) {
 		printf("dispatcher %d fan_out = %d fill_max = %lu packet_len = %d\n", getpid(), fan_out, (unsigned long)FILL_MAX, packet_len);
-		fflush(stdout);
+		flush_stdout();
 	}
 
 	for (;;) {
@@ -1524,8 +1563,8 @@ void do_dispatcher_copy(int in_fd, int out_fd)
 			break;
 		if ((status % RQ_SIZE) != 0) {
 			printf("FATAL ERROR: bad record len %d from pipe fd=%d status=%d\n", status % (int)RQ_SIZE, in_fd, status);
-			fflush(stdout);
-			exit(-1);
+			flush_stdout();
+			do_exit(-1);
 		}
 
 		pipe_write(out_fd, buf, status);
@@ -1542,14 +1581,14 @@ void _fork_answer_dispatcher(int close_fd)
 	status = pipe(answer);
 	if (status < 0) {
 		printf("FATAL ERROR: cannot create sub-answer pipe\n");
-		exit(-1);
+		do_exit(-1);
 	}
 	
-	fflush(stdout);
+	flush_stdout();
 	pid = fork();
 	if (pid < 0) {
 		printf("FATAL ERROR: cannot fork answer dispatcher\n");
-		exit(-1);
+		do_exit(-1);
 	}
 	if (!pid) { // son
 		close(close_fd);
@@ -1557,7 +1596,7 @@ void _fork_answer_dispatcher(int close_fd)
 		
 		do_dispatcher_copy(answer[0], old_answer_1);
 		
-		exit(0);
+		do_exit(0);
 	}
 	close(old_answer_1);
 }
@@ -1591,7 +1630,7 @@ void _fork_childs(int in_fd, int this_max)
 	}
 
 	make_all_queues(queue, sub_max);
-	fflush(stdout);
+	flush_stdout();
 
 	for (i = 0; i < sub_max; i++) {
 		pid_t pid;
@@ -1599,7 +1638,7 @@ void _fork_childs(int in_fd, int this_max)
 		pid = fork();
 		if (pid < 0) {
 			printf("FATAL ERROR: cannot fork child\n");
-			exit(-1);
+			do_exit(-1);
 		}
 		if (!pid) { // son
 			if (in_fd < 0)
@@ -1615,7 +1654,7 @@ void _fork_childs(int in_fd, int this_max)
 
 			_fork_childs(queue[i][0], next_max[i]);
 
-			exit(0);
+			do_exit(0);
 		}
 	}
 
@@ -1657,19 +1696,19 @@ void fork_childs()
 	status = pipe(answer);
 	if (status < 0) {
 		printf("FATAL ERROR: cannot create answer pipe\n");
-		exit(-1);
+		do_exit(-1);
 	}
 
 	if (verbose > 2) {
 		printf("forking %d child processes in total for parallelism=%d\n", table_max, total_max);
-		fflush(stdout);
+		flush_stdout();
 	}
 
 	_fork_childs(-1, table_max);
 
 	if (verbose > 2) {
 		printf("done forking (fan_out=%d)\n\n", sub_max);
-		fflush(stdout);
+		flush_stdout();
 	}
 }
 
@@ -1716,7 +1755,7 @@ void execute(struct request *rq)
 		// well, we have a conflict.
 		if (conflict_mode == 1) { // drop request
 			printf("INFO: dropping block=%lld len=%d mode=%c\n", rq->sector, rq->length, rq->rwbs);
-			fflush(stdout);
+			flush_stdout();
 			statist_dropped++;
 			return;
 		}
@@ -1732,7 +1771,7 @@ void execute(struct request *rq)
 			continue;
 		}
 		printf("FATAL ERROR: block %lld waiting for up-to-date version\n", rq->sector);
-		exit(-1);
+		do_exit(-1);
 	}
 
 	// submit request to worker threads
@@ -1793,7 +1832,7 @@ void parse(FILE *inp)
 	
 	if (verbose) {
 		printf("INFO: tag_start=%ld\n", start_stamp.tv_sec);
-		fflush(stdout);
+		flush_stdout();
 	}
 
 	for (;;) {
@@ -1812,15 +1851,15 @@ void parse(FILE *inp)
 			rq = malloc(sizeof(struct request));
 		if (!rq) {
 			printf("FATAL ERROR: out of memory for requests\n");
-			fflush(stdout);
-			exit(-1);
+			flush_stdout();
+			do_exit(-1);
 		}
 		memset(rq, 0, sizeof(struct request));
 
 		count = sscanf(buffer, "%ld.%ld ; %lld ; %d ; %c", &rq->orig_stamp.tv_sec, &rq->orig_stamp.tv_nsec, &rq->sector, &rq->length, &rq->rwbs);
 		if (count != 5) {
 			printf("ERROR: bad input count=%d, line='%s'\n", count, buffer);
-			fflush(stdout);
+			flush_stdout();
 			continue;
 		}
 
@@ -1835,7 +1874,7 @@ void parse(FILE *inp)
 			       rq->orig_stamp.tv_sec, rq->orig_stamp.tv_nsec,
 			       delta.tv_sec, delta.tv_nsec,
 			       timeshift.tv_sec, timeshift.tv_nsec);
-			fflush(stdout);
+			flush_stdout();
 		}
 		memcpy(&old_stamp, &rq->orig_stamp, sizeof(old_stamp));
 
@@ -1882,13 +1921,13 @@ void parse(FILE *inp)
 		if (rq->sector + rq->length > main_size && main_size) {
 			if (!overflow) {
 				printf("INFO: sector %lld+%d exceeds %lld, turning on wraparound.\n", rq->sector, rq->length, main_size);
-				fflush(stdout);
+				flush_stdout();
 				overflow++;
 			}
 			rq->sector %= main_size;
 			if (rq->sector + rq->length > main_size) { // damn, it spans the border
 				printf("WARN: cannot process sector %lld+%d at border %lld, please use a larger device\n", rq->sector, rq->length, main_size);
-				fflush(stdout);
+				flush_stdout();
 				continue;
 			}
 		}
@@ -1899,13 +1938,13 @@ void parse(FILE *inp)
 	}
 
 	printf("--------------------------------------\n");
-	fflush(stdout);
+	flush_stdout();
 
 	while (count_submitted > 0 && get_answer()) {
 	}
 
 	printf("--------------------------------------\n");
-	fflush(stdout);
+	flush_stdout();
 
 	// close all pipes => leads to EOF at childs
 	close_all_queues(queue, sub_max, 1, -1);
@@ -1942,7 +1981,7 @@ void parse(FILE *inp)
 	printf("size of device:      %12lld blocks (%lld kB)\n", main_size, main_size/2);
 	printf("max block# occurred: %12lld blocks (%lld kB)\n", max_size, max_size/2);
 	printf("wraparound factor:   %6.3f\n", (double)max_size / (double)main_size);
-	fflush(stdout);
+	flush_stdout();
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -2207,7 +2246,7 @@ void usage(void)
 		}
 		printf(" %s\n", tmp->arg_descr);
 	}
-	exit(-1);
+	do_exit(-1);
 }
 
 static
@@ -2310,7 +2349,7 @@ void print_fake(void)
 		       "\n"
 		       );
 	}
-	fflush(stdout);
+	flush_stdout();
 }
 
 int main(int argc, char *argv[])
@@ -2379,7 +2418,7 @@ int main(int argc, char *argv[])
 			"\n",
 			main_name,
 			ctime(&now));
-		fflush(stdout);
+		flush_stdout();
 
 		print_fake();
 
@@ -2388,14 +2427,14 @@ int main(int argc, char *argv[])
 		printf("blkreplay on %s ended at %s\n",
 		       main_name,
 		       ctime(&now));
-		fflush(stdout);
+		flush_stdout();
 	}
 
 	// verify the end result
 	if (final_verify_mode) {
 		printf("-------------------------------\n");
 		printf("verifying the end result.......\n");
-		fflush(stdout);
+		flush_stdout();
 		verify_open(1);
 		main_open(1);
 		sleep(3);
@@ -2404,5 +2443,6 @@ int main(int argc, char *argv[])
 
 	print_fake();
 
+	do_exit(0);
 	return 0;
 }
