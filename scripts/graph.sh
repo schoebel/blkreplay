@@ -422,17 +422,19 @@ for mode in reads writes r_push w_push all; do
 	    $out.g12.$outp.latency.delay.xy &
     fi
     mkfifo $inp.sort2.thrp.dedi
-    mkfifo $side.thrp.stat
+    mkfifo $side.thrp.setpoint.stat
     cat $inp.sort2.thrp.dedi |\
 	cut -d ';' -f 2 |\
 	gawk "$gawk_thrp" |\
-	tee $side.thrp.stat >\
+	tee $side.thrp.setpoint.stat >\
 	$out.g00.$outp.thrp.setpoint &
     if (( dynamic_mode )); then
 	mkfifo $inp.sort7.thrp.dedi
+	mkfifo $side.thrp.completed.stat
 	cat $inp.sort7.thrp.dedi |\
 	    cut -d ';' -f 2 |\
-	    gawk "$gawk_thrp" >\
+	    gawk "$gawk_thrp" |\
+	    tee $side.thrp.completed.stat >\
 	    $out.g00.$outp.thrp.completed &
 	mkfifo $inp.nosort.dyn.6
 	cat $inp.nosort.dyn.6 |\
@@ -483,9 +485,13 @@ for mode in reads writes r_push w_push all; do
 	    $out.g42.$outp.turns.setpoint &
     fi
     # create statistics
-    cat $side.thrp.stat |\
-	gawk '{print $2;}' |\
-	output_statistics_short "thrp_${mode}_" thrp $mode &
+    for i in setpoint completed; do
+	if [ -e $side.thrp.$i.stat ]; then
+	    cat $side.thrp.$i.stat |\
+		gawk '{print $2;}' |\
+		output_statistics_short "thrp_${i}_${mode}_" "thrp.$i" $mode &
+	fi
+    done
     if (( static_mode )); then
 	cat $side.rqsize.stat |\
 	    output_statistics_short "rqsize_${mode}_" rqsize $mode &
@@ -772,9 +778,15 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	ylogscale="set logscale y;"
 	infix=""
 	case $reads_file in
-	    *.thrp.*)
-	    infix="thrp"
-	    ylabel="Throughput [IO/sec]  (Avg=$thrp_all_avg, Max=$thrp_all_max)"
+	    *.thrp.setpoint*)
+	    infix="thrp.setpoint"
+	    ylabel="Demanded Throughput [IO/sec]  (Avg=$thrp_setpoint_all_avg, Max=$thrp_setpoint_all_max)"
+	    with="with lines"
+	    ylogscale=""
+	    ;;
+	    *.thrp.completed*)
+	    infix="thrp.completed"
+	    ylabel="Actual Throughput [IO/sec]  (Avg=$thrp_completed_all_avg, Max=$thrp_completed_all_max)"
 	    with="with lines"
 	    ylogscale=""
 	    ;;
