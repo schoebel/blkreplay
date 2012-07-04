@@ -1657,7 +1657,9 @@ void _fork_childs(int in_fd, int this_max)
 			do_exit(-1);
 		}
 		if (!pid) { // son
-			set_role("dispatcher");
+			if (next_max[i] > 1)
+				set_role("submit_dispatcher");
+
 			if (in_fd < 0)
 				fclose(stdin);
 			else
@@ -1665,7 +1667,8 @@ void _fork_childs(int in_fd, int this_max)
 			close_all_queues(queue, sub_max, 0, i);
 			close_all_queues(queue, sub_max, 1, -1);
 
-			if (fork_dispatcher && in_fd >= 0) {
+			if (fork_dispatcher &&
+			    next_max[i] > 1) {
 				_fork_answer_dispatcher(queue[i][0]);
 			}
 
