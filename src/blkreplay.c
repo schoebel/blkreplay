@@ -1725,7 +1725,7 @@ void execute(struct request *rq)
 			return;
 		}
 		// wait until conflict has gone...
-		if (count_submitted) {
+		if (count_submitted > 0) {
 			get_answer();
 			if (!first_time++)
 				statist_ordered++;
@@ -1866,8 +1866,8 @@ void parse(FILE *inp)
 
 		// avoid flooding the pipelines too much
 		while (count_submitted > bottleneck ||
-		       ((conflict_mode == 1 ||
-			 (count_pushback > 0 && count_submitted > 1)) &&
+		       ((conflict_mode == 1 || count_pushback > 0) &&
+			count_submitted > 1 &&
 			delay_distance(&rq->orig_factor_stamp))) {
 			get_answer();
 		}
