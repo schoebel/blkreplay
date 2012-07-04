@@ -4,8 +4,8 @@
 \begin_header
 \textclass scrreprt
 \begin_preamble
+\usepackage[dvipsnames]{xcolor}
 \usepackage{listings}
-\usepackage{color}
 \end_preamble
 \options abstracton
 \use_default_options true
@@ -10324,11 +10324,170 @@ name "chap:Config-File-Parameters"
 
 \end_layout
 
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstset{ %
+\end_layout
+
+\begin_layout Plain Layout
+
+  language=bash,
+\end_layout
+
+\begin_layout Plain Layout
+
+  basicstyle=
+\backslash
+tt
+\backslash
+footnotesize,
+\end_layout
+
+\begin_layout Plain Layout
+
+%  numbers=left,
+\end_layout
+
+\begin_layout Plain Layout
+
+%  numberstyle=
+\backslash
+tiny
+\backslash
+color{gray},
+\end_layout
+
+\begin_layout Plain Layout
+
+%  stepnumber=2,
+\end_layout
+
+\begin_layout Plain Layout
+
+%  numbersep=5pt,
+\end_layout
+
+\begin_layout Plain Layout
+
+%backgroundcolor=
+\backslash
+color{white},
+\end_layout
+
+\begin_layout Plain Layout
+
+  showspaces=false,
+\end_layout
+
+\begin_layout Plain Layout
+
+  showstringspaces=true,
+\end_layout
+
+\begin_layout Plain Layout
+
+  showtabs=true,
+\end_layout
+
+\begin_layout Plain Layout
+
+%frame=single,
+\end_layout
+
+\begin_layout Plain Layout
+
+%rulecolor=
+\backslash
+color{black},
+\end_layout
+
+\begin_layout Plain Layout
+
+  tabsize=8,
+\end_layout
+
+\begin_layout Plain Layout
+
+  captionpos=t,
+\end_layout
+
+\begin_layout Plain Layout
+
+  breaklines=true,
+\end_layout
+
+\begin_layout Plain Layout
+
+  breakatwhitespace=false,
+\end_layout
+
+\begin_layout Plain Layout
+
+  title=
+\backslash
+lstname,
+\end_layout
+
+\begin_layout Plain Layout
+
+  keywordstyle=
+\backslash
+color{brown},
+\end_layout
+
+\begin_layout Plain Layout
+
+  commentstyle=
+\backslash
+color{OliveGreen},
+\end_layout
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
 Basic Parameters
 \end_layout
 
+\begin_layout Subsection
+File 
+\family typewriter
+user_modules.conf
+\family default
+:
+\end_layout
+
 \begin_layout Standard
+\noindent
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{example-run/user_modules.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
 File 
 \family typewriter
 default-main.conf
@@ -10338,9 +10497,6 @@ default-main.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10348,7 +10504,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-main.conf}
+lstinputlisting[language=bash]{example-run/default-main.conf}
 \end_layout
 
 \end_inset
@@ -10379,9 +10535,6 @@ default-recreate_lvm.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10389,7 +10542,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-recreate_lvm.conf}
+lstinputlisting[language=bash]{example-run/default-recreate_lvm.conf}
 \end_layout
 
 \end_inset
@@ -10405,9 +10558,6 @@ default-create_lv.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10415,7 +10565,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-create_lv.conf}
+lstinputlisting[language=bash]{example-run/default-create_lv.conf}
 \end_layout
 
 \end_inset
@@ -10431,9 +10581,6 @@ default-iscsi_target_iet.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10441,7 +10588,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-iscsi_target_iet.conf}
+lstinputlisting[language=bash]{example-run/default-iscsi_target_iet.conf}
 \end_layout
 
 \end_inset
@@ -10457,9 +10604,6 @@ default-iscsi_initiator.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10467,7 +10611,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-iscsi_initiator.conf}
+lstinputlisting[language=bash]{example-run/default-iscsi_initiator.conf}
 \end_layout
 
 \end_inset
@@ -10483,9 +10627,6 @@ default-scheduler.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10493,7 +10634,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-scheduler.conf}
+lstinputlisting[language=bash]{example-run/default-scheduler.conf}
 \end_layout
 
 \end_inset
@@ -10509,9 +10650,6 @@ default-wipe.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10519,7 +10657,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-wipe.conf}
+lstinputlisting[language=bash]{example-run/default-wipe.conf}
 \end_layout
 
 \end_inset
@@ -10535,9 +10673,6 @@ default-bbu_megaraid.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10545,7 +10680,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-wipe.conf}
+lstinputlisting[language=bash]{example-run/default-wipe.conf}
 \end_layout
 
 \end_inset
@@ -10561,9 +10696,6 @@ default-graph.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10571,7 +10703,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-graph.conf}
+lstinputlisting[language=bash]{example-run/default-graph.conf}
 \end_layout
 
 \end_inset
@@ -10598,9 +10730,6 @@ default-pipe_repeat.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10608,7 +10737,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-pipe_repeat.conf}
+lstinputlisting[language=bash]{example-run/default-pipe_repeat.conf}
 \end_layout
 
 \end_inset
@@ -10631,9 +10760,6 @@ name "sub:File-default-pipe_slip.conf"
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10641,7 +10767,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-pipe_slip.conf}
+lstinputlisting[language=bash]{example-run/default-pipe_slip.conf}
 \end_layout
 
 \end_inset
@@ -10657,9 +10783,6 @@ default-pipe_subst.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10667,7 +10790,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-pipe_subst.conf}
+lstinputlisting[language=bash]{example-run/default-pipe_subst.conf}
 \end_layout
 
 \end_inset
@@ -10690,9 +10813,6 @@ name "sub:File-default-pipe_spread.conf"
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10700,7 +10820,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-pipe_spread.conf}
+lstinputlisting[language=bash]{example-run/default-pipe_spread.conf}
 \end_layout
 
 \end_inset
@@ -10723,9 +10843,6 @@ name "sub:File-default-pipe_resize.conf"
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10733,7 +10850,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-pipe_resize.conf}
+lstinputlisting[language=bash]{example-run/default-pipe_resize.conf}
 \end_layout
 
 \end_inset
@@ -10749,9 +10866,6 @@ default-pipe_cmd.conf
 
 \begin_layout Standard
 \noindent
-
-\family typewriter
-\size footnotesize
 \begin_inset ERT
 status open
 
@@ -10759,7 +10873,7 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{default-pipe_cmd.conf}
+lstinputlisting[language=bash]{example-run/default-pipe_cmd.conf}
 \end_layout
 
 \end_inset
