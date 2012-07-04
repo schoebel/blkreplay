@@ -104,7 +104,7 @@ function main_prepare
     devices_prepare
     new_txt="New / regenerated list"
 
-    input_pipe_list="nice gunzip -f < \"\${input_file[\$i]}\" | grep '^ *[0-9.]* *;'"
+    input_pipe_list="gunzip -f < \"\${input_file[\$i]}\" | grep '^ *[0-9.]* *;'"
     output_pipe_list="cat"
     echo ""
 }
@@ -187,15 +187,15 @@ function main_run
 	cmd="$buffer_cmd | $blkreplay | $buffer_cmd"
 	uncompress=""
 	if (( enable_compress_ssh )); then
-	    cmd="$cmd | nice gzip -$enable_compress_ssh | $buffer_cmd"
-	    uncompress="nice gunzip | "
+	    cmd="$cmd | gzip -$enable_compress_ssh | $buffer_cmd"
+	    uncompress="gunzip | "
 	fi
 	echo "Starting blkreplay on ${replay_host[$i]} options '$options' device ${replay_device[$i]}"
 	#echo "$cmd"
 	eval "$input_pipe_list" |\
 	    remote "${replay_host[$i]}" "$cmd" |\
 	    eval "$uncompress$output_pipe_list" |\
-	    nice gzip -8 >\
+	    gzip -8 >\
 	    "${output_file[$i]}" &
 	if [ -n "$replay_start" ] && [ -n "$replay_delta" ]; then
 	    (( replay_start += replay_delta ))
