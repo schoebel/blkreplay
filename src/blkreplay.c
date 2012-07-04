@@ -249,6 +249,7 @@ void timespec_multiply(struct timespec *res, FLOAT factor)
 // output flushing
 
 static struct timespec flush_total = {};
+char *my_role = "undefined";
 
 static
 void flush_stdout(void)
@@ -270,11 +271,24 @@ void flush_stdout(void)
 }
 
 static
+void set_role(char *txt)
+{
+	my_role = txt;
+	if (verbose > 0) {
+		printf("INFO: process pid=%d role='%s'\n",
+		       getpid(),
+		       my_role);
+		flush_stdout();
+	}
+}
+
+static
 void do_exit(int status)
 {
 	if (verbose > 0) {
-		printf("INFO: exit pid=%d status=%d flush_total=%lu.%09lu\n",
+		printf("INFO: exit pid=%d role='%s' status=%d flush_total=%lu.%09lu\n",
 		       getpid(),
+		       my_role,
 		       status,
 		       flush_total.tv_sec, flush_total.tv_nsec);
 	}
@@ -1591,6 +1605,7 @@ void _fork_answer_dispatcher(int close_fd)
 		do_exit(-1);
 	}
 	if (!pid) { // son
+		set_role("answer_dispatcher");
 		close(close_fd);
 		close(answer[1]);
 		
@@ -1614,6 +1629,7 @@ void _fork_childs(int in_fd, int this_max)
 	int i;
 
 	if (this_max <= 1 && in_fd >= 0) {
+		set_role("worker");
 		do_worker(in_fd, answer[1]);
 		return;
 	}
@@ -1641,6 +1657,7 @@ void _fork_childs(int in_fd, int this_max)
 			do_exit(-1);
 		}
 		if (!pid) { // son
+			set_role("dispatcher");
 			if (in_fd < 0)
 				fclose(stdin);
 			else
@@ -1690,6 +1707,8 @@ void fork_childs()
 	if (already_forked)
 		return;
 	already_forked++;
+
+	set_role("main");
 
 	// setup pipes and fork()
 
