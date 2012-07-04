@@ -256,8 +256,8 @@ function extract_variables
     spec="$1"
     var_list="$(echo $spec | sed 's/ \+/\\|/g' | sed 's/_/[_ ]\\+/g')"
     grep "^[A-Za-z#]" |\
-	sed "s/\($var_list\) *[=:] *\([0-9.]\+\)/\n\1=\2\n/g" |\
-	grep "^[a-z_]\+[a-z_ ]\+=[0-9.]\+$" |\
+	sed "s/\($var_list\) *[=:] *\([0-9.]\+\|'[^']*'\)/\n\1=\2\n/g" |\
+	grep "^[a-z][a-z_ ]*=\([0-9.]\+\|'[^']*'\)$" |\
 	sed 's/ \+/_/g' |\
 	sort -u
 }
