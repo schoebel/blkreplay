@@ -646,6 +646,17 @@ start_time="$(grep " started at " < $prefifo.main | sed 's/^.*started at //' | (
 
 echo "Waiting for completion..."
 wait
+
+echo "Checking for errors..."
+for reads_file in $tmp/*.reads.tmp.* ; do
+    writes_file=$(echo $reads_file | sed 's/\.reads\./.writes./')
+    errors_file=$(echo $reads_file | sed 's/\.reads\./.errors./')
+    cat $reads_file $writes_file |\
+	grep "inf" >\
+	$errors_file &
+done
+wait
+
 echo "Done preparation phase."
 
 # variables may be defined multiple times (e.g. at different input files).
@@ -713,8 +724,13 @@ for reads_file in $tmp/*.reads.tmp.* ; do
     writes_file=$(echo $reads_file | sed 's/\.reads\./.writes./')
     r_push_file=$(echo $reads_file | sed 's/\.reads\./.r_push./')
     w_push_file=$(echo $reads_file | sed 's/\.reads\./.w_push./')
-    if grep -q "inf" $reads_file $writes_file; then
+    errors_file=$(echo $reads_file | sed 's/\.reads\./.errors./')
+    if [ -s $errors_file ]; then
 	echo "Skipping $reads_file due to errors"
+	continue
+    fi
+    if ! [ -s $reads_file ] && ! [ -s $writes_file ]; then
+	echo "Skipping empty $reads_file"
 	continue
     fi
     title=$(basename $reads_file | sed 's/\.reads\././; s/\.log\|\.tmp//g')
