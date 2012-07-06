@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.32
+Version 0.33
 \end_layout
 
 \begin_layout Standard
@@ -1021,7 +1021,7 @@ pthreads
 \end_layout
 
 \begin_layout Section
-Overlapping of IO Requests
+Mode of Operation
 \end_layout
 
 \begin_layout Labeling
@@ -1051,6 +1051,320 @@ factors
 orders of magnitude
 \emph default
 .
+\end_layout
+
+\begin_layout Standard
+It is crucial to understand the 
+\emph on
+operating environment
+\emph default
+ where 
+\family typewriter
+blkreplay
+\family default
+ is running.
+ Please take a look at the following picture:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\align center
+\begin_inset Graphics
+	filename io-layers.fig
+	width 50text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+In the live system, 
+\family typewriter
+blktrace
+\family default
+ will 
+\begin_inset Quotes eld
+\end_inset
+
+listen
+\begin_inset Quotes erd
+\end_inset
+
+ to the events occurring at point A, and will record them.
+ In this example, we have a complex system, running virtual machines inside
+ a hypervisor.
+\end_layout
+
+\begin_layout Standard
+Notice that all IO requests of the application will not only go through
+ the filesystem, but also through the buffer / page cache.
+ The in-memory cache will usually serve most IO requests from the application,
+ without causing physical IO at the block layer (so-called 
+\begin_inset Quotes eld
+\end_inset
+
+cache hits
+\begin_inset Quotes erd
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+On some well-tuned production servers, it is no problem to achieve cache
+ hit rates of 99% or more, leading to a kind of 
+\begin_inset Quotes eld
+\end_inset
+
+gear ratio
+\begin_inset Quotes erd
+\end_inset
+
+ of 1:100, or even 1:1000 (in long-term runs).
+ Of course, there also exist heavy workloads running on thin servers, where
+ sometimes less than 1:10 can be achieved.
+ Even in that case, there will be 
+\emph on
+always
+\emph default
+ some cache hits, for example caused by metadata requests from the filesystem.
+ In practice, the cache hit rate will never go down to 0%.
+ Notice that these inevitable cache effects are 
+\emph on
+already included
+\emph default
+ in any 
+\family typewriter
+blktrace
+\family default
+!
+\end_layout
+
+\begin_layout Standard
+Now look at the situation in the laboratory.
+ The application and the filesystem is no longer present, but its 
+\emph on
+effects
+\emph default
+ are simulated by 
+\family typewriter
+blkreplay
+\family default
+.
+ Due to the architecture of the Linux kernel, all IO requests will continue
+ to run through the buffer cache
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Several commercial Unices used a concept called 
+\begin_inset Quotes eld
+\end_inset
+
+raw device
+\begin_inset Quotes erd
+\end_inset
+
+ which circumvented their buffer cache.
+ In contrast, the internal structures of Linux device driver are internally
+ interwoven with the page cache in a rather sticky way.
+ Instead of 
+\begin_inset Quotes eld
+\end_inset
+
+raw devices
+\begin_inset Quotes erd
+\end_inset
+
+, Linux uses the concept of 
+\begin_inset Quotes eld
+\end_inset
+
+direct IO
+\begin_inset Quotes erd
+\end_inset
+
+, which 
+\emph on
+tries
+\emph default
+ to minimize any caching effects.
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+It should be clear by the very nature of our experiment, that at measuring
+ point B 
+\emph on
+exactly
+\emph default
+ the same events 
+\emph on
+should
+\emph default
+ happen as had been formerly observed / recorded at point A.
+\end_layout
+
+\begin_layout Standard
+Thus, the page / buffer cache of the laboratory system 
+\emph on
+must
+\emph default
+ be switched off.
+ Otherwise, a 
+\begin_inset Quotes eld
+\end_inset
+
+gear ratio
+\begin_inset Quotes erd
+\end_inset
+
+ of 1:10 (or let it be only 1:1.1) would lead to distortions of the measurement
+ results.
+ In order to switch off the page / buffer cache, 
+\family typewriter
+blkreplay
+\family default
+ uses 
+\family typewriter
+O_DIRECT
+\family default
+ mode as offered by the Linux kernel.
+\end_layout
+
+\begin_layout Standard
+Notice that even by these measures, there may remain some subtle differences
+ between the operations occurring at point A and point B.
+ The block layer of the Linux kernel does some optimizations, for example
+ it tries to 
+\emph on
+coalesce
+\emph default
+ adjacent requests, or to 
+\emph on
+split
+\emph default
+ some requests, depending on the capabilities of the hardware.
+ Usually, these are minor modifications, occurring at less than 1% of all
+ requests.
+ However, keep in mind (and check) these effects.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ The 
+\series bold
+elevator strategy
+\series default
+ (aka IO scheduler) of the Linux block layer is a bigger influence factor.
+ It can 
+\emph on
+reorder
+\emph default
+ requests, and it can even add 
+\emph on
+artificial latencies
+\emph default
+.
+ For example, 
+\family typewriter
+CFQ
+\family default
+ adds some speculative latencies in some cases to increase the chances for
+ request mergers.
+ Selecting the 
+\begin_inset Quotes eld
+\end_inset
+
+wrong
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Many sources from the internet claim that 
+\family typewriter
+CFQ
+\family default
+ is the 
+\begin_inset Quotes eld
+\end_inset
+
+best
+\begin_inset Quotes erd
+\end_inset
+
+ IO scheduler.
+ While this is often true for typical workstation load pattern (and interactive
+ user expectations), our experience at 1&1 is different with regards to
+ 
+\emph on
+server
+\emph default
+ loads.
+ Check yourself! Run some 
+\family typewriter
+blkreplay
+\family default
+ comparisons between different IO schedulers.
+ Hint: there may be even non-linear dependencies from the lower level, whether
+ you have some RAID with BBU cache, or not.
+\end_layout
+
+\end_inset
+
+
+\begin_inset Quotes erd
+\end_inset
+
+ scheduler may lead to larger distortions, even to seemingly 
+\begin_inset Quotes eld
+\end_inset
+
+bad
+\begin_inset Quotes erd
+\end_inset
+
+ behaviour (which is 
+\emph on
+not
+\emph default
+ the fault of bad hardware).
+ In order to really get (almost) the same behaviour at points A and B, you
+ 
+\emph on
+must
+\emph default
+ select the 
+\family typewriter
+NOOP
+\family default
+ or at least the 
+\family typewriter
+DEADLINE
+\family default
+ scheduler.
+ See 
+\family typewriter
+/sys/dev/block/*/queue/scheduler
+\family default
+.
+\end_layout
+
+\begin_layout Section
+Overlapping of IO Requests
 \end_layout
 
 \begin_layout Standard
@@ -1201,9 +1515,9 @@ IO parallelism
  is also a frequent case, for example when the same sector is re-read after
  a while, or re-written when the contents of a file changes frequently.
  Completely unrelated requests (neither timely nor positionly overlapping)
- are even the most frequent case in most practical load scenarios at production
- sites.
- There is no problem with any of them, indicated by the checkmark.
+ are probably the most frequent case in most practical load scenarios at
+ production sites.
+ There is no problem with any of them, indicated by the checkmarks.
 \end_layout
 
 \begin_layout Standard
@@ -1215,8 +1529,8 @@ The case of
 \emph on
 both
 \emph default
- timely and positionly overlapping (simultanously) of conflicting operations
- is called 
+ timely and positionly overlapping (simultanously) of IO operations is called
+ 
 \emph on
 damaged IO
 \emph default
@@ -1812,7 +2126,7 @@ All
 real
 \emph default
  OS caches.
- This mode is equivalent to the following table:
+ This is equivalent to the following table:
 \begin_inset Newline newline
 \end_inset
 
@@ -1983,7 +2297,7 @@ Indepently from the correctness criterion, the following operation modes
 \family typewriter
 --with-partial
 \family default
- Any conflicting requests (as determined by 
+ (default) Any conflicting requests (as determined by 
 \family typewriter
 --strong=
 \family default
@@ -2024,7 +2338,20 @@ original storage semantics
 \begin_inset Newline newline
 \end_inset
 
-Attention! as a side effect, this may 
+This mode leads to a 2-class society, where ordinary requests are processed
+ faster than conflicting ones.
+ Further details may be found in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Influence-of-Request"
+
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+Attention! as a side effect, this mode may 
 \emph on
 increase
 \emph default
@@ -2280,321 +2607,6 @@ increase
 \family default
 , you likely detected that problem.
  Don't draw wrong conclusions from such counter-intuitive effects!
-\end_layout
-
-\begin_layout Section
-Mode of Operation
-\end_layout
-
-\begin_layout Standard
-It is crucial to understand not only the concepts of 
-\family typewriter
-blkreplay
-\family default
- by itself, but also the 
-\emph on
-operating environment
-\emph default
- where it is running.
- Otherwise, you may produce totally invalid results.
-\end_layout
-
-\begin_layout Standard
-Please take a look at the following picture:
-\end_layout
-
-\begin_layout Standard
-\noindent
-\align center
-\begin_inset Graphics
-	filename io-layers.fig
-	width 50text%
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\noindent
-In the live system, 
-\family typewriter
-blktrace
-\family default
- will 
-\begin_inset Quotes eld
-\end_inset
-
-listen
-\begin_inset Quotes erd
-\end_inset
-
- to the events occurring at point A, and will record them.
- In this example, we have a complex system, running virtual machines inside
- a hypervisor.
-\end_layout
-
-\begin_layout Standard
-Notice that all IO requests of the application will not only go through
- the filesystem, but also through the buffer / page cache.
- The in-memory cache will usually serve most IO requests from the application,
- without causing physical IO on the block layer (so-called 
-\begin_inset Quotes eld
-\end_inset
-
-cache hits
-\begin_inset Quotes erd
-\end_inset
-
-).
- On some well-tuned production servers, it is no problem to achieve cache
- hit rates of 99% or more, leading to a kind of 
-\begin_inset Quotes eld
-\end_inset
-
-gear ratio
-\begin_inset Quotes erd
-\end_inset
-
- of 1:100, or even 1:1000 (in long-term runs).
- Of course, there also exist heavy workloads running on thin servers, where
- sometimes less than 1:10 can be achieved.
- Even in that case, there will be 
-\emph on
-always
-\emph default
- some cache hits, for example caused by metadata requests from the filesystem.
- In practice, the cache hit rate will never go down to 0%.
- Notice that these inevitable cache effects are 
-\emph on
-already included
-\emph default
- in any 
-\family typewriter
-blktrace
-\family default
-!
-\end_layout
-
-\begin_layout Standard
-Now look at the situation in the laboratory.
- The application and the filesystem is no longer present, but its 
-\emph on
-effects
-\emph default
- are simulated by 
-\family typewriter
-blkreplay
-\family default
-.
- Due to the architecture of the Linux kernel, all IO requests will continue
- to run through the buffer cache
-\begin_inset Foot
-status open
-
-\begin_layout Plain Layout
-Several commercial Unices used a concept called 
-\begin_inset Quotes eld
-\end_inset
-
-raw device
-\begin_inset Quotes erd
-\end_inset
-
- which circumvented their buffer cache.
- In contrast, the internal structures of Linux device driver are internally
- interwoven with the page cache in a rather sticky way.
- Instead of 
-\begin_inset Quotes eld
-\end_inset
-
-raw devices
-\begin_inset Quotes erd
-\end_inset
-
-, Linux uses the concept of 
-\begin_inset Quotes eld
-\end_inset
-
-direct IO
-\begin_inset Quotes erd
-\end_inset
-
-, which 
-\emph on
-tries
-\emph default
- to minimize any caching effects.
-\end_layout
-
-\end_inset
-
-.
-\end_layout
-
-\begin_layout Standard
-It should be clear by the very nature of our experiment, that at measuring
- point B 
-\emph on
-exactly
-\emph default
- the same events 
-\emph on
-should
-\emph default
- happen as had been formerly observed / recorded at point A.
-\end_layout
-
-\begin_layout Standard
-Thus, the page / buffer cache of the laboratory system 
-\emph on
-must
-\emph default
- be switched off.
- Otherwise, a 
-\begin_inset Quotes eld
-\end_inset
-
-gear ratio
-\begin_inset Quotes erd
-\end_inset
-
- of 1:10 (or let it be only 1:1.1) would lead to distortions of the measurement
- results.
- In order to switch off the page / buffer cache, 
-\family typewriter
-blkreplay
-\family default
- uses 
-\family typewriter
-O_DIRECT
-\family default
- mode as offered by the Linux kernel.
-\end_layout
-
-\begin_layout Standard
-Notice that even by these measures, there may remain some subtle differences
- between the operations occurring at point A and point B.
- The block layer of the Linux kernel does some optimizations, for example
- it tries to 
-\emph on
-coalesce
-\emph default
- adjacent requests, or to 
-\emph on
-split
-\emph default
- some requests, depending on the capabilities of the hardware.
- Usually, these are minor modifications, occurring at less than 1% of all
- requests.
- However, keep in mind (and check) these effects.
-\end_layout
-
-\begin_layout Labeling
-\labelwidthstring 00.00.0000
-\begin_inset Graphics
-	filename images/MatieresCorrosives.png
-	lyxscale 50
-	scale 17
-
-\end_inset
-
- The 
-\series bold
-elevator strategy
-\series default
- (aka IO scheduler) of the Linux block layer is a bigger influence factor.
- It can 
-\emph on
-reorder
-\emph default
- requests, and it can even add 
-\emph on
-artificial latencies
-\emph default
-.
- For example, 
-\family typewriter
-CFQ
-\family default
- adds some speculative latencies in some cases to increase the chances for
- request mergers.
- Selecting the 
-\begin_inset Quotes eld
-\end_inset
-
-wrong
-\begin_inset Foot
-status open
-
-\begin_layout Plain Layout
-Many sources from the internet claim that 
-\family typewriter
-CFQ
-\family default
- is the 
-\begin_inset Quotes eld
-\end_inset
-
-best
-\begin_inset Quotes erd
-\end_inset
-
- IO scheduler.
- While this is often true for typical workstation load pattern (and interactive
- user expectations), our experience at 1&1 is different with regards to
- 
-\emph on
-server
-\emph default
- loads.
- Check yourself! Run some 
-\family typewriter
-blkreplay
-\family default
- comparisons between different IO schedulers.
- Hint: there may be even non-linear dependencies from the lower level, whether
- you have some RAID with BBU cache, or not.
-\end_layout
-
-\end_inset
-
-
-\begin_inset Quotes erd
-\end_inset
-
- scheduler may lead to larger distortions, even to seemingly 
-\begin_inset Quotes eld
-\end_inset
-
-bad
-\begin_inset Quotes erd
-\end_inset
-
- behaviour (which is 
-\emph on
-not
-\emph default
- the fault of bad hardware).
- In order to really get (almost) the same behaviour at points A and B, you
- 
-\emph on
-must
-\emph default
- select the 
-\family typewriter
-NOOP
-\family default
- or at least the 
-\family typewriter
-DEADLINE
-\family default
- scheduler.
- See 
-\family typewriter
-/sys/dev/block/*/queue/scheduler
-\family default
-.
 \end_layout
 
 \begin_layout Section
@@ -9914,6 +9926,15 @@ specific
 \end_layout
 
 \begin_layout Standard
+Hint: the 2-class society caused by 
+\family typewriter
+--with-partial
+\family default
+ is often visible in the delay diagrams.
+ Check out yourself!
+\end_layout
+
+\begin_layout Standard
 Let us return to the comparion of request ordering modes: more prominent
  differences can be found when we turn to 
 \family typewriter
@@ -10682,6 +10703,13 @@ Influence of
 strong
 \family default
  Mode
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Influence-of-strong"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
