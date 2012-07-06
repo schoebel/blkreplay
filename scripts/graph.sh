@@ -340,13 +340,13 @@ mkfifo $mainfifo.all.sort2.thrp
 cat $mainfifo.all.sort2.thrp |\
     cut -d ';' -f 2 |\
     gawk "$gawk_thrp" >\
-    $out.g000.overwiev.thrp.demand.extra &
+    $out.g000.sort0.overview.thrp.demand.extra &
 if (( dynamic_mode )); then
     mkfifo $mainfifo.all.sort7.thrp
     cat $mainfifo.all.sort7.thrp |\
 	cut -d ';' -f 2 |\
 	gawk "$gawk_thrp" >\
-	$out.g000.overview.thrp.actual.extra &
+	$out.g000.sort1.overview.thrp.actual.extra &
 fi
 
 # worker pipelines for reads / writes
@@ -972,7 +972,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	    mode_title="$(echo $i | sed "s/^.*\.$mode\./$mode./" | sed 's/\.extra//')"
 	fi
 	mode_title="$mode_title  ($(echo $(cat "$i" | sed 's/^ *[^ ]\+ \+//' | make_statistics_short "" | grep "max=\|avg=" | sort) | sed 's/ /, /'))"
-	title=$(basename $i | sed 's/\.\(tmp\|extra\)//g')
+	title=$(basename $i | sed 's/\.\(tmp\|extra\|sort[0-9]\+\|000\)//g')
 	color_key=$(echo $title | sed 's/^.*\.g[0-9]\+\.//')
 	if (( verbose_script )); then
 	    expansion="$(rgb "" "$color_key")"
@@ -981,7 +981,7 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	fi
 	plot="$plot$delim '$i' $using title '$mode_title' with $lines $(lt "$color_key")"
 	delim=","
-	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i | sed 's/\.\(tmp\|extra\|000\|actual\|demand\)//g').$picturetype"
+	[ -z "$outname" ] && ! (echo $i | grep -q "\.orig\.") && outname="$(basename $i | sed 's/\.\(tmp\|extra\|sort[0-9]\+\|000\|actual\|demand\)//g').$picturetype"
     done
 
     if [ -z "$plot" ]; then
