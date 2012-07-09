@@ -4981,6 +4981,7 @@ some
 
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
+\noindent
 \begin_inset Graphics
 	filename images/MatieresToxiques.png
 	lyxscale 50
@@ -6480,6 +6481,7 @@ default-*.conf
 
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
+\noindent
 \begin_inset Graphics
 	filename images/MatieresCorrosives.png
 	lyxscale 50
@@ -8154,6 +8156,8 @@ In order to compare this with the actual throughput, look at the following
 \end_inset
 
 
+\family typewriter
+*.latency.flying
 \end_layout
 
 \begin_layout Standard
@@ -9093,7 +9097,7 @@ blktrace
 blkparse
 \family default
 , are described elsewhere.
- Here are some additions:
+ Here are some additions from a practical viewpoint of IT operations:
 \end_layout
 
 \begin_layout Itemize
@@ -9123,11 +9127,11 @@ blktrace
 \family default
  / 
 \family typewriter
---bufer-size
+--buffer-size
 \family default
  option, which may lead to serious problems (including kernel hangups /
  crashes) if you (accidentally) try to allocate more kernel memory than
- physically available.
+ physically available, and/or your production server is heavily loaded.
  Unless you are recording extremely high-performance loads, the default
  settings will succeed; so there will be no risk for IT operations.
 \end_layout
@@ -9200,6 +9204,204 @@ some_better_name
 .load.gz
 \family default
 .
+\end_layout
+
+\begin_layout Standard
+The result file will contain as much IO requests as the script could find
+ in the 
+\family typewriter
+blktrace
+\family default
+ recording, but it will not contain any original timings (durations of the
+ requests, aka latencies).
+ The latency column is simply set to 
+\begin_inset Formula $0.0$
+\end_inset
+
+ everywhere.
+\end_layout
+
+\begin_layout Standard
+There is a reason for it.
+ Extracting timing information 
+\emph on
+reliably
+\emph default
+ from a 
+\family typewriter
+blktrace
+\family default
+ recording is difficult.
+ The problem is that each driver / subsystem in den kernel uses different
+ trace action characters to indicate the start of an IO request (as well
+ as for indicating various intermediate stages of request processing), and
+ request completion is 
+\emph on
+another
+\emph default
+ event denoted by character '
+\family typewriter
+C
+\family default
+'.
+ Depending on kernel version / driver, the completion events may be even
+ missing at all (some devices on very old kernels, which nevertheless occur
+ in practice).
+ More seriously, it is a hard task to determine pairs of events, i.e.
+ determining which completion event belongs to which submission event.
+ There is no concept of a 
+\begin_inset Quotes eld
+\end_inset
+
+request ID
+\begin_inset Quotes erd
+\end_inset
+
+ which would allow this easily.
+ You have to guess matching pairs from their sector numbers / length etc.
+ Guessing may be wrong due to ambiguities.
+ In general, a completion could sometimes even belong to multiple submission
+ events.
+ In addition, when you start and/or end your 
+\family typewriter
+blktrace
+\family default
+ recording at a heavily loaded 
+\emph on
+production
+\emph default
+ server (which is just the most interesting case), some pairs will very
+ likely remain incomplete at the start and at the end.
+\end_layout
+
+\begin_layout Standard
+Even under 
+\begin_inset Quotes eld
+\end_inset
+
+normal
+\begin_inset Quotes erd
+\end_inset
+
+ circumstances, we found many cases where non-matching events led to an
+ incomplete 
+\family typewriter
+*.load.gz
+\family default
+ result.
+ Therefore we decided to omit timings from our default conversion script,
+ at least for now
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Please submit any improvements to the author as patches / git pull requests.
+\end_layout
+
+\end_inset
+
+.
+ However, there is another script which tries to 
+\emph on
+guess
+\emph default
+ the timings as best as it can:
+\end_layout
+
+\begin_layout Quote
+
+\family typewriter
+/path/to/blkreplay/scripts/conv_blktrace_to_load_with_guessed_timing.sh 
+\emph on
+yourname
+\end_layout
+
+\begin_layout Standard
+\noindent
+The latter script will name its output 
+\family typewriter
+\emph on
+yourname
+\emph default
+.guessed.load.gz,
+\family default
+ which is different from the former one.
+ There is a reason for it.
+ Please don't remove the 
+\family typewriter
+*guessed*
+\family default
+ infix when renaming that result file.
+ We found cases where the difference was considerable.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresCorrosives.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Very often, some single guessed timings are obviously wrong.
+ You can see it at the sonar diagram.
+\end_layout
+
+\begin_layout Standard
+Please use the 
+\family typewriter
+*guessed*
+\family default
+ version only for 
+\series bold
+analysis
+\series default
+, such as producing 
+\family typewriter
+*.latency.flying
+\family default
+ or 
+\family typewriter
+*.smooth.latency.flying
+\family default
+ from 
+\family typewriter
+graph.sh --static --dynamic
+\family default
+ in order to determine the original IO parallelism and other interesting
+ properties.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresToxiques.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Only use the 
+\family typewriter
+*.load.gz
+\family default
+ output stemming from 
+\family typewriter
+conv_blktrace_to_load.sh
+\family default
+ as input for 
+\family typewriter
+blkreplay
+\family default
+.
+ Never use 
+\family typewriter
+*.guessed.load.gz
+\family default
+.
+ You may be missing some essential behaviour which could be crucial for
+ detection of incidents!
 \end_layout
 
 \begin_layout Standard
