@@ -45,6 +45,10 @@ action_char="${action_char:-C}" # allow override from extern
 #use_my_guess="${use_my_guess:=0}"
 use_my_guess="${use_my_guess:=1}"
 
+for k in $filename.blktrace.*.gz; do
+    nice gunzip $k
+done
+
 if ! [ -f "$filename.blktrace.0" ]; then
     echo "Input file '$filename.blktrace.0' does not exist"
     exit -1
