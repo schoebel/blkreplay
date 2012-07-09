@@ -693,7 +693,10 @@ if (( wrap_int_max > 1 || (!wrap_int_min && wrap_frac_min < 500) )); then
     var_color="$(textcolor warn)"
 fi
 var_text="wraparound_factor=$(echo "$(echo $(grep 'wraparound' $tmp/vars | cut -d= -f2 | sort -n -u))" | sed 's: :/:')"
-var_label="set label \"$var_text\" at graph 1.0, screen 0.0 right $var_color front offset 0, character 1"
+var_label=""
+if [ -n "$(grep 'wraparound' $tmp/vars)" ]; then
+    var_label="set label \"$var_text\" at graph 1.0, screen 0.0 right $var_color front offset 0, character 1"
+fi
 
 warn_label=""
 if [ -s $tmp/warnings ]; then
@@ -753,11 +756,13 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	*.latency.*)
 	items="latencies"
 	bad_val=$bad_latency
+	min="$latency_all_min"
 	max="$latency_all_max"
 	hit="$latency_all_hit"
 	start="$latency_all_start"
 	;;
 	*.delay.*)
+	min="$delay_all_min"
 	max="$delay_all_max"
 	hit="$delay_all_hit"
 	start="$delay_all_start"
@@ -768,6 +773,10 @@ for reads_file in $tmp/*.reads.tmp.* ; do
     esac
     if [ "$min" = "$max" ]; then
 	echo "Skipping $reads_file, no data present"
+	continue
+    fi
+    if [ -z "$reads_file" ] && [ -z "$writes_file" ]; then
+	echo "Skipping empty $reads_file"
 	continue
     fi
     (
