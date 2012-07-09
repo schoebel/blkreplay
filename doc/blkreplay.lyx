@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 0.33
+Version 0.34
 \end_layout
 
 \begin_layout Standard
@@ -7238,7 +7238,7 @@ On the y axis, the troughput (IOPS) is displayed.
 \begin_layout Description
 
 \family typewriter
-*.flying.*.png
+*.flying.png
 \family default
  
 \begin_inset ERT
@@ -7273,8 +7273,8 @@ Examples:
 \family typewriter
 *.latency.flying.png
 \family default
- is derived from the latency, and thus showing the number of requests currently
- submitted to the device, while 
+ is derived from the latencies, and thus showing the number of requests
+ currently submitted to the device, while 
 \family typewriter
 *.delay.flying.png
 \family default
@@ -7287,6 +7287,37 @@ delay queue
 \begin_inset Quotes erd
 \end_inset
 
+.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.smooth.*
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+This internal infix indicates that the y axis has been smoothed, in order
+ to be able to see anything in wildly jiggling data.
+ Example: 
+\family typewriter
+*.smooth.latency.flying.png
+\family default
 .
 \end_layout
 

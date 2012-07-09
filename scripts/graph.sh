@@ -245,6 +245,12 @@ function compute_flying
 	gawk -F ";" '{ count += $2; printf("%s;%5d;%s;%s\n", $1, count, $3, $4); }'
 }
 
+function smooth_y
+{
+    window=$1
+    gawk "{ if (!start) start = \$1; while (\$1 >= start + $window) { printf(\"%14.9f %f\n\", start + $window, count > 0 ? sum / count : 0); start += $window; count = 0; sum = 0.0; } count++; sum += \$2; }"
+}
+
 function compute_sum
 {
     $sort -g |\
@@ -328,10 +334,10 @@ function lt
 out="$tmp/$name"
 
 
-turn_window=${turn_window:-1}
-
 [[ "$name" =~ impulse ]] && thrp_window=${thrp_window:-1}
 thrp_window=${thrp_window:-3}
+turn_window=${turn_window:-1}
+smooth_latency_flying_window=${smooth_latency_flying_window:-1}
 
 gawk_thrp="{ time=int(\$1); if (time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; if (time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); factor = int((time - oldtime) / $thrp_window); oldtime += factor * $thrp_window; if (factor > 1) { printf(\"%d 0.0\\n\", oldtime); } }; count=0; }; count++; }"
 
@@ -453,8 +459,10 @@ for mode in reads writes r_push w_push all; do
 	    tee $side.tee.* |\
 	    cut -d";" -f1,2 |\
 	    tee $side.latency.flying.stat |\
-	    sed 's/;/ /' >\
-	    $out.g08.$outp.latency.flying &
+	    sed 's/;/ /' |\
+	    tee $out.g08.$outp.latency.flying |\
+	    smooth_y $smooth_latency_flying_window >\
+	    $out.g08.$outp.smooth.latency.flying &
 	mkfifo $inp.nosort.dyn.9
 	mkfifo $side.delay.flying.stat
 	cat $inp.nosort.dyn.9 |\
