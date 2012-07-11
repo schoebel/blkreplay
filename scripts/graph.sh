@@ -737,11 +737,11 @@ for reads_file in $tmp/*.reads.tmp.* ; do
     w_push_file=$(echo $reads_file | sed 's/\.reads\./.w_push./')
     errors_file=$(echo $reads_file | sed 's/\.reads\./.errors./')
     if [ -s $errors_file ]; then
-	echo "Skipping $reads_file due to errors"
+	echo "Skipping $(basename $reads_file) due to errors"
 	continue
     fi
     if ! [ -s $reads_file ] && ! [ -s $writes_file ]; then
-	echo "Skipping empty $reads_file"
+	echo "Skipping empty $(basename $reads_file)"
 	continue
     fi
     title=$(basename $reads_file | sed 's/\.reads\././; s/\.log\|\.tmp//g')
@@ -772,11 +772,11 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	;;
     esac
     if [ "$min" = "$max" ]; then
-	echo "Skipping $reads_file, no data present"
+	echo "Skipping $(basename $reads_file), no data present"
 	continue
     fi
     if [ -z "$reads_file" ] && [ -z "$writes_file" ]; then
-	echo "Skipping empty $reads_file"
+	echo "Skipping empty $(basename $reads_file)"
 	continue
     fi
     (
