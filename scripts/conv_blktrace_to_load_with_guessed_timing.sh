@@ -45,6 +45,7 @@ action_char="${action_char:-C}" # allow override from extern
 #use_my_guess="${use_my_guess:=0}"
 use_my_guess="${use_my_guess:=1}"
 
+shopt -s nullglob
 for k in $filename.blktrace.*.gz; do
     nice gunzip $k
 done
@@ -72,6 +73,7 @@ if (( !use_my_guess )); then
     else
 	echo ""
 	echo "Sorry, it did not work."
+	(( abort_fail )) && exit -1
 	echo ""
 	echo "Now trying to GUESS myself ...".
 	echo ""
@@ -80,27 +82,11 @@ if (( !use_my_guess )); then
 fi > /dev/stderr
 
 if (( use_my_guess )); then
+    echo "use my own algorithm for guessing."
     blkparse_cmd="blkparse -v -i '$filename' -f '%a; %6T.%9t ; %12S ; %4n ; %3d ;\n'"
-    awk_cmd="gawk -F';' '{ i = sprintf(\"%s:%s:%s\", \$3, \$4, \$5); if (\$1 == \"C\") { old = ti[i]; if (old > 0) { printf(\"%s;%s;%s;%s; 0.0 ;%14.9f\n\", old, \$3, \$4, \$5, \$2 - old); ti[i] = 0; delete ti[i]; } else { printf(\"# cannot find request %s at %s, faking a replacement\n\", i, \$2); printf(\"%s;%s;%s;%s; 0.0 ; 0.0\n\", \$2, \$3, \$4, \$5); } } else { ti[i] = \$2; } } END { for (i in ti) if (ti[i] > 0) { _i = i; gsub(\":\", \";\", _i); printf(\"%s;%s; 0.0 ; 0.00\n\", ti[i], _i); } }'"
-    echo "Computing \$action_char ..."
-    tmp="${TMPDIR:-/tmp}/blkparse.$$"
-    mkdir -p $tmp || exit $?
-    blkparse -v -i "$filename" -f '%a:\n' |\
-	grep "^[QGIDC][A-Z]\?:$" |\
-	sed 's/^\([A-Z]\).\?:/\1:/' >\
-	$tmp/actions || exit $?
-    char_list="$(sort -u < $tmp/actions)" || exit $?
-    echo "Statistics:"
-    for i in $char_list; do
-	echo "$i$(grep "$i" < $tmp/actions | wc -l)"
-    done | sort -t: -k2 -n -r | tee $tmp/list
-    action_char="$(grep -v 'C' < $tmp/list | head -n1 | cut -d: -f1)"
-    rm -rf $tmp
-    if [ -z "$action_char" ]; then
-	echo "Sorry, I have no chance to do anything for you here."
-	exit -1
-    fi
-    action_char="C$action_char"
+    guess_backlog=${guess_backlog:-10}
+    awk_cmd="gawk -F';' '{ i = sprintf(\"%s:%s:%s\", \$3, \$4, \$5); if (\$1 == \"C\") { comp++; old = ti[i]; if (old > 0) { printf(\"%s;%s;%s;%s; 0.0 ;%14.9f\n\", old, \$3, \$4, \$5, \$2 - old); ti[i] = 0; delete ti[i]; } else { printf(\"# cannot find request %s at %s, faking a replacement\n\", i, \$2); printf(\"%s;%s;%s;%s; 0.0 ; 0.0\n\", \$2, \$3, \$4, \$5); } } else if (!ti[i]) { ti[i] = \$2; } idx[head] = i; queue[head++] = \$2; while (tail < head && queue[tail] + $guess_backlog < \$2 ) { ii = idx[tail]; delete ti[ii]; delete idx[tail]; delete queue[tail]; tail++; } } END { if (comp > 0) { for (i in ti) if (ti[i] > 0) { _i = i; gsub(\":\", \";\", _i); printf(\"%s;%s; 0.0 ; 0.00\n\", ti[i], _i); } } else { printf(\"no completion events present in the blktrace\n\"); } }'"
+    action_char="QGIDC"
     echo ""
     echo " =====> THE RESULT IS JUST A GUESS AND MAY BE INVALID!"
     echo " =====> CHECK THE RESULT BY HAND!"
@@ -127,7 +113,7 @@ echo "Starting main conversion to '$output'..." > /dev/stderr
 if [ "$output" = "-" ]; then
     cat
 elif [[ "$output:" =~ ".gz:" ]]; then
-    gzip -9 > "$output"
+    gzip -8 > "$output"
     ls -l "$output" > /dev/stderr
 else
     cat > "$output"
