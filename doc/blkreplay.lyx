@@ -9107,7 +9107,7 @@ CONFIG_BLK_DEV_IO_TRACE
 \family default
  enabled.
  Although many newer Linux distros have it already enabled by default, you
- may stuble over elder systems / distributions where it was missing (so
+ may stumble over elder systems / distributions where it was missing (so
  you may need to install and/or recompile a different kernel).
 \end_layout
 
@@ -9137,7 +9137,7 @@ blktrace
 \end_layout
 
 \begin_layout Itemize
-Tracing multiple devices in parallel is possible, but works sometimes differentl
+Tracing multiple devices in parallel is possible, but sometimes works differentl
 y than (inconsistently) described in the 
 \family typewriter
 man
@@ -9162,7 +9162,11 @@ You should record at least 8 hours of operation; better 24h.
 \end_layout
 
 \begin_layout Standard
-Once blktrace has finished, some files 
+Once 
+\family typewriter
+blktrace
+\family default
+ has finished, some files 
 \family typewriter
 \emph on
 yourname
@@ -9196,7 +9200,7 @@ yourname
 .load.gz
 \family default
  in your working directory.
- You should seriously consider it renaming to 
+ You should seriously consider renaming it to 
 \family typewriter
 \emph on
 some_better_name
@@ -9234,8 +9238,8 @@ blktrace
  recording is difficult.
  The problem is that each driver / subsystem in den kernel uses different
  trace action characters to indicate the start of an IO request (as well
- as for indicating various intermediate stages of request processing), and
- request completion is 
+ as for indicating various intermediate stages of request processing).
+ Request completion is 
 \emph on
 another
 \emph default
@@ -9546,10 +9550,9 @@ maximum throughput
 \begin_inset Quotes erd
 \end_inset
 
- where the latencies got up to about 1 second.
- You can already see on the realtime x axis that the replay is delayed as
- a whole.
- This can be better seen by the delay diagram:
+ where the latencies go up to about 1 second.
+ You can see on the realtime x axis that the replay is delayed as a whole.
+ This can be better seen at the delay diagram:
 \end_layout
 
 \begin_layout Standard
@@ -9571,7 +9574,7 @@ Here the x axis shows the
 \emph on
 intended
 \emph default
- starting time of each request, which is deliberately concentrated to whole
+ starting time of each request, which is deliberately concentrated at whole
  seconds (with gaps inbetween), a property of of the 
 \family typewriter
 *bursts*
@@ -9585,7 +9588,7 @@ collapsing point
 \begin_inset Quotes erd
 \end_inset
 
- is about 80s, which means that it roughly can deliver 600 random IOPS.
+ is about 60s, which means that it roughly can deliver 600 random IOPS.
  This can be even better seen at the overwiew 
 \family typewriter
 thrp
