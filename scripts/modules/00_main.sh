@@ -45,13 +45,20 @@ function devices_prepare
 	    exit -1
 	fi
 	for host in $replay_host_list; do
-	    replay_device_list="$(remote "$host" ls $replay_device_list)" || exit $?
+	    tmp_list="$(remote "$host" "ls $replay_device_list | xargs -n 1 test -b && ls $replay_device_list")" ||\
+		{ echo "non-existing devices on $host: $replay_device_list"; exit -1; }
+	    replay_device_list="$tmp_list"
 	    for device in $replay_device_list; do
 		replay_host[$replay_count]=$host
 		replay_device[$replay_count]=$device
 		(( replay_count++ ))
 	    done
 	done
+    fi
+
+    if (( replay_count <= 0 )); then
+	echo "no devices found."
+	exit -1
     fi
 
     # remember old value before limiting it (some modules may need it)
