@@ -32,26 +32,35 @@ function delete_lvm
     remote_all_noreturn "$target_hosts_unique" "$cmd"
 }
 
+function create_lvm_single
+{
+    host="$1"
+    lv_name="$2"
+    lv_size="$3"
+    stripe_cmd=""
+    if (( lvm_striping )); then
+	lvm_stripesize=${lvm_stripesize:-64}
+	stripe_cmd="-i ${pv_count[$host]} -I $lvm_stripesize"
+    fi
+    cmd="lvcreate -L $lv_size $stripe_cmd -n '$lv_name' $vg_name"
+    (( verbose_script )) && echo "$host: $cmd"
+    remote "$host" "$cmd" || exit $?
+}
+
 function create_lvm_series
 {
     host="$1"
     series="$2"
     count="$3"
     size="$4"
+    remember="$5"
     echo "creating $count LVs series '$series' on '$host' VG '$vg_name' with size $size"
-    stripe_cmd=""
-    if (( lvm_striping )); then
-	lvm_stripesize=${lvm_stripesize:-64}
-	stripe_cmd="-i ${pv_count[$host]} -I $lvm_stripesize"
-    fi
     for i in $(eval echo {0..$((count-1))}); do
 	dev="/dev/$vg_name/$series$i"
-	lvm_device[$i]="$dev"
+	(( remember )) && lvm_device[$i]="$dev"
 	lvm_device_all[$lvm_device_count]="$dev"
 	(( lvm_device_count++ ))
-	cmd="lvcreate -L $size $stripe_cmd -n '${lvm_device[i]}' $vg_name"
-	(( verbose_script )) && echo "$host: $cmd"
-	remote "$host" "$cmd" || exit $?
+	create_lvm_single "$host" "${lvm_device[i]}" "$size"
     done
 }
 
@@ -87,14 +96,31 @@ function create_lvm
     done
 
     for host in $target_hosts_unique; do
+	echo "Host $host: pv_count=${pv_count[$host]}"
 	(( verbose_script )) && echo "$host: ${pv_cmd[$host]}"
 	remote "$host" "${pv_cmd[$host]}" || exit $?
 	(( verbose_script )) && echo "$host: ${vg_cmd[$host]}"
 	remote "$host" "${vg_cmd[$host]}" || exit $?
-	if (( drbd_meta_size > 0 )); then
-	    create_lvm_series "$host" "lv-meta" "$lv_count" "$drbd_meta_size"
+
+	create_lvm_series "$host" "lv-data" "$lv_count" "$lv_size" 1
+
+	if [ -n "$lvm_drbd_meta_size" ]; then
+	    create_lvm_series "$host" "lv-meta" "$lv_count" "$lvm_drbd_meta_size" 0
 	fi
-	create_lvm_series "$host" "lv-data" "$lv_count" "$lv_size"
+
+	for i in $lvm_extra; do
+	    lv_name="$(echo $i | cut -d: -f1)"
+	    lv_size="$(echo $i | cut -d: -f2)"
+	    if [ -z "$lv_name" ]; then
+		echo "LV name is empty"
+		continue
+	    fi
+	    if [ -z "$lv_size" ]; then
+		echo "LV size is undefined"
+		continue
+	    fi
+	    create_lvm_single "$host" "$lv_name" "$lv_size"
+	done
     done
 
     ## re-create the devices list from scratch
