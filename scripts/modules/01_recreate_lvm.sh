@@ -137,6 +137,7 @@ function create_lvm
 function recreate_lvm_finish
 {
     (( !enable_recreate_lvm )) && return 0
+    (( lvm_leave_intact )) && return 0
     echo "$FUNCNAME deleting LVMs"
     delete_lvm
 }
