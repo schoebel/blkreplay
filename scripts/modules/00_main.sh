@@ -45,6 +45,7 @@ function devices_prepare
 	    exit -1
 	fi
 	for host in $replay_host_list; do
+	    replay_device_list="$(remote "$host" ls $replay_device_list)" || exit $?
 	    for device in $replay_device_list; do
 		replay_host[$replay_count]=$host
 		replay_device[$replay_count]=$device
@@ -52,10 +53,14 @@ function devices_prepare
 	    done
 	done
     fi
+
+    # remember old value before limiting it (some modules may need it)
+    replay_count_really=$replay_count
     if (( replay_max_parallelism > 0 && replay_count > replay_max_parallelism )); then
 	echo "reducing replay_count from $replay_count to $replay_max_parallelism due to replay_max_parallelism."
 	replay_count=$replay_max_parallelism
     fi
+
     replay_max=$(( replay_count - 1 ))
     replay_hosts_unique="$(for i in $(eval echo {0..$replay_max}); do echo "${replay_host[$i]}"; done | sort -u)"
     if [ -z "$target_hosts_unique" ]; then

@@ -78,7 +78,7 @@ function create_lvm
 	vg_cmd[$host]="vgcreate $vg_name"
     done
 
-    for i in $(eval echo {0..$replay_max}); do
+    for i in $(eval echo {0..$((replay_count_really-1))}); do
 	host="${replay_host[$i]}"
 	dev="${replay_device[$i]}"
 	pv_cmd[$host]="${pv_cmd[$host]} pvcreate -f -y $dev;"
