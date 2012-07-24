@@ -360,7 +360,7 @@ for mode in reads writes r_push w_push all; do
     inp="$mainfifo.$mode"
     side="$subfifo.side.$mode"
     outp="$mode.tmp"
-    if (( static_mode )); then
+    if (( static_mode )) && ! [[ "$mode" =~ "_push" ]]; then
 	mkfifo $inp.nosort.rqsize
 	mkfifo $side.rqsize.stat
 	cat $inp.nosort.rqsize |\
@@ -378,6 +378,12 @@ for mode in reads writes r_push w_push all; do
 	    $out.g41.$outp.rqpos.bins &
 	grep '^[a-z]' < $side.rqpos_tmp >\
 	    $tmp/rqpos_$mode.ymax &
+	mkfifo $inp.nosort.freq.bins
+	cat $inp.nosort.freq.bins |\
+	    cut -d ';' -f 3,4 |\
+	    gawk '{ i = int($1 / 8); do { table[i]++; i++; $2 -= 8; } while($2 > 0); } END{ for (i in table) { printf("%d\n", table[i]); } }' |\
+	    ($sort -n -r ; echo "10") >\
+	    $out.g44.$outp.freq.bins &
     fi
     if (( dynamic_mode )) && [ "$mode" != "all" ]; then
 	mkfifo $inp.sort6.dyn.1
@@ -831,6 +837,9 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    infix="delay.flying"
 	    ylabel="Delayed Requests [count]  (Avg=$delay_flying_all_avg, Max=$delay_flying_all_max)"
 	    ;;
+	    *.freq.bins*)
+	    ylabel="Repetition Frequency [count]"
+	    ;;
 	    *.latency.bins*)
 	    ylabel="Latency [sec]"
 	    ;;
@@ -902,6 +911,11 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    *.flying)
 	    xlabel="Duration [sec]"
 	    with="with lines"
+	    ;;
+	    *.freq.bins)
+	    with="with lines"
+	    xlabel="Some 4k Page [occurrence] (reverse order; maximum number indicated by y=10 at end)"
+	    xlogscale="set logscale x;"
 	    ;;
 	    *.bins)
 	    with="with linespoints"

@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 1.0.0
+Version 1.0.1
 \end_layout
 
 \begin_layout Standard
@@ -7100,6 +7100,43 @@ strut
 Displays a histogram of the request position (sector#) occurring in the
  load, in coarse units of whole GiB.
  The coarse units are necessary to avoid too much jitter in the y axis.
+\end_layout
+
+\begin_layout Description
+
+\family typewriter
+*.freq.bins.png
+\family default
+ 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+strut
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Displays the frequency of repetitions of acccesses to the same 4k page (how
+ often the same page is accessed during the full run of 
+\family typewriter
+blktrace
+\family default
+).
+ Both x and y axes are logarithmic.
+ The x axis is reversely ordered according to the frequency of access.
+ This picture is useful for determining the 
+\emph on
+potential
+\emph default
+ of MFU caching strategies.
 \end_layout
 
 \begin_layout Description
