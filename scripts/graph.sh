@@ -360,6 +360,7 @@ for mode in reads writes r_push w_push all; do
     inp="$mainfifo.$mode"
     side="$subfifo.side.$mode"
     outp="$mode.tmp"
+    outs="$mode.side"
     if (( static_mode )) && ! [[ "$mode" =~ "_push" ]]; then
 	mkfifo $inp.nosort.rqsize
 	mkfifo $side.rqsize.stat
@@ -379,11 +380,20 @@ for mode in reads writes r_push w_push all; do
 	grep '^[a-z]' < $side.rqpos_tmp >\
 	    $tmp/rqpos_$mode.ymax &
 	mkfifo $inp.nosort.freq.bins
+	mkfifo $side.freq.bins.{0..2}
 	cat $inp.nosort.freq.bins |\
 	    cut -d ';' -f 3,4 |\
 	    gawk '{ i = int($1 / 8); do { table[i]++; i++; $2 -= 8; } while($2 > 0); } END{ for (i in table) { printf("%d\n", table[i]); } }' |\
-	    ($sort -n -r ; echo "10") >\
+	    tee $side.freq.bins.0 |\
+	    $sort -n -r |\
+	    tee $side.freq.bins.2 >\
 	    $out.g44.$outp.freq.bins &
+	cat $side.freq.bins.0 |\
+	    gawk '{ count++; sum += $1; } END{ printf("%d %d\n", count, sum); }' >\
+	    $side.freq.bins.1 &
+	cat $side.freq.bins.{1,2} |\
+	    gawk 'BEGIN{ limit = 1.0 / 64; } { if (!total_sum) { total_count = $1; total_sum = $2; } else { count++; sum += $1; if (sum >= total_sum * limit) { printf("%d %6.3f %6.3f %5.3f\n", count, count * 100.0 / total_count, limit * 100.0, total_sum / (total_sum - sum + count) ); limit *= 2; } } }' >\
+	    $out.g44.$outs.freq.bins.quantile &
     fi
     if (( dynamic_mode )) && [ "$mode" != "all" ]; then
 	mkfifo $inp.sort6.dyn.1
@@ -789,6 +799,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	ok_txt=""
 	ok_color="ok"
 	all_file=""
+	quantile_label=""
 	case $reads_file in
 	    *.xy)
 	    ;;
@@ -914,7 +925,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    ;;
 	    *.freq.bins)
 	    with="with lines"
-	    xlabel="Some 4k Page [occurrence] (reverse order; maximum number indicated by y=10 at end)"
+	    xlabel="Some 4k Page [occurrence] (reverse order)"
 	    xlogscale="set logscale x;"
 	    ;;
 	    *.bins)
@@ -937,6 +948,21 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    with="with lines"
 	    ;;
 	esac
+
+	y0=0
+	for mode in reads writes all; do
+	    y=1
+	    for q in $(echo $reads_file | sed "s/\.reads\./.$mode./" | sed 's/\.tmp\./.side./' | sed 's/$/.quantile/'); do
+		[ -s $q ] || continue
+		while read x frac limit speedup; do
+		    pos="0.$((y++))$y0"
+		    text="$mode"
+		    [[ "$mode" = "all" ]] && text="ops"
+		    quantile_label="$quantile_label set label \"${limit}% of ${text} below ${x} (${frac}% of pages, speedup=$speedup)  \" at $x, graph $pos right font \"arial,7\" $(textcolor $mode) point $(lt $mode);"
+		done < $q
+	    done
+	    (( y0 += 2 ))
+	done
 	
 	echo "---> plot on $title.$picturetype $ok_txt"
     
@@ -981,6 +1007,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	set ylabel '$ylabel';
 	set xlabel '$xlabel';
 	$var_label
+	$quantile_label
 	$warn_label
 	$fake_label
 	$plot;
