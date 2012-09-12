@@ -39,6 +39,7 @@ function graph_finish
     #   2) undoing all inside definitions / side effects
     (
 	renice -n 19 $BASHPID
+	ionice -c 3 -p $BASHPID
 	source $script_dir/graph.sh $graph_options *.replay.gz
     )
 }
