@@ -516,7 +516,7 @@ for mode in reads writes r_push w_push all; do
 		output_statistics_short "thrp_${i}_${mode}_" "thrp.$i" $mode &
 	fi
     done
-    if (( static_mode )); then
+    if [ -e $side.rqsize.stat ]; then
 	cat $side.rqsize.stat |\
 	    output_statistics_short "rqsize_${mode}_" rqsize $mode &
     fi
