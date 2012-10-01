@@ -347,13 +347,11 @@ cat $mainfifo.all.sort2.thrp |\
     cut -d ';' -f 2 |\
     gawk "$gawk_thrp" >\
     $out.g000.sort0.overview.thrp.demand.extra &
-if (( dynamic_mode )); then
-    mkfifo $mainfifo.all.sort7.thrp
-    cat $mainfifo.all.sort7.thrp |\
-	cut -d ';' -f 2 |\
-	gawk "$gawk_thrp" >\
-	$out.g000.sort1.overview.thrp.actual.extra &
-fi
+mkfifo $mainfifo.all.sort7.thrp
+cat $mainfifo.all.sort7.thrp |\
+    cut -d ';' -f 2 |\
+    gawk "$gawk_thrp" >\
+    $out.g000.sort1.overview.thrp.actual.extra &
 
 # worker pipelines for reads / writes
 for mode in reads writes r_push w_push all; do
