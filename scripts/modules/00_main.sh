@@ -166,7 +166,7 @@ function main_run
     for i in $(eval echo {0..$replay_max}); do
 	options=""
 	# list of parameterless options
-	optlist="dry_run fake_io o_direct no_o_direct o_sync no_o_sync no_dispatcher"
+	optlist="dry_run fake_io o_direct no_o_direct o_sync no_o_sync no_dispatcher fill_null fill_random"
 	for opt in $optlist; do
 	    if eval "(( $opt ))"; then
 		options="$options --$(echo $opt | sed 's/_/-/g')"

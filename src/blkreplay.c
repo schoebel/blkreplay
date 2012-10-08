@@ -105,6 +105,14 @@
 # define lseek64 lseek
 #endif
 
+#if HAVE_DECL_RANDOM
+# define RAND_TYPE long int
+#else
+# define RAND_TYPE int
+# define random rand
+#endif
+
+
 // use -lrt -lm for linking.
 //
 // example: gcc -Wall -O2 blkreplay.c -lrt -lm -o blkreplay
@@ -149,6 +157,7 @@ int fork_dispatcher = 1;
 int use_o_direct = 1;
 int use_o_sync = 0;
 
+int fill_mode = 0;
 int mmap_mode = 0;
 int conflict_mode = 2; 
 /* 0 = allow arbitrary permutations in ordering
@@ -691,7 +700,16 @@ void make_tags(struct request *rq, void *buffer, int len)
 		}
 	}
 
-	memset(buffer, 0, len);
+	switch (fill_mode) {
+	case 1:
+                for (i = 0; i < len / sizeof(RAND_TYPE); i++) {
+                        RAND_TYPE *ptr = (void*)&((char*)buffer)[i * sizeof(RAND_TYPE)];
+                        *ptr = random();
+                }
+		break;
+	default:
+		memset(buffer, 0, len);
+	}
 
 	for (i = 0; i < len; i += 512) {
 		struct verify_tag *tag = buffer+i;
@@ -2109,6 +2127,18 @@ const struct arg arg_table[] = {
 		.arg_descr = "parallelism (default=" STRINGIFY(DEFAULT_THREADS) ")",
 		.arg_const = ARG_INT,
 		.arg_val   = &total_max,
+	},
+	{
+		.arg_name  = "fill-null",
+		.arg_descr = "fill data blocks with \\0 (default)",
+		.arg_const = 0,
+		.arg_val   = &fill_mode,
+	},
+	{
+		.arg_name  = "fill-random",
+		.arg_descr = "fill data blocks with random bytes",
+		.arg_const = 1,
+		.arg_val   = &fill_mode,
 	},
 
 
