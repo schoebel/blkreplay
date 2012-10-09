@@ -2391,6 +2391,7 @@ void print_fake(void)
 {
 	printf("INFO: use_o_direct=%d\n", use_o_direct);
 	printf("INFO: use_o_sync=%d\n", use_o_sync);
+	printf("INFO: fill_mode=%d\n", fill_mode);
 	printf("INFO: ahead_limit=%lu.%09lu\n", ahead_limit.tv_sec, ahead_limit.tv_nsec);
 	printf("INFO: simulate_io=%lu.%09lu\n", simulate_io.tv_sec, simulate_io.tv_nsec);
 	printf("INFO: dry_run=%d\n", dry_run);
