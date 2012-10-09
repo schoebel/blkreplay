@@ -157,7 +157,7 @@ int fork_dispatcher = 1;
 int use_o_direct = 1;
 int use_o_sync = 0;
 
-int fill_mode = 0;
+int fill_random = 0;
 int mmap_mode = 0;
 int conflict_mode = 2; 
 /* 0 = allow arbitrary permutations in ordering
@@ -685,6 +685,8 @@ void check_tags(struct request *rq, void *buffer, int len, int do_write)
 static
 void make_tags(struct request *rq, void *buffer, int len)
 {
+	int random_border;
+	int random_rest;
 	int i;
 
 	// check old tag before overwriting
@@ -700,19 +702,24 @@ void make_tags(struct request *rq, void *buffer, int len)
 		}
 	}
 
-	switch (fill_mode) {
-	case 1:
-                for (i = 0; i < len / sizeof(RAND_TYPE); i++) {
-                        RAND_TYPE *ptr = (void*)&((char*)buffer)[i * sizeof(RAND_TYPE)];
-                        *ptr = random();
-                }
-		break;
-	default:
-		memset(buffer, 0, len);
-	}
+	if (fill_random < 0)
+		fill_random = 0;
+	random_border = fill_random * 512 / (100 * sizeof(RAND_TYPE));
+	if (random_border > 512 / sizeof(RAND_TYPE))
+		random_border = 512 / sizeof(RAND_TYPE);
+	random_rest = 512 / sizeof(RAND_TYPE) - random_border;
 
 	for (i = 0; i < len; i += 512) {
 		struct verify_tag *tag = buffer+i;
+		if (random_rest > 0)
+			memset(tag, 0, random_rest * sizeof(RAND_TYPE));
+		if (random_border > 0) {
+			int j;
+			for (j = random_rest; j < 512 / sizeof(RAND_TYPE); j++) {
+				RAND_TYPE *ptr = (void*)&((char*)buffer+i)[j * sizeof(RAND_TYPE)];
+				*ptr = random();
+			}
+		}
 		memcpy(tag, &rq->tag, sizeof(*tag));
 		tag->tag_len = len;
 		tag->tag_index = i;
@@ -2129,16 +2136,10 @@ const struct arg arg_table[] = {
 		.arg_val   = &total_max,
 	},
 	{
-		.arg_name  = "fill-null",
-		.arg_descr = "fill data blocks with \\0 (default)",
-		.arg_const = 0,
-		.arg_val   = &fill_mode,
-	},
-	{
 		.arg_name  = "fill-random",
-		.arg_descr = "fill data blocks with random bytes",
-		.arg_const = 1,
-		.arg_val   = &fill_mode,
+		.arg_descr = "fill data blocks with random bytes (%, default=0)",
+		.arg_const = ARG_INT,
+		.arg_val   = &fill_random,
 	},
 
 
@@ -2391,7 +2392,7 @@ void print_fake(void)
 {
 	printf("INFO: use_o_direct=%d\n", use_o_direct);
 	printf("INFO: use_o_sync=%d\n", use_o_sync);
-	printf("INFO: fill_mode=%d\n", fill_mode);
+	printf("INFO: fill_random=%d\n", fill_random);
 	printf("INFO: ahead_limit=%lu.%09lu\n", ahead_limit.tv_sec, ahead_limit.tv_nsec);
 	printf("INFO: simulate_io=%lu.%09lu\n", simulate_io.tv_sec, simulate_io.tv_nsec);
 	printf("INFO: dry_run=%d\n", dry_run);
