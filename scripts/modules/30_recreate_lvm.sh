@@ -54,6 +54,7 @@ function create_lvm_series
     count="$3"
     size="$4"
     remember="$5"
+    (( max_lv_size > 0 && size > max_lv_size )) && size=$max_lv_size
     echo "creating $count LVs series '$series' on '$host' VG '$vg_name' with size $size"
     for i in $(eval echo {0..$((count-1))}); do
 	dev="/dev/$vg_name/$series$i"
