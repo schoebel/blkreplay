@@ -339,19 +339,33 @@ thrp_window=${thrp_window:-3}
 turn_window=${turn_window:-1}
 smooth_latency_flying_window=${smooth_latency_flying_window:-1}
 
-gawk_thrp="{ time=int(\$1); if (time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; if (time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); factor = int((time - oldtime) / $thrp_window); oldtime += factor * $thrp_window; if (factor > 1) { printf(\"%d 0.0\\n\", oldtime); } }; count=0; }; count++; }"
+
+function gawk_thrps
+{
+    param="$1"
+    gawk_cmd="{ time=int(\$1); if (time - oldtime >= $thrp_window) { printf(\"%d %13.3f\\n\", oldtime, count / $thrp_window.0); oldtime += $thrp_window; if (time - oldtime >= $thrp_window) { printf(\"%d 0.0\\n\", oldtime); factor = int((time - oldtime) / $thrp_window); oldtime += factor * $thrp_window; if (factor > 1) { printf(\"%d 0.0\\n\", oldtime); } }; count=0; }; count += $param; }"
+    gawk -F ";" "$gawk_cmd"
+}
 
 # produce throughput graphics always
-mkfifo $mainfifo.all.sort2.thrp
+mkfifo $mainfifo.all.sort2.thr{p,s}
 cat $mainfifo.all.sort2.thrp |\
     cut -d ';' -f 2 |\
-    gawk "$gawk_thrp" >\
+    gawk_thrps 1 >\
     $out.g000.sort0.overview.thrp.demand.extra &
-mkfifo $mainfifo.all.sort7.thrp
+cat $mainfifo.all.sort2.thrs |\
+    cut -d ';' -f 2,4 |\
+    gawk_thrps "\$2" >\
+    $out.g000.sort0.overview.thrs.demand.extra &
+mkfifo $mainfifo.all.sort7.thr{p,s}
 cat $mainfifo.all.sort7.thrp |\
     cut -d ';' -f 2 |\
-    gawk "$gawk_thrp" >\
+    gawk_thrps 1 >\
     $out.g000.sort1.overview.thrp.actual.extra &
+cat $mainfifo.all.sort7.thrs |\
+    cut -d ';' -f 2,4 |\
+    gawk_thrps "\$2" >\
+    $out.g000.sort1.overview.thrs.actual.extra &
 
 # worker pipelines for reads / writes
 for mode in reads writes r_push w_push all; do
@@ -441,21 +455,31 @@ for mode in reads writes r_push w_push all; do
 	    sed 's/;/ /' >\
 	    $out.g12.$outp.latency.delay.xy &
     fi
-    mkfifo $inp.sort2.thrp.dedi
-    mkfifo $side.thrp.setpoint.stat
+    mkfifo $inp.sort2.thr{p,s}.dedi
+    mkfifo $side.thr{p,s}.setpoint.stat
     cat $inp.sort2.thrp.dedi |\
 	cut -d ';' -f 2 |\
-	gawk "$gawk_thrp" |\
+	gawk_thrps 1 |\
 	tee $side.thrp.setpoint.stat >\
 	$out.g00.$outp.thrp.setpoint &
+    cat $inp.sort2.thrs.dedi |\
+	cut -d ';' -f 2,4 |\
+	gawk_thrps "\$2" |\
+	tee $side.thrs.setpoint.stat >\
+	$out.g00.$outp.thrs.setpoint &
     if (( dynamic_mode )); then
-	mkfifo $inp.sort7.thrp.dedi
-	mkfifo $side.thrp.completed.stat
+	mkfifo $inp.sort7.thr{p,s}.dedi
+	mkfifo $side.thr{p,s}.completed.stat
 	cat $inp.sort7.thrp.dedi |\
 	    cut -d ';' -f 2 |\
-	    gawk "$gawk_thrp" |\
+	    gawk_thrps 1 |\
 	    tee $side.thrp.completed.stat >\
 	    $out.g00.$outp.thrp.completed &
+	cat $inp.sort7.thrs.dedi |\
+	    cut -d ';' -f 2,4 |\
+	    gawk_thrps "\$2" |\
+	    tee $side.thrs.completed.stat >\
+	    $out.g00.$outp.thrs.completed &
 	mkfifo $inp.nosort.dyn.6
 	cat $inp.nosort.dyn.6 |\
 	    cut -d ';' -f 7 |\
@@ -512,6 +536,11 @@ for mode in reads writes r_push w_push all; do
 	    cat $side.thrp.$i.stat |\
 		gawk '{print $2;}' |\
 		output_statistics_short "thrp_${i}_${mode}_" "thrp.$i" $mode &
+	fi
+	if [ -e $side.thrs.$i.stat ]; then
+	    cat $side.thrs.$i.stat |\
+		gawk '{print $2;}' |\
+		output_statistics_short "thrs_${i}_${mode}_" "thrs.$i" $mode &
 	fi
     done
     if [ -e $side.rqsize.stat ]; then
@@ -801,7 +830,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	case $reads_file in
 	    *.xy)
 	    ;;
-	    *.bins | *.flying | *.turns.* | *.thrp.*)
+	    *.bins | *.flying | *.turns.* | *.thrp.* | *.thrs.*)
             all_file=$(echo $reads_file | sed 's/\.reads\./.all./')
 	    ;;
 	    *.latency.* | *.delay.*)
@@ -832,9 +861,21 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    with="with lines"
 	    ylogscale=""
 	    ;;
+	    *.thrs.setpoint*)
+	    infix="thrs.setpoint"
+	    ylabel="Demanded Throughput [sectors/sec]  (Avg=$thrs_setpoint_all_avg, Max=$thrs_setpoint_all_max)"
+	    with="with lines"
+	    ylogscale=""
+	    ;;
 	    *.thrp.completed*)
 	    infix="thrp.completed"
 	    ylabel="Actual Throughput [IO/sec]  (Avg=$thrp_completed_all_avg, Max=$thrp_completed_all_max)"
+	    with="with lines"
+	    ylogscale=""
+	    ;;
+	    *.thrs.completed*)
+	    infix="thrs.completed"
+	    ylabel="Actual Throughput [IO/sec]  (Avg=$thrs_completed_all_avg, Max=$thrs_completed_all_max)"
 	    with="with lines"
 	    ylogscale=""
 	    ;;
@@ -1014,7 +1055,7 @@ EOF
     (( sequential_mode )) && wait
 done
 
-for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
+for mode in thrp thrs ws_log ws_lin sum_dist avg_dist $extra_modes; do
     plot=""
     delim="plot"
     using=""
@@ -1052,6 +1093,9 @@ for mode in thrp ws_log ws_lin sum_dist avg_dist $extra_modes; do
 	case $mode in
 	    thrp)
 	    ylabel="Throughput [IOs/sec]"
+	    ;;
+	    thrs)
+	    ylabel="Throughput [sectors/sec]"
 	    ;;
 	    ws_log)
 	    ylabel="Workingset Size [count]"
