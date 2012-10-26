@@ -106,11 +106,14 @@ function main_prepare
 	echo "variable input_file_list is undefined"
 	exit -1
     fi
+    input_file_max=-1
     j=0
     for i in $input_file_list; do
 	input_file[$j]=$i
+	input_file_max=$j
 	(( j++ ))
     done
+    input_file_count=$j
 
     new_txt="List"
     devices_prepare

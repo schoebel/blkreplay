@@ -22,6 +22,11 @@
 function pipe_repeat_prepare
 {
     (( !enable_pipe_repeat )) && return 0
+    if (( repeat_offset > 0 )); then
+	echo "$FUNCNAME (repeating the input with offset $repeat_offset)"
+	input_pipe_list="for (( this_offset = 0; ; this_offset += $repeat_offset )); do ($input_pipe_list) | eval gawk -F\'\;\' \'BEGIN{ OFS=\\\"\;\\\"\; } { \\\$2 += \$this_offset\; print\; }\' || break; done"
+	return 0
+    fi
     echo "$FUNCNAME (repeating the input until forever)"
     input_pipe_list="while ($input_pipe_list); do :; done"
     return 0
