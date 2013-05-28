@@ -391,6 +391,8 @@ for mode in reads writes r_push w_push all; do
 	    $out.g41.$outp.rqpos.bins &
 	grep '^[a-z]' < $side.rqpos_tmp >\
 	    $tmp/rqpos_$mode.ymax &
+    fi
+    if ! [[ "$mode" =~ "_push" ]]; then
 	mkfifo $inp.nosort.freq.bins
 	mkfifo $side.freq.bins.{0..2}
 	cat $inp.nosort.freq.bins |\
