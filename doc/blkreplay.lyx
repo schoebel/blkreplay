@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 1.0.3
+Version 1.0.4
 \end_layout
 
 \begin_layout Standard
@@ -8568,7 +8568,7 @@ Rough interpretation: under overload, write requests cannot be started in
 \end_layout
 
 \begin_layout Section
-Advanced Features
+Modules / Advanced Features
 \end_layout
 
 \begin_layout Subsection
@@ -8599,6 +8599,66 @@ github.com
 
 \begin_layout Standard
 Here is a list of already existing modules:
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+smartctl
+\family default
+ When enabled, this module erases your SSDs via the so-called 
+\begin_inset Quotes eld
+\end_inset
+
+security-erase
+\begin_inset Quotes erd
+\end_inset
+
+ method, or via the TRIM method.
+ You need this module when benchmarking SSDs, because freshly trimmed/erased
+ SSDs behave much differently from used ones.
+ In addition, the performance of used ones may depend on the previous usage
+ patterns (see section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Storage"
+
+\end_inset
+
+).
+ Usually, you will have to fill the SSD with random numbers (see module
+ 
+\family typewriter
+wipe
+\family default
+) after erasing, in order to get reproducible behaviour coming close to
+ practice.
+ If you forget the fill, results may look 
+\begin_inset Quotes eld
+\end_inset
+
+better
+\begin_inset Quotes erd
+\end_inset
+
+, but be 
+\series bold
+invalid
+\series default
+ from a practical viewpoint.
+ You need to have 
+\family typewriter
+smartctl
+\family default
+ and 
+\family typewriter
+hdparm
+\family default
+ installed.
+ WARNING! some SSDs dislike trimming and may be even finally destroyed,
+ others just need a power-off in order to recover.
+ Use at your own risk!
 \end_layout
 
 \begin_layout Labeling
@@ -11839,6 +11899,29 @@ name "sec:Module-Parameters"
 
 \begin_layout Standard
 The following list is in the order of activation.
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-smartctl.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{example-run/default-smartctl.conf}
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
