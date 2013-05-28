@@ -37,6 +37,10 @@ function devices_prepare
 	    device=$(echo $i | cut -d: -f2-)
 	    replay_host[$replay_count]=$host
 	    replay_device[$replay_count]=$device
+	    if (( !devices_prepared )); then
+		replay_host_orig[$replay_count]=$host
+		replay_device_orig[$replay_count]=$device
+	    fi
 	    (( replay_count++ ))
 	done
     else
@@ -51,6 +55,10 @@ function devices_prepare
 	    for device in $replay_device_list; do
 		replay_host[$replay_count]=$host
 		replay_device[$replay_count]=$device
+		if (( !devices_prepared )); then
+		    replay_host_orig[$replay_count]=$host
+		    replay_device_orig[$replay_count]=$device
+		fi
 		(( replay_count++ ))
 	    done
 	done
@@ -61,6 +69,9 @@ function devices_prepare
 	exit -1
     fi
 
+    if (( !devices_prepared )); then
+	replay_count_orig=$replay_count
+    fi
     # remember old value before limiting it (some modules may need it)
     replay_count_really=$replay_count
     if (( replay_max_parallelism > 0 && replay_count > replay_max_parallelism )); then
@@ -88,6 +99,7 @@ function devices_prepare
 	echo " $i: ${replay_host[$i]} ${replay_device[$i]} $(basename ${input_file[$i]}) ${output_file[$i]}"
 	(( j++ ))
     done
+    (( devices_prepared++ ))
     return 0
 }
 
