@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 1.0.2
+Version 1.0.3
 \end_layout
 
 \begin_layout Standard
@@ -4345,7 +4345,7 @@ e by factors, or even orders of magnitude.
 \end_layout
 
 \begin_layout Subsection
-Pitfalls from Replay Device Sizes and Others
+Pitfalls from Replay Device Sizes (wraparound_factor)
 \begin_inset CommandInset label
 LatexCommand label
 name "sub:Pitfalls-from-Replay"
@@ -4356,7 +4356,11 @@ name "sub:Pitfalls-from-Replay"
 \end_layout
 
 \begin_layout Standard
-There is a simple intuitive rule: your replay device for 
+There is a simple intuitive rule: 
+\emph on
+each
+\emph default
+ of your replay devices / LVs for 
 \family typewriter
 blkreplay
 \family default
@@ -4364,7 +4368,7 @@ blkreplay
 \emph on
 same
 \emph default
- size as the original device where 
+ size as the original device / LV where 
 \family typewriter
 blktrace
 \family default
@@ -4431,17 +4435,23 @@ considerable
 \end_layout
 
 \begin_layout Standard
-Example: the original 
+Example: original 
 \family typewriter
 blktrace
 \family default
- recording was taken from a production server equipped with 20 TB RAID.
- Since in the lab we had only a smaller system with 4 TB, 
+ recordings were taken from a production server equipped with 20 TB RAID.
+ Since in the lab we had only a smaller system with 4 TB at that time, 
 \family typewriter
 blktrace
 \family default
- measurements were run despite the smaller size.
- Whenever 
+ measurements were run despite the smaller size, but with the same degree
+ of parallelism.
+ Therefore, the number of LVs was correct, but the size of each LV was incorrect
+ with respect to the original size.
+\end_layout
+
+\begin_layout Standard
+Whenever 
 \family typewriter
 blkreplay
 \family default
@@ -4450,7 +4460,7 @@ blkreplay
 remaps
 \emph default
  the sector number modulo the (new) LV size.
- Therefore, results 
+ Therefore, such results 
 \emph on
 appear
 \emph default
@@ -4463,7 +4473,10 @@ big
 \end_inset
 
  holes or anomalies.
- You will find out the difference only if you compare to the 
+\end_layout
+
+\begin_layout Standard
+You will find out the difference only if you compare to the 
 \emph on
 correct
 \emph default
@@ -4472,7 +4485,11 @@ correct
 \emph on
 same
 \emph default
- measurements with correct LV sizes of ~20 TB, there is a 
+ measurements with correct LV sizes, there 
+\emph on
+is
+\emph default
+ a 
 \emph on
 significant
 \emph default
@@ -4480,8 +4497,164 @@ significant
 \end_layout
 
 \begin_layout Standard
-Some people think that such differences can be attributed solely to the
- natural differences in 
+To make it clear: running tests using the wrong 
+\family typewriter
+wraparound_factor
+\family default
+ produces invalid results in general.
+\end_layout
+
+\begin_layout Subsection
+Pitfalls from Consolidation and Total Size of Storage
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Pitfalls-from-Consolidation"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In the last section, we have seen that 
+\emph on
+each
+\emph default
+ device has to have the right size, independently from each other.
+ This is in particular important for 
+\emph on
+heterogenous
+\emph default
+ setups where different types of applications are mixed on a consolidated
+ storage platform.
+\end_layout
+
+\begin_layout Standard
+There is a similar law at the level of 
+\series bold
+total storage
+\series default
+:
+\end_layout
+
+\begin_layout Enumerate
+The total number of LVs / 
+\family typewriter
+blkreplay
+\family default
+ instances running in parallel in the lab must match the number of instances
+ (later) running at your production system.
+\end_layout
+
+\begin_layout Enumerate
+The sum of all LVs 
+\emph on
+should
+\emph default
+ match the total size of the storage when planning new storage systems.
+ The numbers 
+\emph on
+must
+\emph default
+ match when publishing benchmark results.
+\end_layout
+
+\begin_layout Standard
+Rule 1 is clear to anyone having experience with storage systems: scale-up
+ isn't linear in the number of instances.
+ Therefore, running a too low number of instances can produce fake results
+ which will never work in practice when higher consolidation factors have
+ been planned, but will not be reached.
+\end_layout
+
+\begin_layout Standard
+Simply stated: rule 1 means that you must use the correct consolidation
+ factor.
+\end_layout
+
+\begin_layout Standard
+Rule 2 is not extremely hard if you are planning a new storage system, but
+ its violation can lead to unnecessary expenses.
+ Whenever you utilize only a fraction of your physical storage space, you
+ are wasting space and spend more money than needed.
+\end_layout
+
+\begin_layout Standard
+Sadly, both effects are not completely independent from each other.
+ For example, if you double the consolidation factor, you may also double
+ the number of LVs and also the total size by doubling the number of spindles.
+ However, the performance may not remain the same, because some previously
+ unknown 
+\emph on
+bottleneck
+\emph default
+ may now limit the total performance of your system.
+\end_layout
+
+\begin_layout Standard
+Vice versa: if you detect that your existing storage space isn't utilized
+ fully, you may come to the conclusion that you just need to rearrange your
+ disks by reducing the number of spindles per RAID system.
+ However, such a reduction will very likely reduce the performance also.
+ Therefore, such a reduction may fail if you didn't have enough performance
+ headroom, urging you to continue wasting space and money.
+\end_layout
+
+\begin_layout Standard
+In essence, the tradeoff between total space and performance is nothing
+ but the old theoretical computer science tradeoff between space and time
+ as known for more than half a century.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+\begin_inset Graphics
+	filename images/MatieresToxiques.png
+	lyxscale 50
+	scale 17
+
+\end_inset
+
+ Violation of rule 2 can also occur if your benchmark does not utilize the
+ full size of your hardware.
+ For example, the 
+\emph on
+default(!)
+\emph default
+ settings of some well-known benchmark tool often used in internet comparisons
+ and blogs will touch only a 4GB area at the 
+\emph on
+start
+\emph default
+ of your device.
+ For mechanical disks, this leads to 
+\series bold
+disastrous fake results
+\series default
+ on modern terabyte disks which have nothing to do with practice at all,
+ because the mechanical seek distances are way too short, by several orders
+ of magnitude.
+ Even for SSDs, the differences to correct setups may be 
+\emph on
+considerable
+\emph default
+, although varying with SSD vendor and SSD hardware generation.
+ Therefore, many IOPS numbers published on the internet are often not only
+ intransparent due to lack of documentation, but also likely to be 
+\series bold
+invalid
+\series default
+.
+\end_layout
+
+\begin_layout Subsection
+Pitfalls from Hardware Architecture and Setup
+\end_layout
+
+\begin_layout Standard
+I found that some few people heavily believe that the differences shown
+ in the last sections can be attributed solely to the natural differences
+ in 
 \emph on
 spindle count
 \emph default
@@ -4508,7 +4681,8 @@ non-linear
 \emph on
 are
 \emph default
- some effects by spindle count, that opinion is wrong.
+ some bigger effects resulting from spindle count, nevertheless that opinion
+ is wrong.
  In order to disprove such a 
 \begin_inset Quotes eld
 \end_inset
@@ -4547,7 +4721,46 @@ fundamental
 \end_inset
 
  different disk drive models (resulting in different total capacity), and
- compare (under otherwise equal conditions).
+ compare (under otherwise equal conditions
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+There is a conceptual problem here: for example, when you compare the same
+ number of spindles of slow and big SATA disks with fast and small 15k SAS
+ disks, their capacity is different, leading into the problem area described
+ in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Consolidation"
+
+\end_inset
+
+.
+ Adjusting the load / parallelism etc is no option, since that would be
+ unfair.
+ Therefore, we 
+\emph on
+must
+\emph default
+ violate rule 2 from section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Pitfalls-from-Consolidation"
+
+\end_inset
+
+ and run the comparison on the same total LV size, which must be exactly
+ the 
+\emph on
+minimum
+\emph default
+ of both storage sizes (in order to violate the rule as less as possible).
+\end_layout
+
+\end_inset
+
+).
 \end_layout
 
 \begin_layout Standard
