@@ -118,7 +118,7 @@ tst@1und1.de
 \end_layout
 
 \begin_layout Date
-Version 1.0.1
+Version 1.0.2
 \end_layout
 
 \begin_layout Standard
@@ -796,7 +796,13 @@ fake data
  recording.
  By default, NULL blocks enriched with some internal header information
  are generated.
- The internal headers may be used for 
+ Via an option, ramdom data may be used instead; some SSDs employing internal
+ data compression may react heavily on that feature.
+ The internal 
+\family typewriter
+blkreplay
+\family default
+ headers may be used for 
 \emph on
 verification
 \emph default
@@ -809,8 +815,8 @@ blkreplay
 \end_layout
 
 \begin_layout Standard
-Notice that these NULL blocks will (together with the internal header informatio
-n) 
+Notice that these NULL / random blocks will (together with the internal
+ header information) 
 \series bold
 destroy
 \series default
@@ -4769,13 +4775,55 @@ binary
 \begin_inset Newline newline
 \end_inset
 
-For example, it is completely wrong to just double the load on 
+Example: you plan to employ 
+\begin_inset Formula $k$
+\end_inset
+
+ block devices on 
+\begin_inset Formula $k$
+\end_inset
+
+ CPU nodes later on your production system.
+ In the lab, you have to replace each real-life load with one 
+\family typewriter
+blkreplay
+\family default
+ instance.
+ Because you don't want to buy 
+\begin_inset Formula $k$
+\end_inset
+
+ CPU nodes for your test and want to save money, you believe that you can
+ take 
 \begin_inset Formula $k/2$
 \end_inset
 
- nodes.
- Experiences with some test candidates at 1&1 show that results can differ
- enormously from results from single loads, each on 
+ nodes instead, and just double the 
+\family typewriter
+blkreplay
+\family default
+ load on each of them, in order to 
+\begin_inset Quotes eld
+\end_inset
+
+compensate
+\begin_inset Quotes erd
+\end_inset
+
+ for that.
+ Experiences at 1&1 show that such 
+\begin_inset Quotes eld
+\end_inset
+
+cheap substitute setups
+\begin_inset Quotes erd
+\end_inset
+
+ may be fundamentally wrong, because results can differ 
+\emph on
+enormously
+\emph default
+ from results from single loads, each on 
 \begin_inset Formula $k$
 \end_inset
 
@@ -4783,7 +4831,11 @@ For example, it is completely wrong to just double the load on
 \end_layout
 
 \begin_layout Enumerate
-The total capacity of the central storage will also vary with 
+The 
+\emph on
+total capacity
+\emph default
+ of the central storage will also vary with varying 
 \begin_inset Formula $k$
 \end_inset
 
@@ -4795,12 +4847,11 @@ reference "sub:Pitfalls-from-Replay"
 
 \end_inset
 
-, this will not only influence results by itself, but in addition by further
- effects like spindle count, non-scaling of caches with factor 
-\begin_inset Formula $k$
-\end_inset
-
-, and many others.
+, this will influence your results.
+ In addition, the spindle count and further parameters may be affected,
+ too.
+ Each of these effects may scale non-linearly.
+ Never try to extrapolate anything in the storage area!
 \end_layout
 
 \begin_layout Subsubsection
@@ -8415,8 +8466,8 @@ $replay_device_list
 \family typewriter
 create_lv
 \family default
- Here you can put in your code for re-creating logical volumes on an arbitrary
- storage manager.
+ Here you can put in your own code for re-creating logical volumes on an
+ arbitrary storage manager.
  You 
 \series bold
 need
@@ -8489,6 +8540,20 @@ MegaCli
 \labelwidthstring 00.00.0000
 
 \family typewriter
+cachecade
+\family default
+ Controls the cachecade feature of LSI megaraid conrollers.
+ The tool 
+\family typewriter
+MegaCli
+\family default
+ must be installed.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
 graph
 \family default
  By default (when enabled), the script 
@@ -8500,6 +8565,49 @@ graph.sh
 blkreplay
 \family default
  run.
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+input_reverse
+\family default
+ When enabled, this module acts as a filter, reversing the timely order
+ of requests from your 
+\family typewriter
+*.load.gz
+\family default
+ input files.
+ This is very useful for exploring hidden properties of storage virtualization
+ layers, such as occurring in commercial storage boxes or SSDs.
+ Typical usage is to run your load in normal order in the first pass, but
+ then reverse the order in a second pass, replaying exactly the same locations,
+ but in reverse order.
+ You may encounter some surprises when comparing this to running both passes
+ in the same order (of course after completely re-creating and re-filling
+ your LVs with random data).
+ The Unix tool 
+\family typewriter
+tac
+\family default
+ must be installed.
+ Please note that 
+\family typewriter
+tac
+\family default
+ may use considerable space in 
+\family typewriter
+/tmp/
+\family default
+ if your input files are very large.
+ It may take some time until all the input data is read and output finally
+ starts.
+ Therefore, you may also need to increase the parameter 
+\family typewriter
+--start-grace
+\family default
+.
 \end_layout
 
 \begin_layout Labeling
@@ -8521,6 +8629,17 @@ blkreplay
 \end_layout
 
 \begin_deeper
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\family typewriter
+pipe_select
+\family default
+ Select some time window from the input.
+ This is useful for starting at different starting points, or for replaying
+ specific parts of the loads (such as load peaks or incidents).
+\end_layout
+
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
 
@@ -11662,7 +11781,30 @@ status open
 
 
 \backslash
-lstinputlisting[language=bash]{example-run/default-wipe.conf}
+lstinputlisting[language=bash]{example-run/default-bbu_megaraid.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+File 
+\family typewriter
+default-cachecade.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{example-run/default-cachecade.conf}
 \end_layout
 
 \end_inset
@@ -11693,6 +11835,29 @@ lstinputlisting[language=bash]{example-run/default-graph.conf}
 
 \end_layout
 
+\begin_layout Subsection
+File 
+\family typewriter
+default-input_reverse.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{example-run/default-input_reverse.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
 Pipe Module Parameters
 \begin_inset CommandInset label
@@ -11705,6 +11870,30 @@ name "sec:Pipe-Module-Parameters"
 \end_layout
 
 \begin_layout Subsection
+File 
+\family typewriter
+default-pipe_select.conf
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+lstinputlisting[language=bash]{example-run/default-pipe_select.conf}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+\noindent
 File 
 \family typewriter
 default-pipe_repeat.conf
