@@ -64,6 +64,9 @@ function iscsi_target_iet_prepare
 	echo "$hint"
 	echo "Target ${replay_device[$i]}"
 	echo -e "\tLun 0 Path=${base_device[$i]},Type=${iet_type:-blockio}"
+	for j in "${iscsi_target_iet_options[@]}"; do
+	    echo -e "\t$j"
+	done
 	echo ""
     done | remote "$iscsi_target" "[ -r /etc/ietd.conf ] && ! grep -q '$hint' /etc/ietd.conf && mv -f /etc/ietd.conf /etc/ietd.conf.backup.$$; cat > /etc/ietd.conf"
 
