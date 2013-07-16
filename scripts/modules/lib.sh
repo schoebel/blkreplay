@@ -82,6 +82,7 @@ function remote
 {
     host="$1"
     shift
+    (( verbose_script > 1 )) && echo "remote $host: $@"
     ssh root@"$host" "$@"
 }
 
@@ -89,6 +90,7 @@ function remote_all
 {
     host_all="$1"
     shift
+    (( verbose_script > 1 )) && echo "remote_all: $@"
     for host in $host_all; do
 	remote "$host" "$@" || return $?
     done
@@ -99,6 +101,7 @@ function remote_all_noreturn
 {
     host_all="$1"
     shift
+    (( verbose_script > 1 )) && echo "remote_all: $@"
     for host in $host_all; do
 	remote "$host" "$@"
     done
