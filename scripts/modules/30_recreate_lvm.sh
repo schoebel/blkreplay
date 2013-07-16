@@ -61,7 +61,7 @@ function create_lvm_series
 	(( remember )) && lvm_device[$i]="$dev"
 	lvm_device_all[$lvm_device_count]="$dev"
 	(( lvm_device_count++ ))
-	create_lvm_single "$host" "${lvm_device[i]}" "$size"
+	create_lvm_single "$host" "$dev" "$size"
     done
 }
 
