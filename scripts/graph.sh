@@ -366,6 +366,16 @@ cat $mainfifo.all.sort7.thrs |\
     cut -d ';' -f 2,4 |\
     gawk_thrps "\$2" >\
     $out.g000.sort1.overview.thrs.actual.extra &
+mkfifo $mainfifo.all.nosort.duration.demand.extra
+cat $mainfifo.all.nosort.duration.demand.extra |\
+    cut -d ';' -f 2 |\
+    make_statistics_short "duration_demand_" >\
+    $tmp/stat.duration.demand &
+mkfifo $mainfifo.all.sort7.duration.actual.extra
+cat $mainfifo.all.sort7.duration.actual.extra |\
+    cut -d ';' -f 2 |\
+    make_statistics_short "duration_actual_" >\
+    $tmp/stat.duration.actual &
 
 # worker pipelines for reads / writes
 for mode in reads writes r_push w_push all; do
@@ -774,6 +784,9 @@ for i in $tmp/stat.*; do
     source "$i"
 done
 
+duration_ratio="$(gawk "END { if ($duration_demand_max > 0) print \", ratio=\", $duration_actual_max / $duration_demand_max; }" < /dev/null)"
+duration=" (demand=$duration_demand_max, actual=$duration_actual_max$duration_ratio)"
+
 # finally start all the gnuplot commands in parallel; they can take much time on huge plots
 
 for reads_file in $tmp/*.reads.tmp.* ; do
@@ -944,12 +957,12 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 
 	case $reads_file in
 	    *.turns.*)
-	    xlabel="Duration [sec]"
+	    xlabel="Duration [sec] $duration"
 	    ylogscale=""
 	    with="with lines"
 	    ;;
 	    *.realtime)
-	    xlabel="Real Duration [sec]"
+	    xlabel="Real Duration [sec] $duration"
 	    ;;
 	    *.setpoint)
 	    xlabel="Demanded Duration [sec]"
@@ -961,7 +974,7 @@ for reads_file in $tmp/*.reads.tmp.* ; do
 	    xlabel="Completion Timestamp [sec]"
 	    ;;
 	    *.flying)
-	    xlabel="Duration [sec]"
+	    xlabel="Duration [sec] $duration"
 	    with="with lines"
 	    ;;
 	    *.freq.bins)
@@ -1090,7 +1103,7 @@ for mode in thrp thrs ws_log ws_lin sum_dist avg_dist $extra_modes; do
     echo "---> plot on $title.$picturetype"
 
     (
-	xlabel="Duration [sec]"
+	xlabel="Duration [sec] $duration"
 	scale=""
 	case $mode in
 	    thrp)
