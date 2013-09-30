@@ -64,11 +64,17 @@ for module in $module_dir/[0-9]*.sh; do
     source_module "$module"
 done
 
+work_dir="."
+
 # parse options.
 while [ $# -ge 1 ]; do
     key="$(echo "$1" | cut -d= -f1)"
     val="$(echo "$1" | cut -d= -f2-)"
     case "$key" in
+	--work_dir)
+        work_dir="$val"
+	shift
+        ;;
 	--test | --dry-run)
         dry_run_script="$val"
 	shift
@@ -93,7 +99,7 @@ resume=1
 while (( resume )); do
     echo "Scanning directory structure starting from $(pwd)"
     resume=0
-    for test_dir in $(find . -type d | eval "$ignore_cmd" | eval "$sort_cmd"); do
+    for test_dir in $(find $work_dir -type d | eval "$ignore_cmd" | eval "$sort_cmd"); do
 	(( dry_run_script )) || rm -f $test_dir/dry-run.$to_produce
 	if [ -e "$test_dir/skip" ]; then
 	    echo "Skipping directory $test_dir"
@@ -160,7 +166,7 @@ done
 
 if (( dry_run_script )); then
     echo "removing dry-run.$to_produce everywhere..."
-    rm -f $(find . -name "dry-run.$to_produce")
+    rm -f $(find $work_dir -name "dry-run.$to_produce")
 fi
 
 echo "======== Finished pwd=$(pwd)"
