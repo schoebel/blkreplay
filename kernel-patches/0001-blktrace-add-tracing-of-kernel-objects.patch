@@ -1,0 +1,124 @@
+From 69b3c7f8e8592ca0b7df1241a10bdcfcea12258d Mon Sep 17 00:00:00 2001
+From: Thomas Schoebel-Theuer <tst@1und1.de>
+Date: Thu, 4 Apr 2013 11:36:09 +0200
+Subject: [PATCH] blktrace: add tracing of kernel objects
+
+Add new Kconfig option BLK_DEV_IO_TRACE_OBJECTS
+
+Without this option, it is extremely cumbersome to detect
+which request completion belongs to which request submission.
+Historically, this information was not present in blktrace.
+As a result, it was almost impossible to get the
+_always_ _correct_ completion timestamps for bio-only operations
+like those working on virtual / stacked drivers in general.
+
+This option additionally dumps the pointer values of kernel objects,
+so matching pairs of actions can be easily identified.
+
+The drawback is that your blktrace logfiles will become larger,
+roughly double in size. However, if you want to blktrace
+your system at all, you should have enough storage anyway.
+
+If you really need to save the additional space consumed by this
+option, you can disable the BLK_TC_NOTIFY action at runtime
+in the action mask (see the -a notify option of the blktrace
+command).
+
+This option is highly recommended for tracing real-life loads
+(e.g. from datacenters) for later analysis and/or replay by
+the blkreplay toolkit, see
+
+	http://blkreplay.org
+---
+ fs/bio.c                |  5 +++++
+ kernel/trace/Kconfig    | 31 +++++++++++++++++++++++++++++++
+ kernel/trace/blktrace.c |  8 ++++++++
+ 3 files changed, 44 insertions(+)
+
+diff --git a/fs/bio.c b/fs/bio.c
+index bae9dce..2808b53 100644
+--- a/fs/bio.c
++++ b/fs/bio.c
+@@ -1448,6 +1448,11 @@ void bio_endio(struct bio *bio, int error)
+ 	else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+ 		error = -EIO;
+ 
++#ifdef CONFIG_BLK_DEV_IO_TRACE_OBJECTS
++	if (bio->bi_bdev && bio->bi_bdev->bd_disk && bio->bi_bdev->bd_disk->queue)
++		trace_block_bio_complete(bio->bi_bdev->bd_disk->queue, bio, error);
++#endif
++
+ 	if (bio->bi_end_io)
+ 		bio->bi_end_io(bio, error);
+ }
+diff --git a/kernel/trace/Kconfig b/kernel/trace/Kconfig
+index 762264d..e297050 100644
+--- a/kernel/trace/Kconfig
++++ b/kernel/trace/Kconfig
+@@ -368,6 +368,37 @@ config BLK_DEV_IO_TRACE
+ 
+ 	  If unsure, say N.
+ 
++config BLK_DEV_IO_TRACE_OBJECTS
++	bool "Additionally trace the identity of request and bio objects"
++	depends on BLK_DEV_IO_TRACE
++	default y
++	help
++	  Without this option, it is extremely cumbersome to detect
++	  which request completion belongs to which request submission.
++	  Historically, this information was not present in blktrace.
++	  As a result, it was almost impossible to get the
++	  _always_ _correct_ completion timestamps for bio-only operations
++	  like those working on virtual / stacked drivers in general.
++
++	  This option additionally dumps the pointer values of kernel objects,
++	  so matching pairs of actions can be easily identified.
++
++	  The drawback is that your blktrace logfiles will become larger,
++	  roughly double in size. However, if you want to blktrace
++	  your system at all, you should have enough storage anyway.
++
++	  If you really need to save the additional space consumed by this
++	  option, you can disable the BLK_TC_NOTIFY action at runtime
++	  in the action mask (see the -a notify option of blktrace command).
++
++	  This option is highly recommended for tracing real-life loads
++	  (e.g. from datacenters) for later analysis and/or replay by
++	  the blkreplay toolkit, see
++
++	  http://blkreplay.org
++
++	  If unsure, say Y.
++
+ config KPROBE_EVENT
+ 	depends on KPROBES
+ 	depends on HAVE_REGS_AND_STACK_ACCESS_API
+diff --git a/kernel/trace/blktrace.c b/kernel/trace/blktrace.c
+index efd8bb8..839726d 100644
+--- a/kernel/trace/blktrace.c
++++ b/kernel/trace/blktrace.c
+@@ -713,6 +713,10 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
+ 	if (likely(!bt))
+ 		return;
+ 
++#ifdef CONFIG_BLK_DEV_IO_TRACE_OBJECTS
++	__trace_note_message(bt, "rq=%p", rq);
++#endif
++
+ 	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
+ 		what |= BLK_TC_ACT(BLK_TC_PC);
+ 		__blk_add_trace(bt, 0, blk_rq_bytes(rq), rq->cmd_flags,
+@@ -778,6 +782,10 @@ static void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
+ 	if (!error && !bio_flagged(bio, BIO_UPTODATE))
+ 		error = EIO;
+ 
++#ifdef CONFIG_BLK_DEV_IO_TRACE_OBJECTS
++	__trace_note_message(bt, "bio=%p", bio);
++#endif
++
+ 	__blk_add_trace(bt, bio->bi_sector, bio->bi_size, bio->bi_rw, what,
+ 			error, 0, NULL);
+ }
+-- 
+1.8.1.4
+
