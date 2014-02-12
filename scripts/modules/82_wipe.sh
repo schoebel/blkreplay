@@ -24,7 +24,7 @@ function wipe_setup
     (( !enable_wipe )) && return 0
     echo "$FUNCNAME filling all devices with random data"
     for i in $(eval echo {0..$replay_max}); do
-	cmd="time ./random_data.exe > ${replay_device[$i]}"
+	cmd="time ./blkreplay-random_data > ${replay_device[$i]}"
 	echo "host $host: running command '$cmd'"
 	remote "${replay_host[$i]}" "$cmd" &
     done

@@ -389,7 +389,7 @@ for mode in reads writes r_push w_push all; do
 	cat $inp.nosort.rqsize |\
 	    cut -d ';' -f 4 |\
 	    tee $side.rqsize.stat |\
-	    $bin_dir/bins.exe >\
+	    $bin_dir/blkreplay-bins >\
 	    $out.g40.$outp.rqsize.bins &
 	mkfifo $inp.nosort.rqpos
 	mkfifo $side.rqpos_tmp
@@ -495,12 +495,12 @@ for mode in reads writes r_push w_push all; do
 	mkfifo $inp.nosort.dyn.6
 	cat $inp.nosort.dyn.6 |\
 	    cut -d ';' -f 7 |\
-	    $bin_dir/bins.exe >\
+	    $bin_dir/blkreplay-bins >\
 	    $out.g06.$outp.latency.bins &
 	mkfifo $inp.nosort.dyn.7
 	cat $inp.nosort.dyn.7 |\
 	    cut -d ';' -f 6 |\
-	    $bin_dir/bins.exe >\
+	    $bin_dir/blkreplay-bins >\
 	    $out.g07.$outp.delay.bins &
 	mkfifo $inp.nosort.dyn.8
 	mkfifo $side.latency.flying.stat

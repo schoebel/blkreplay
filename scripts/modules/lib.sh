@@ -30,7 +30,7 @@ module_dir="$script_dir/modules"
 download_dir="$base_dir/downloads"
 mkdir -p "$download_dir" || exit -1
 
-[ -x $bin_dir/bins.exe ] || \
+[ -x $bin_dir/blreplay-bins ] || \
     (cd $base_dir && ./configure && make) ||\
     { echo "Could not make binaries. Sorry." ; exit -1; }
 
