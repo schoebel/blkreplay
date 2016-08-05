@@ -1,10 +1,10 @@
-bin_PROGRAMS = bins.exe random_data.exe blkreplay.exe
+bin_PROGRAMS = blkreplay-bins blkreplay-random_data blkreplay
 
-bins_exe_SOURCES = bins.c
+blkreplay_bins_SOURCES = bins.c
 
-random_data_exe_SOURCES = random_data.c
+blkreplay_random_data_SOURCES = random_data.c
 
-blkreplay_exe_SOURCES = blkreplay.c
+blkreplay_SOURCES = blkreplay.c
 
 # errors in these subdirectories are (mostly) ignored.
 # try to build as much architectures as possible, but don't insist.

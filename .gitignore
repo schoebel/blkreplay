@@ -33,3 +33,24 @@ autom4te*
 stamp-*
 autoscan.log
 .deps
+
+## created by regenerate_all.sh / autotools
+/INSTALL
+/depcomp
+/install-sh
+/missing
+/Makefile.in
+/configure
+/src/Makefile.in
+/src/arch.m32/Makefile.in
+/src/arch.m64/Makefile.in
+/config.h.in
+
+## built binaries
+/src/arch.m32/blkreplay
+/src/arch.m32/blkreplay-random_data
+/src/arch.m64/blkreplay
+/src/arch.m64/blkreplay-random_data
+/src/blkreplay
+/src/blkreplay-bins
+/src/blkreplay-random_data
