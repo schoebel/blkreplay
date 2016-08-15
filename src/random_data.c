@@ -54,12 +54,16 @@ int main(int argc, char *argv[])
 	int status;
 	long long count = 0;
 	
+	for (i = 0; i < SIZE / sizeof(TYPE); i++) {
+		TYPE *ptr = (void*)&buf[i * sizeof(TYPE)];
+		*ptr = random();
+	}
+
 	do {
-		for (i = 0; i < SIZE / sizeof(TYPE); i++) {
+		for (i = 0; i < SIZE / sizeof(TYPE); i += 512 / sizeof(TYPE)) {
 			TYPE *ptr = (void*)&buf[i * sizeof(TYPE)];
 			*ptr = random();
 		}
-
 		status = write(1, buf, sizeof(buf));
 		if (status > 0)
 			count += status;
