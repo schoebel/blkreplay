@@ -49,7 +49,7 @@ function devices_prepare
 	    exit -1
 	fi
 	for host in $replay_host_list; do
-	    tmp_list="$(remote "$host" "ls $replay_device_list | xargs -n 1 test -b && ls $replay_device_list")" ||\
+	    tmp_list="$(remote "$host" "ls $replay_device_list | xargs -n 1 test -e && ls $replay_device_list")" ||\
 		{ echo "non-existing devices on $host: $replay_device_list"; exit -1; }
 	    replay_device_list="$tmp_list"
 	    for device in $replay_device_list; do
